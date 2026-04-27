@@ -4,8 +4,11 @@
 # Allow the directories we care about
 !.gitignore
 !AGENTS.md
+!CLAUDE.md
 !CONTEXT.md
 !DOCS_INDEX.md
+!README.md
+!TODO.md
 !docs/
 !docs/**
 

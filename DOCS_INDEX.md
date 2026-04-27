@@ -9,8 +9,14 @@ Group entries by section. Keep alphabetical within sections.
 
 ## Project context
 
-- [Project Context](CONTEXT.md) — full handoff brief; required reading for any AI continuing the brainstorm [updated 2026-04-27]
+- [README](README.md) — human entry point; what Klink is and how to start [updated 2026-04-28]
+- [Claude Code entry point](CLAUDE.md) — read order + operating rules for AI agents on this repo [updated 2026-04-28]
+- [Project Context](CONTEXT.md) — strategic framing + locked architecture decisions (note: §8 and §10 are historical brainstorm state) [updated 2026-04-28]
 - [AI contributor guide](AGENTS.md) — how to edit, create, and commit docs on this project [updated 2026-04-28]
+
+## Operations
+
+- [Team task board](TODO.md) — async, file-based task board for the 4-person team; claim/lock/dependency rules and seed task list [updated 2026-04-28]
 
 ## Architecture & Design
 
@@ -22,7 +28,8 @@ _(none yet — design doc in progress in current brainstorm session)_
 
 ## Runbooks
 
-_(none yet)_
+- [Dev environment](docs/runbooks/dev-environment.md) — pinned versions + per-OS install commands + setup attestation table [updated 2026-04-28]
+- [Team collaboration](docs/runbooks/team-collaboration.md) — async claim protocol, per-OS notes, and rules for Claude agents working on the board [updated 2026-04-28]
 
 ## Memos
 

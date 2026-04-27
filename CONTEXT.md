@@ -1,6 +1,14 @@
+---
+title: Project context — Solana agent-wallet with policy DSL
+purpose: Handoff brief — strategic framing, locked architecture decisions, and brainstorm history
+last_updated: 2026-04-28
+---
+
+> **STATUS as of 2026-04-28:** Brainstorming is complete. The design spec at [`docs/specs/2026-04-28-agent-wallet-design.md`](docs/specs/2026-04-28-agent-wallet-design.md) is the current source of truth on architecture. Sections §8 (open questions) and §10 (brainstorming task list) below are **historical** — they reflect mid-process state. Where this document conflicts with the design spec, **trust the spec.** Implementation work is tracked in [`TODO.md`](TODO.md). Per-developer working directories and memory paths in §2 are one author's setup; each dev has their own clone.
+
 # Project Context — Solana Agent-Wallet with Policy DSL
 
-> **Purpose of this document:** This is a handoff brief for any AI assistant continuing work on this project. It captures everything an AI needs to pick up where the conversation left off — the user's situation, the prior research, the strategic framing, the in-flight design decisions, and the open questions. Read this top-to-bottom before responding.
+> **Purpose of this document:** This is a handoff brief for any AI assistant continuing work on this project. It captures the strategic framing, the prior research, and the brainstorm history that led to the current design spec. Read this top-to-bottom for context; trust the design spec on resolved architecture questions.
 
 ---
 
@@ -238,20 +246,20 @@ The relevant Kamino instructions: `depositReserveLiquidity`, `redeemReserveColla
 
 ## 10. Brainstorming process state
 
-We are following the `superpowers:brainstorming` skill (rigid checklist). Tasks created in TaskList:
+> **Historical.** This was the live task list during brainstorming. As of 2026-04-28 the spec is written and committed at `docs/specs/2026-04-28-agent-wallet-design.md`; implementation work is tracked in [`TODO.md`](TODO.md).
 
 | # | Task | Status |
 |---|---|---|
 | 1 | Explore project context | ✅ completed |
-| 2 | Ask clarifying questions one at a time | 🟡 in_progress (at Q5) |
-| 3 | Propose 2-3 approaches with trade-offs | pending |
-| 4 | Present design sections for approval | pending |
-| 5 | Write design doc to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` | pending |
-| 6 | Spec self-review | pending |
-| 7 | User reviews written spec | pending |
-| 8 | Invoke writing-plans skill | pending |
+| 2 | Ask clarifying questions one at a time | ✅ completed |
+| 3 | Propose 2-3 approaches with trade-offs | ✅ completed |
+| 4 | Present design sections for approval | ✅ completed |
+| 5 | Write design doc (final path: `docs/specs/2026-04-28-agent-wallet-design.md`) | ✅ completed |
+| 6 | Spec self-review | ✅ completed |
+| 7 | User reviews written spec | ✅ completed (implied by spec being committed to `main`) |
+| 8 | Invoke writing-plans skill | superseded — implementation plan lives in [`TODO.md`](TODO.md) as ~50 atomic tasks rather than a separate plan doc |
 
-**Hard gate (do not violate):** No code, no scaffolding, no implementation skill until tasks 1–7 complete and the user approves the written spec. Brainstorming → spec → user approval → then `superpowers:writing-plans`.
+**Current gate:** No new code outside the scope of a claimed `T-XXX` task. Architectural changes require updating `docs/specs/2026-04-28-agent-wallet-design.md` *and* the affected `TODO.md` task entries in the same PR.
 
 ---
 
