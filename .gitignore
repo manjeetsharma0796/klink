@@ -1,0 +1,32 @@
+# Ignore everything by default
+*
+
+# Allow the directories we care about
+!.gitignore
+!AGENTS.md
+!CONTEXT.md
+!DOCS_INDEX.md
+!docs/
+!docs/**
+
+# Future code dirs (uncomment when added)
+# !src/
+# !src/**
+# !package.json
+# !tsconfig.json
+# !programs/
+# !programs/**
+# !Anchor.toml
+# !Cargo.toml
+
+# Always-ignore patterns (defense in depth)
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+target/
+dist/
+build/
+.anchor/
+test-ledger/
