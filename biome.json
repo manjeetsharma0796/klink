@@ -3,7 +3,16 @@
   "files": {
     "ignoreUnknown": true,
     "include": ["apps/**/*.ts", "apps/**/*.tsx", "apps/**/*.js", "apps/**/*.json", "*.json"],
-    "ignore": ["**/node_modules", "**/dist", "**/build", "bun.lock", "**/.bun"]
+    "ignore": [
+      "**/node_modules",
+      "**/dist",
+      "**/build",
+      "**/.next",
+      "**/next-env.d.ts",
+      "apps/web/tsconfig.json",
+      "bun.lock",
+      "**/.bun"
+    ]
   },
   "formatter": {
     "enabled": true,

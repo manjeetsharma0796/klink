@@ -309,13 +309,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 3 — Dashboard + SDK
 
-### T-301 — Next.js dashboard scaffold
-- Status: pending
-- Depends-on: —
-- OS: any
-- Scope: scaffold
-- Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired.
-
 ### T-302 — Phantom SIWS sign-in
 - Status: pending
 - Depends-on: T-203, T-301
@@ -451,6 +444,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-301 — Next.js dashboard scaffold
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: scaffold
+- Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired. App boots on `:3030` (`bun --filter @klink/web dev`); placeholder home page renders `WalletMultiButton` from `@solana/wallet-adapter-react-ui`. Phantom-only adapter via `@solana/wallet-adapter-phantom` to avoid the WalletConnect/pino-pretty transitive tail. Real flows land in T-302+.
 
 ### T-406 — Secrets-management posture (env-vars MVP)
 - Status: done @Jishnu 2026-04-28
