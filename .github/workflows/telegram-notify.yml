@@ -2,7 +2,7 @@ name: Telegram notify
 
 on:
   pull_request:
-    types: [opened, closed]
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   push:
     branches: [main]
 
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: PR opened
-        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'reopened')
         env:
           BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -27,6 +27,35 @@ jobs:
             *)          TAG="[PR]" ;;
           esac
           TEXT=$(printf '%s opened: `%s`\n%s' "${TAG} *${USER}*" "$TITLE" "$URL")
+          curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "text=${TEXT}"
+
+      - name: Fetch PR mergeable state
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        id: pr_mergeable
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            core.setOutput('mergeable_state', pr.mergeable_state || 'unknown');
+
+      - name: PR conflicts
+        if: github.event_name == 'pull_request' && github.event.action != 'closed' && steps.pr_mergeable.outputs.mergeable_state == 'dirty'
+        env:
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TITLE: ${{ github.event.pull_request.title }}
+          USER: ${{ github.event.pull_request.user.login }}
+          URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          TEXT=$(printf '[CONFLICT] *%s* needs human intervention: `%s`\n%s' "$USER" "$TITLE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "parse_mode=Markdown" \

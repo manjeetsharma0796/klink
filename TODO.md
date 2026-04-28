@@ -396,6 +396,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-410 — Auto-merge claim PRs + conflict alerts
+- Status: done @copilot 2026-04-28
+- Depends-on: T-404
+- OS: any
+- Scope: infra
+- Acceptance: auto-merge workflow enables auto-merge for claim/unclaim/override PRs once checks pass; Telegram notify posts `[CONFLICT]` when a PR is mergeable_state `dirty`.
+
 ### T-409 — Auto-resolve TODO.md merge conflicts
 - Status: done @Manjeet 2026-04-28
 - Depends-on: —
