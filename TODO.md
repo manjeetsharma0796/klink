@@ -87,14 +87,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: per-dev (each person does their own; this task is N parallel claims)
 - Scope: setup
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
-- Notes: pin Solana `1.18.x` and Anchor `0.30.x`. Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
-
-### T-102 — Initialize Anchor workspace
-- Status: in-progress @Pritwish 2026-04-28
-- Depends-on: T-101
-- OS: any
-- Scope: scaffold
-- Acceptance: `programs/agent_wallet/` exists with stub `lib.rs`; `anchor build` succeeds locally; CI green via T-405.
+- Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
 ### T-103 — `Vault` account + `init_vault` instruction
 - Status: pending
@@ -381,6 +374,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-102 — Initialize Anchor workspace
+- Status: done @Pritwish 2026-04-28
+- Depends-on: T-101
+- OS: any
+- Scope: scaffold
+- Acceptance: `programs/agent_wallet/` exists with stub `lib.rs` (`initialize` no-op + `Initialize` empty `#[derive(Accounts)]`); `anchor build` succeeds locally; CI green via T-405. Implementation: scaffold produced via `anchor init agent_wallet --no-git --test-template rust`, pruned to repo conventions (Bun is the only JS/TS runner — dropped the scaffold `package.json` / `tsconfig.json` / `yarn.lock`; kept `migrations/deploy.ts` as the placeholder Anchor expects, and the Rust `tests/` workspace member). Anchor 0.30 was abandoned: it doesn't compile against modern stable Rust because `anchor-syn` 0.30 calls `proc_macro2::Span::source_file()`, which proc-macro2 ≥ 1.0.80 dropped. Pivoted the project pin to **Anchor 1.0** + Solana 3.1.13 + Rust 1.93 stable; build is clean. `target/deploy/agent_wallet-keypair.json` is committed (gitignore exception) so the dev/devnet program ID stays stable across the team — T-114 swaps it for a Squads multisig before mainnet. Pin updates rolled into `docs/runbooks/dev-environment.md` (§1, §2, §3, §4 attestation, §5 gotcha), `docs/runbooks/team-collaboration.md` §4, `docs/architecture/overview.md`, and the T-101 task notes.
 
 ### T-302 — Phantom SIWS sign-in
 - Status: done @Pritwish 2026-04-28

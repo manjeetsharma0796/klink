@@ -16,6 +16,7 @@
       "**/build",
       "**/.next",
       "**/next-env.d.ts",
+      "**/target",
       "apps/web/tsconfig.json",
       "apps/*/drizzle/**",
       "bun.lock",

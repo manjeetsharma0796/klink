@@ -22,17 +22,29 @@
 !programs/**
 !scripts/
 !scripts/**
+!tests/
+!tests/**
+!migrations/
+!migrations/**
+
+# target/ is otherwise build output (always-ignored at the bottom), but we
+# punch a hole for the Anchor program keypair so the dev program ID stays
+# stable across the team. T-114 swaps this for a Squads multisig.
+!target/
+!target/deploy/
+!target/deploy/agent_wallet-keypair.json
 
 # Root config files (committed)
 !package.json
 !bunfig.toml
 !bun.lock
 !biome.json
+!Anchor.toml
+!Cargo.toml
+!Cargo.lock
 
 # Future config files (uncomment when added by scaffold tasks)
 # !tsconfig.json
-# !Anchor.toml
-# !Cargo.toml
 
 # Always-ignore patterns (defense in depth)
 node_modules/
@@ -41,7 +53,6 @@ node_modules/
 !**/.env.example
 *.log
 .DS_Store
-target/
 dist/
 build/
 .anchor/
@@ -49,3 +60,11 @@ test-ledger/
 *.tsbuildinfo
 .next/
 next-env.d.ts
+
+# Anchor build dir — ignore everything except the program keypair, which we
+# commit to keep the dev/devnet program ID stable across the team. T-114
+# replaces this keypair with a Squads multisig before mainnet.
+target/*
+!target/deploy/
+target/deploy/*
+!target/deploy/agent_wallet-keypair.json
