@@ -396,6 +396,20 @@ _(newest first)_
 - Scope: scaffold
 - Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired. App boots on `:3030` (`bun --filter @klink/web dev`); placeholder home page renders `WalletMultiButton` from `@solana/wallet-adapter-react-ui`. Phantom-only adapter via `@solana/wallet-adapter-phantom` to avoid the WalletConnect/pino-pretty transitive tail. Real flows land in T-302+.
 
+### T-409 — Auto-resolve TODO.md merge conflicts
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: `.gitattributes` declares `TODO.md merge=union` so concurrent edits to different sections auto-concatenate instead of producing conflict markers. `scripts/lint-todo.ts` (Bun) asserts (1) no duplicate `### T-XXX` headings and (2) every task block has exactly one `- Status:` line; runs in CI right after `bun install`. The CI failure on a same-task race becomes the new lock arbiter (replacing git-refuses). `docs/runbooks/team-collaboration.md` §2.3 documents the new merge mechanics. Smoke-tested: lint passes on current main (56 tasks); negative case (duplicate id + duplicate Status line) exits 1 with both errors enumerated.
+
+### T-408 — Telegram leaderboard (per-push + daily cron)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-407
+- OS: any
+- Scope: infra
+- Acceptance: `scripts/leaderboard.ts` reads `git log` (commits/author, --since 24h, --no-merges) and `TODO.md` Done entries dated today/yesterday (UTC), normalizes author names by leading-letter run (so `@Jishnu`, `Jishnu Baruah`, `jishnu-baruah` collapse into one row), prints `[BOARD] <title>` ... `Keep working team`. `.github/workflows/telegram-notify.yml` gains a `leaderboard` job that runs on every push to main. `.github/workflows/leaderboard-daily.yml` is a cron at 03:30 UTC = 09:00 IST. Smoke-tested locally: 24 commits + 13 tasks done for @Jishnu, 2 commits for @Manjeet.
+
 ### T-505 — Pricing model decision memo
 - Status: done @Jishnu 2026-04-28
 - Depends-on: —

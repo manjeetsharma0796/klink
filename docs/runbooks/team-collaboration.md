@@ -57,6 +57,16 @@ You do **not** have to wait for the 5-day stale rule. That rule guarantees nothi
 
 Every status change — claim, self-unclaim, override, done — goes through the visible TODO.md edit + commit + push. No "I claimed it in Telegram" or "we agreed in DMs." The file is the protocol; the protocol is the file. Silent claims defeat the whole point.
 
+### 2.3 TODO.md merge mechanics (T-409)
+
+`TODO.md` is the single hottest file in the repo — every claim, every done flip, every new task touches it. To keep merges painless we declare it `merge=union` in `.gitattributes`. Three things follow:
+
+1. **Concurrent edits to different sections auto-resolve.** Two devs adding tasks, claiming different tasks, or moving different blocks to Done at the same time will never see a conflict marker. Git concatenates both hunks. This is the common case.
+2. **Same-line edits (the lock-arbitration case) silently concatenate.** If two devs claim the same task at the same time, Phase 1 of §2 used to rely on git refusing the second merge. With `merge=union`, the second merge "succeeds" but produces a duplicate `- Status:` line on that task. CI's `bun scripts/lint-todo.ts` step (added in T-409) catches that and goes red on the second-mover's PR. **CI red is now the lock**, not git-refuses. Honor it: rebase, see the duplicate, pick a different task.
+3. **Do not bypass the lint.** If a PR's CI shows `TODO.md lint failed`, never merge anyway. The fix is `git rebase origin/main`, manually delete the duplicate line, push.
+
+If branch protection on `main` ever requires CI green to merge (highly recommended once the team grows), the lint promotion to "lock" becomes hard rather than soft. Until then, the [DONE] Telegram notification serves as a noticeable signal — a CI-red PR landing on main will be obvious to everyone.
+
 ## 3. Dependency check (the rule that prevents redundancy)
 
 Before claiming, confirm every ID in `Depends-on:` shows `Status: done` either inline or in the **Done** section. If even one is not done, **don't claim**:
