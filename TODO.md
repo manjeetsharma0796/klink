@@ -47,7 +47,7 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 |---|---|---|---|
 | `@Jishnu` | Windows | Server side/integration/maintainance/system/debugging | IST |
 | `@Manjeet` | Windows | Server side/integration/maintainance/system/debugging | IST |
-| `@Pritwish` | macOS | TBD | IST |
+| `@Pritwish` | Linux | TBD | IST |
 | `@Mouli` | TBD | TBD | IST |
 
 > **Action:** Each person fills in their row before claiming a first task.
@@ -275,7 +275,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 3 — Dashboard + SDK
 
 ### T-302 — Phantom SIWS sign-in
-- Status: pending
+- Status: in-progress @Pritwish 2026-04-28
 - Depends-on: T-203, T-301
 - OS: any
 - Scope: web
