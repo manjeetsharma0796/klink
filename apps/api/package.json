@@ -8,13 +8,18 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "db:migrate": "drizzle-kit migrate",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:seed": "bun src/db/seed.ts"
   },
   "dependencies": {
+    "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.36.4",
     "express": "^4.21.2",
-    "postgres": "^3.4.5"
+    "ioredis": "^5.10.1",
+    "jose": "^6.2.3",
+    "postgres": "^3.4.5",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

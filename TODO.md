@@ -193,27 +193,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-202 — Postgres schema migrations
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201
-- OS: any
-- Scope: db
-- Acceptance: every table in spec §3.3 created via Drizzle migration; `bun run db:migrate` is idempotent.
-
-### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
-- Status: pending
-- Depends-on: T-201, T-202
-- OS: any
-- Scope: api
-- Acceptance: nonce single-use 60s in Redis; signature verified via tweetnacl; JWT issued (24h, jose); replay-attack test green.
-
-### T-204 — API-key middleware + bcrypt/argon2 hashing
-- Status: pending
-- Depends-on: T-202
-- OS: any
-- Scope: api
-- Acceptance: bearer token → hashed lookup → `req.session`, `req.wallet`. Constant-time compare. Tests for invalid/revoked keys.
-
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: pending
 - Depends-on: T-103, T-203
@@ -234,13 +213,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: builds revoke_session / update_session_allowlist tx for owner.
-
-### T-209 — Off-chain policy enforcer (URL + time-of-day)
-- Status: pending
-- Depends-on: T-202, T-204
-- OS: any
-- Scope: api
-- Acceptance: matches §3.5; path-segment-only wildcards; deny is audited; unit-tested with timezone edge cases.
 
 ### T-210 — `POST /v1/spend/transfer`
 - Status: pending
@@ -297,13 +269,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: returns vault USDC ATA + QR data-url.
-
-### T-220 — Service catalog seed
-- Status: pending
-- Depends-on: T-202
-- OS: any
-- Scope: data
-- Acceptance: anthropic / openai / exa / firecrawl entries with mpp.dev `base_url` and recipient pubkey loaded via migration.
 
 ---
 
@@ -371,20 +336,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 4 — Infrastructure / DevOps
 
-### T-401 — Choose RPC provider
-- Status: pending
-- Depends-on: —
-- OS: any
-- Scope: infra
-- Acceptance: short memo comparing Helius / QuickNode / Triton on price + region + features; team picks one; devnet credentials in shared vault.
-
-### T-402 — Postgres + Redis dev hosting
-- Status: pending
-- Depends-on: T-201
-- OS: any
-- Scope: infra
-- Acceptance: shared dev DB (Neon / Supabase / Railway) accessible to all four devs; Upstash Redis for nonces.
-
 ### T-403 — Backend deploy target
 - Status: pending
 - Depends-on: T-201
@@ -432,13 +383,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
-### T-505 — Pricing model decision memo
-- Status: pending
-- Depends-on: —
-- OS: any
-- Scope: design
-- Acceptance: memo `docs/memos/2026-XX-XX-pricing.md`; flat fee vs % of policy-gated volume vs free-then-enterprise compared.
-
 ---
 
 ## Done
@@ -451,6 +395,62 @@ _(newest first)_
 - OS: any
 - Scope: scaffold
 - Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired. App boots on `:3030` (`bun --filter @klink/web dev`); placeholder home page renders `WalletMultiButton` from `@solana/wallet-adapter-react-ui`. Phantom-only adapter via `@solana/wallet-adapter-phantom` to avoid the WalletConnect/pino-pretty transitive tail. Real flows land in T-302+.
+
+### T-505 — Pricing model decision memo
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: design
+- Acceptance: memo at [`docs/memos/2026-04-28-pricing-model.md`](docs/memos/2026-04-28-pricing-model.md). Compares flat fee / % volume / free+enterprise; recommends staged free→enterprise rollout (free during 60-day MVP, enterprise tier post-hackathon).
+
+### T-402 — Postgres + Redis dev hosting
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any
+- Scope: infra
+- Acceptance: **Neon Postgres** (region `ap-southeast-1`) wired during T-202; **Upstash Redis** (TLS) wired during T-203. Connection strings live in `apps/api/.env`. Shared between devs via `.env` file passing per @Jishnu's call (KMS migration deferred to v2 per [`secrets.md`](docs/runbooks/secrets.md) §7).
+
+### T-401 — Choose RPC provider
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: memo at [`docs/memos/2026-04-28-rpc-provider.md`](docs/memos/2026-04-28-rpc-provider.md). Compares Helius / QuickNode / Triton; recommends **Helius** for dev/staging (free tier covers MVP, Solana-focused, IST-friendly edge). Live credential will be added to shared `.env` as `SOLANA_RPC_URL` before T-205 needs it.
+
+### T-220 — Service catalog seed
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202
+- OS: any
+- Scope: data
+- Acceptance: 4 rows (anthropic-claude / openai-chatgpt / exa-search / firecrawl) seeded via `bun run db:seed` (idempotent through `onConflictDoNothing` on `slug`). All rows enabled=false with placeholder `paymentRecipientPubkey` (system program 32×`1`); T-211 must replace pubkeys with real mpp.dev recipients before flipping `enabled=true`.
+
+### T-209 — Off-chain policy enforcer (URL + time-of-day)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202, T-204
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/policy/off-chain.ts` exports `checkOffChainPolicy({ walletId, url, nowMs? })` returning `{allowed:true} | {allowed:false, reason}`. `matchUrl` enforces path-segment-only wildcards (no host wildcards). `withinTimeWindow` uses Intl.DateTimeFormat for proper timezone handling. 14 unit tests cover URL match cases + timezone edge cases (IST shift) + DOW bitmask + curated-service short-circuit.
+
+### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201, T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/auth/siws.ts` issues nonce via Redis `setex` (60s TTL), atomically consumes via `getdel` (single-use), verifies Ed25519 signature with `tweetnacl.sign.detached.verify`, mints HS256 JWT (24h) via `jose.SignJWT`. Replay attack test green: same payload twice → second call returns 401 "nonce unknown or already used". Wired into `apps/api/src/app.ts`. 11 tests.
+
+### T-204 — API-key middleware + bcrypt/argon2 hashing
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/auth/api-key.ts` exposes `requireApiKey` Express middleware + `generateApiKey` + `hashApiKey`. Tokens are `klink_dev_<base64url-32B>`; first 8 chars of body are `key_prefix` for the index lookup; full token verified against argon2id hash via `Bun.password.verify` (constant-time). Augments `Express.Request` with `session` + `wallet`. 12 tests at `apps/api/tests/auth/api-key.test.ts` cover: missing/non-Bearer/wrong-prefix/short-body inputs, prefix-not-found, api-key revoked, session revoked, hash mismatch, success path populates req.session+req.wallet, updateLastUsed fires async.
+
+### T-202 — Postgres schema migrations
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any
+- Scope: db
+- Acceptance: 9 tables (users, wallets, sessions, api_keys, off_chain_policies, service_catalog, audit_log, dodo_payments, treasury_disbursements) + 2 enums (audit_decision, dodo_payment_status) created via Drizzle migration in `apps/api/drizzle/0000_*.sql`. `bun run db:migrate` applied successfully against Neon dev DB; re-run is idempotent (drizzle's `__drizzle_migrations` table tracks state).
 
 ### T-406 — Secrets-management posture (env-vars MVP)
 - Status: done @Jishnu 2026-04-28

@@ -10,6 +10,7 @@
       "**/.next",
       "**/next-env.d.ts",
       "apps/web/tsconfig.json",
+      "apps/*/drizzle/**",
       "bun.lock",
       "**/.bun"
     ]
