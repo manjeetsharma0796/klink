@@ -2,7 +2,14 @@
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "files": {
     "ignoreUnknown": true,
-    "include": ["apps/**/*.ts", "apps/**/*.tsx", "apps/**/*.js", "apps/**/*.json", "*.json"],
+    "include": [
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "apps/**/*.js",
+      "apps/**/*.json",
+      "scripts/**/*.ts",
+      "*.json"
+    ],
     "ignore": ["**/node_modules", "**/dist", "**/build", "bun.lock", "**/.bun", "apps/*/drizzle/**"]
   },
   "formatter": {

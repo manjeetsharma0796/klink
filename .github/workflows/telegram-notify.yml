@@ -73,3 +73,29 @@ jobs:
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "parse_mode=Markdown" \
             --data-urlencode "text=${TEXT}"
+
+  # Session leaderboard — fires after every push to main (direct or PR-merged).
+  # Posts a "Today's tally" Telegram message so the team sees their running
+  # count of commits + tasks done in the last 24h.
+  leaderboard:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Post session leaderboard
+        env:
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          TEXT=$(bun scripts/leaderboard.ts "24 hours ago" "Session leaderboard")
+          curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "text=${TEXT}"
