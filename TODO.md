@@ -89,13 +89,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-103 — `Vault` account + `init_vault` instruction
-- Status: in-progress @Pritwish 2026-04-28
-- Depends-on: T-102
-- OS: any
-- Scope: anchor-program
-- Acceptance: matches design spec §2.2.1 (`owner`, `max_deployed_fraction_bp`, `deployed_amount`, `bump`). PDA seeds `["vault", owner.key()]`. Reverts on duplicate init. Unit-tested in T-110.
-
 ### T-104 — `Session` account + `add_session` instruction
 - Status: pending
 - Depends-on: T-103
@@ -368,6 +361,12 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-103 — `Vault` account + `init_vault` instruction
+- Status: done @Pritwish 2026-04-28
+- Depends-on: T-102
+- OS: any
+- Scope: anchor-program
+- Acceptance: matches design spec §2.2.1 (`owner`, `max_deployed_fraction_bp`, `deployed_amount`, `bump`); PDA seeds `["vault", owner.key()]`; reverts on duplicate init via Anchor's `init` constraint (account-already-exists). Unit-tested in T-110. Implementation split the program into modules — `state.rs` (Vault account + `MAX_BP` const), `errors.rs` (`AgentWalletError::FractionOutOfRange`), `instructions/init_vault.rs` (context + handler), `instructions/mod.rs` re-exports — so T-104+ can land each instruction as a separate file. `init_vault` takes a separate `payer` and `owner` signer (sponsored model: backend pays rent, owner signs to consent to a vault under their pubkey); enforces `max_deployed_fraction_bp ≤ 10_000`. The stub `initialize` from `anchor init` is gone; `tests/src/test_initialize.rs` removed (T-110 replaces with the §6.1.1 revert suite). `anchor build` green; IDL at `target/idl/agent_wallet.json` shows `init_vault` instruction + `Vault` account exactly as specced.
 ### T-405 — CI: anchor build + test
 - Status: done @Manjeet 2026-04-29
 - Depends-on: T-102
