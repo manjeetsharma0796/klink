@@ -193,19 +193,19 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-201 — Scaffold Express + TS + Drizzle
+### T-201 — Scaffold Express + TS + Drizzle (Bun)
 - Status: pending
 - Depends-on: —
 - OS: any
 - Scope: scaffold
-- Acceptance: `apps/api/` with TS strict, Express, Drizzle, dotenv, vitest. `pnpm dev` boots `:3000/health` returns 200.
+- Acceptance: `apps/api/` with TS strict, Express, Drizzle, dotenv, `bun test` configured. `bun run dev` boots `:3000/health` returns 200. Bun workspace at repo root (`bunfig.toml` + `package.json` workspaces field).
 
 ### T-202 — Postgres schema migrations
 - Status: pending
 - Depends-on: T-201
 - OS: any
 - Scope: db
-- Acceptance: every table in spec §3.3 created via Drizzle migration; `pnpm db:migrate` is idempotent.
+- Acceptance: every table in spec §3.3 created via Drizzle migration; `bun run db:migrate` is idempotent.
 
 ### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
 - Status: pending
@@ -380,7 +380,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Depends-on: T-210, T-211, T-212, T-213
 - OS: any
 - Scope: sdk
-- Acceptance: typed client for all `/v1/spend/*` and `/v1/yield/*` endpoints; published to local pnpm workspace.
+- Acceptance: typed client for all `/v1/spend/*` and `/v1/yield/*` endpoints; published to local Bun workspace.
 
 ### T-310 — SDK quickstart README
 - Status: pending

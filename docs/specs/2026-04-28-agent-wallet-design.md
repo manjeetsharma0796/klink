@@ -225,7 +225,7 @@ All sponsorable by backend at creation time.
 
 ### 3.1 Stack
 
-- Runtime: Node.js + TypeScript
+- Runtime + package manager + test runner: **Bun** (mandated for all JS/TS work — replaces Node + pnpm + vitest in one binary; backend code is standard TypeScript and would still run on Node)
 - HTTP framework: Express
 - Database: Postgres + Drizzle ORM
 - Cache / rate limit: Redis
