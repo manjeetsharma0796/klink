@@ -375,6 +375,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-411 — Telegram-notify workflow `permissions:` block
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any (CI runs on Linux)
+- Scope: infra
+- Acceptance: `.github/workflows/telegram-notify.yml` declares `permissions: contents: read, pull-requests: read` at the workflow level so `actions/github-script@v7` no longer 403s on `pulls.get()`. Repro: run history on PR #26 shows the `notify` job failing every push with `Resource not accessible by integration` and `x-accepted-github-permissions: pull_requests=read; contents=read` — exactly the perms now granted. Read-only is sufficient (workflow only reads `mergeable_state` and posts to Telegram; it never writes back to GitHub).
+- Notes: Repo's default token permissions are restricted (a sensible default GitHub now applies to new repos); this workflow needs to opt in. Doesn't affect T-407, which tracks live bot wiring + secret setup.
+
 ### T-102 — Initialize Anchor workspace
 - Status: done @Pritwish 2026-04-28
 - Depends-on: T-101
