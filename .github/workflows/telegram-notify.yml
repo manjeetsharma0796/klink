@@ -6,6 +6,13 @@ on:
   push:
     branches: [main]
 
+# Repo default GITHUB_TOKEN permissions are restricted, so actions/github-script
+# below 403s on `pulls.get()` without an explicit grant. Read-only is enough —
+# the workflow only reads the PR's mergeable_state and posts to Telegram.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   notify:
     runs-on: ubuntu-latest

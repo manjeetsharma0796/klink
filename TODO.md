@@ -374,6 +374,13 @@ _(newest first)_
 - OS: any
 - Scope: anchor-program
 - Acceptance: matches design spec §2.2.1 (`owner`, `max_deployed_fraction_bp`, `deployed_amount`, `bump`); PDA seeds `["vault", owner.key()]`; reverts on duplicate init via Anchor's `init` constraint (account-already-exists). Unit-tested in T-110. Implementation split the program into modules — `state.rs` (Vault account + `MAX_BP` const), `errors.rs` (`AgentWalletError::FractionOutOfRange`), `instructions/init_vault.rs` (context + handler), `instructions/mod.rs` re-exports — so T-104+ can land each instruction as a separate file. `init_vault` takes a separate `payer` and `owner` signer (sponsored model: backend pays rent, owner signs to consent to a vault under their pubkey); enforces `max_deployed_fraction_bp ≤ 10_000`. The stub `initialize` from `anchor init` is gone; `tests/src/test_initialize.rs` removed (T-110 replaces with the §6.1.1 revert suite). `anchor build` green; IDL at `target/idl/agent_wallet.json` shows `init_vault` instruction + `Vault` account exactly as specced.
+### T-411 — Telegram-notify workflow `permissions:` block
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any (CI runs on Linux)
+- Scope: infra
+- Acceptance: `.github/workflows/telegram-notify.yml` declares `permissions: contents: read, pull-requests: read` at the workflow level so `actions/github-script@v7` no longer 403s on `pulls.get()`. Repro: run history on PR #26 shows the `notify` job failing every push with `Resource not accessible by integration` and `x-accepted-github-permissions: pull_requests=read; contents=read` — exactly the perms now granted. Read-only is sufficient (workflow only reads `mergeable_state` and posts to Telegram; it never writes back to GitHub).
+- Notes: Repo's default token permissions are restricted (a sensible default GitHub now applies to new repos); this workflow needs to opt in. Doesn't affect T-407, which tracks live bot wiring + secret setup.
 ### T-506 — Public GitBook v1
 - Status: done @Manjeet 2026-04-28
 - Depends-on: T-502
