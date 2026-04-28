@@ -344,14 +344,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 4 — Infrastructure / DevOps
 
 ### T-401 — Choose RPC provider
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: —
 - OS: any
 - Scope: infra
 - Acceptance: short memo comparing Helius / QuickNode / Triton on price + region + features; team picks one; devnet credentials in shared vault.
 
 ### T-402 — Postgres + Redis dev hosting
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-201
 - OS: any
 - Scope: infra
@@ -405,7 +405,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
 ### T-505 — Pricing model decision memo
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: —
 - OS: any
 - Scope: design
