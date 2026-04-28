@@ -18,6 +18,6 @@ describe("GET /health", () => {
     const res = await fetch(`http://localhost:${PORT}/health`);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).totoEqual({ ok: true });
+    expect(body).toEqual({ ok: true });
   });
 });
