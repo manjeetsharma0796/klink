@@ -330,7 +330,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
 ### T-405 — CI: anchor build + test
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-102
 - OS: any
 - Scope: ci
