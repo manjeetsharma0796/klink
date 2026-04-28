@@ -90,7 +90,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: pin Solana `1.18.x` and Anchor `0.30.x`. Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
 ### T-102 — Initialize Anchor workspace
-- Status: pending
+- Status: in-progress @Pritwish 2026-04-28
 - Depends-on: T-101
 - OS: any
 - Scope: scaffold
