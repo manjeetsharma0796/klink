@@ -274,13 +274,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 3 — Dashboard + SDK
 
-### T-302 — Phantom SIWS sign-in
-- Status: in-progress @Pritwish 2026-04-28
-- Depends-on: T-203, T-301
-- OS: any
-- Scope: web
-- Acceptance: connect → sign nonce → JWT in httpOnly cookie → redirect to dashboard.
-
 ### T-303 — Wallet creation flow
 - Status: pending
 - Depends-on: T-205, T-302
@@ -388,6 +381,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-302 — Phantom SIWS sign-in
+- Status: done @Pritwish 2026-04-28
+- Depends-on: T-203, T-301
+- OS: any
+- Scope: web
+- Acceptance: connect → sign nonce → JWT in httpOnly cookie → redirect to dashboard. Implemented at `apps/web/`: `app/sign-in.tsx` orchestrates `useWallet().signMessage` against the SIWS message format mirrored at `lib/siws-message.ts`. Server-only proxy routes at `app/api/auth/siws/{nonce,}/route.ts` forward to backend `/v1/auth/siws/*`; the verify route strips the JWT from the JSON body and sets it as `klink_session` (httpOnly, sameSite=lax, secure in prod, 24h max-age) via `NextResponse.cookies.set`. `app/page.tsx` redirects to `/dashboard` when the cookie verifies; `/dashboard/page.tsx` is server-gated through `lib/jwt.ts → verifyKlinkJwt` and shows the signed-in pubkey + sign-out (clears cookie + `disconnect()`). Web `JWT_SECRET` must match `apps/api`. 14 tests at `apps/web/tests/{siws-proxy,jwt}.test.ts` cover proxy choreography (nonce forwarding, JWT stripping, 401 passthrough, malformed-body fallthrough) and JWT verify (good token, wrong-secret, missing claims, expiry, garbage). `bun --filter @klink/web build` clean.
 
 ### T-410 — Auto-merge claim PRs + conflict alerts
 - Status: done @copilot 2026-04-28

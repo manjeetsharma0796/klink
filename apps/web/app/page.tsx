@@ -1,14 +1,24 @@
-import { ConnectButton } from "./connect-button";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { COOKIE_NAME } from "../lib/auth-config";
+import { verifyKlinkJwt } from "../lib/jwt";
+import { SignIn } from "./sign-in";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const token = cookies().get(COOKIE_NAME)?.value;
+  if (token && (await verifyKlinkJwt(token))) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gray-50 p-8">
       <h1 className="text-3xl font-semibold">Klink</h1>
       <p className="max-w-md text-center text-sm text-gray-600">
-        Agent wallets on Solana. Connect your Phantom wallet to create or manage a vault.
+        Agent wallets on Solana. Connect Phantom to sign in.
       </p>
-      <ConnectButton />
-      <p className="text-xs text-gray-400">Scaffold only — wallet flows land in T-302/T-303.</p>
+      <SignIn />
     </main>
   );
 }
