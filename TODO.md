@@ -274,13 +274,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 3 — Dashboard + SDK
 
-### T-301 — Next.js dashboard scaffold
-- Status: in-progress @Manjeet 2026-04-28
-- Depends-on: —
-- OS: any
-- Scope: scaffold
-- Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired.
-
 ### T-302 — Phantom SIWS sign-in
 - Status: pending
 - Depends-on: T-203, T-301
@@ -402,6 +395,19 @@ _(newest first)_
 - OS: any
 - Scope: infra
 - Acceptance: auto-merge workflow enables auto-merge for claim/unclaim/override PRs once checks pass; Telegram notify posts `[CONFLICT]` when a PR is mergeable_state `dirty`.
+### T-510 — README — Claude Code prompt cookbook + PR-review walkthrough
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: docs
+- Acceptance: `README.md` gains a "Working with Claude Code" section: 9-row prompt cookbook (claim / do / merged / complete-all / unclaim / override / fix-the-conflict / leaderboard / what's-unblocked), 4-step lifecycle, 4-step PR-review checklist, 3 one-shot question patterns, and a "when to bypass Claude" warning list (secrets, force-push, mainnet deploy).
+
+### T-301 — Next.js dashboard scaffold
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: scaffold
+- Acceptance: `apps/web/` with Next 14 app router, Tailwind, Phantom adapter wired. App boots on `:3030` (`bun --filter @klink/web dev`); placeholder home page renders `WalletMultiButton` from `@solana/wallet-adapter-react-ui`. Phantom-only adapter via `@solana/wallet-adapter-phantom` to avoid the WalletConnect/pino-pretty transitive tail. Real flows land in T-302+.
 
 ### T-409 — Auto-resolve TODO.md merge conflicts
 - Status: done @Manjeet 2026-04-28

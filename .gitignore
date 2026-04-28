@@ -48,3 +48,4 @@ build/
 test-ledger/
 *.tsbuildinfo
 .next/
+next-env.d.ts
