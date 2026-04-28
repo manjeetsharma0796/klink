@@ -1,0 +1,103 @@
+name: Anchor CI
+
+on:
+  pull_request:
+    paths:
+      - "programs/**"
+      - "tests/**"
+      - "Anchor.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/anchor-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "programs/**"
+      - "tests/**"
+      - "Anchor.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/anchor-ci.yml"
+
+# Read-only — workflow only checks out and runs tests; no GitHub API writes.
+permissions:
+  contents: read
+
+jobs:
+  anchor-build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Pinned to match docs/runbooks/dev-environment.md §1 and T-102's outcome.
+      SOLANA_VERSION: "3.1.13"
+      ANCHOR_VERSION: "1.0.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      # Anchor + Solana need C build deps.
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libudev-dev curl unzip
+
+      - name: Set up Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      # Caches ~/.cargo/registry, ~/.cargo/git, and target/ keyed by Cargo.lock.
+      - name: Cache cargo + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: anchor-ci
+
+      # Cache the Solana CLI install dir so we only re-download on version bump.
+      - name: Cache Solana CLI
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-${{ runner.os }}-${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      # Cache the avm install + the Anchor 1.0.0 binary it manages.
+      - name: Cache Anchor (avm)
+        id: cache-anchor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.avm
+            ~/.cargo/bin/avm
+          key: anchor-${{ runner.os }}-${{ env.ANCHOR_VERSION }}
+
+      - name: Install avm + Anchor
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Add avm/anchor to PATH (cache-hit case)
+        run: echo "$HOME/.avm/bin" >> $GITHUB_PATH
+
+      - name: Verify versions
+        run: |
+          rustc --version
+          solana --version
+          anchor --version
+
+      - name: anchor build
+        run: anchor build
+
+      # Run the Rust unit tests directly. Anchor.toml's [scripts] test invokes
+      # `cargo test` anyway, but `anchor test` would also try to start
+      # solana-test-validator + deploy the program, neither of which the
+      # current placeholder unit tests need. Once T-110 introduces
+      # validator-dependent integration tests, switch this back to
+      # `anchor test` so the validator dance runs.
+      - name: cargo test (workspace)
+        run: cargo test --workspace

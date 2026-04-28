@@ -5,5 +5,7 @@ description = "Created with Anchor"
 edition = "2021"
 
 [dependencies]
-anchor-client = "1.0.0"
 agent_wallet = { version = "0.1.0", path = "../programs/agent_wallet" }
+# anchor-client will return when T-110 introduces validator-dependent tests.
+# Removed for now — kept the unused dep was costing ~30s of CI compile per run
+# and 1.0.0 no longer re-exports solana_sdk anyway.
