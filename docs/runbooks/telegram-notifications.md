@@ -23,8 +23,24 @@ GitHub Actions workflow at [`.github/workflows/telegram-notify.yml`](../../.gith
 | `T-XXX` PR merged | `[DONE]` |
 | Other PR merged | `[MERGED]` |
 | Direct push to `main` (no PR) | `[PUSH]` |
+| Push to `main` (any cause) | `[BOARD] Session leaderboard` (24h tally) |
+| Daily 03:30 UTC (09:00 IST) cron | `[BOARD] Daily leaderboard` |
 
-Squash-merge commits and merge commits on push are skipped to avoid double-notifying — the PR-merged step has already announced them.
+Squash-merge commits and merge commits on push are skipped from the `[PUSH]` step to avoid double-notifying — the PR-merged step has already announced them. The leaderboard step still fires (it's idempotent and rate-limited by the cadence of pushes).
+
+## 1.1 Leaderboard
+
+`scripts/leaderboard.ts` produces the leaderboard text from two sources:
+
+- **Commits** — `git log --since="24 hours ago" --no-merges --pretty=format:"%an"` grouped per author.
+- **Tasks done** — `TODO.md` Done section, `Status: done @<handle> <YYYY-MM-DD>` entries dated today or yesterday (UTC).
+
+Authors are normalized by leading-letter run, lowercased: `@Jishnu`, `Jishnu Baruah`, and `jishnu-baruah` all collapse into one row. **Devs should set `git config user.name <handle>` to match the @handle in `TODO.md`** for cleanest output (otherwise normalization still works for our 4-person team since each handle has a unique leading-letter prefix).
+
+Wired by `T-408`. Workflow files:
+
+- `.github/workflows/telegram-notify.yml` — `leaderboard` job, runs on every push to main
+- `.github/workflows/leaderboard-daily.yml` — cron at 03:30 UTC = 09:00 IST
 
 ## 2. One-time setup
 

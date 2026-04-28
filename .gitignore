@@ -20,6 +20,8 @@
 !apps/**
 !programs/
 !programs/**
+!scripts/
+!scripts/**
 
 # Root config files (committed)
 !package.json
@@ -44,3 +46,5 @@ dist/
 build/
 .anchor/
 test-ledger/
+*.tsbuildinfo
+.next/

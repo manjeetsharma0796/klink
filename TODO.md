@@ -365,13 +365,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
 - Notes: workflow YAML and runbook are already in the repo — only live bot wiring + secrets remain. This is the "team channel" referenced in `team-collaboration.md` §6 and §8.
 
-### T-408 — Telegram leaderboard (per-push + daily cron)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-407
-- OS: any
-- Scope: infra
-- Acceptance: `scripts/leaderboard.ts` produces a Telegram-ready leaderboard from `git log` (commits per author, last 24h) + `TODO.md` Done section (tasks closed today/yesterday per `@handle`); per-push step in `telegram-notify.yml` posts session leaderboard after every push to `main`; new `leaderboard-daily.yml` cron fires at 03:30 UTC (09:00 IST) for daily summary. Both messages end with "Keep working team".
-
 ---
 
 ## 5 — Docs + design
@@ -402,6 +395,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-408 — Telegram leaderboard (per-push + daily cron)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-407
+- OS: any
+- Scope: infra
+- Acceptance: `scripts/leaderboard.ts` reads `git log` (commits/author, --since 24h, --no-merges) and `TODO.md` Done entries dated today/yesterday (UTC), normalizes author names by leading-letter run (so `@Jishnu`, `Jishnu Baruah`, `jishnu-baruah` collapse into one row), prints `[BOARD] <title>` ... `Keep working team`. `.github/workflows/telegram-notify.yml` gains a `leaderboard` job that runs on every push to main. `.github/workflows/leaderboard-daily.yml` is a cron at 03:30 UTC = 09:00 IST. Smoke-tested locally: 24 commits + 13 tasks done for @Jishnu, 2 commits for @Manjeet.
 
 ### T-505 — Pricing model decision memo
 - Status: done @Jishnu 2026-04-28
