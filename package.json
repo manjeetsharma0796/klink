@@ -1,15 +1,16 @@
 {
   "name": "klink",
   "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
+  "workspaces": ["apps/*"],
   "scripts": {
     "dev": "bun --filter @klink/api dev",
-    "test": "bun --filter @klink/api test",
-    "typecheck": "bun --filter '*' typecheck"
+    "test": "bun --filter '*' test",
+    "typecheck": "bun --filter '*' typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/bun": "latest",
     "typescript": "^5.6.0"
   }
