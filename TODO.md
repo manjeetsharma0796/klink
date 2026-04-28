@@ -194,7 +194,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 (All OS-agnostic. Anyone can pick.)
 
 ### T-202 — Postgres schema migrations
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-201
 - OS: any
 - Scope: db
