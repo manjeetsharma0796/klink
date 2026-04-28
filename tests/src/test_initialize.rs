@@ -1,28 +1,14 @@
-use std::str::FromStr;
-
-use anchor_client::{
-    solana_sdk::{
-        commitment_config::CommitmentConfig, pubkey::Pubkey, signature::read_keypair_file,
-    },
-    Client, Cluster,
-};
+// Placeholder. The real revert suite lands in T-110 (spec §6.1.1) against
+// `solana-program-test` and the full `solana-test-validator` flow. This file
+// exists so `cargo test` has something to compile and run from a green tree
+// while the on-chain instruction set (T-103..T-109) is still being filled in.
+//
+// The original `anchor init --test-template rust` scaffold imported
+// `anchor_client::solana_sdk::*`, but Anchor 1.0 dropped that re-export, and
+// the scaffold expected a running localnet validator + ANCHOR_WALLET env var
+// — neither of which fits CI for pure-Rust unit tests.
 
 #[test]
-fn test_initialize() {
-    let program_id = "CevNQZhcCW2hSUhCUgeCRPn8RyAdKzVvT4b5n3Pjfs2k";
-    let anchor_wallet = std::env::var("ANCHOR_WALLET").unwrap();
-    let payer = read_keypair_file(&anchor_wallet).unwrap();
-
-    let client = Client::new_with_options(Cluster::Localnet, &payer, CommitmentConfig::confirmed());
-    let program_id = Pubkey::from_str(program_id).unwrap();
-    let program = client.program(program_id).unwrap();
-
-    let tx = program
-        .request()
-        .accounts(agent_wallet::accounts::Initialize {})
-        .args(agent_wallet::instruction::Initialize {})
-        .send()
-        .expect("");
-
-    println!("Your transaction signature {}", tx);
+fn placeholder_compiles() {
+    // Intentionally empty.
 }

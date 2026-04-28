@@ -93,8 +93,11 @@ jobs:
       - name: anchor build
         run: anchor build
 
-      # Anchor.toml has [scripts] test = "cargo test" — runs the Rust tests
-      # in the `tests` workspace member without spinning up a validator.
-      # --skip-deploy avoids any devnet RPC calls during CI.
-      - name: anchor test
-        run: anchor test --skip-deploy
+      # Run the Rust unit tests directly. Anchor.toml's [scripts] test invokes
+      # `cargo test` anyway, but `anchor test` would also try to start
+      # solana-test-validator + deploy the program, neither of which the
+      # current placeholder unit tests need. Once T-110 introduces
+      # validator-dependent integration tests, switch this back to
+      # `anchor test` so the validator dance runs.
+      - name: cargo test (workspace)
+        run: cargo test --workspace
