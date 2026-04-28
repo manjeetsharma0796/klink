@@ -382,6 +382,13 @@ _(newest first)_
 - Scope: infra
 - Acceptance: `.github/workflows/telegram-notify.yml` declares `permissions: contents: read, pull-requests: read` at the workflow level so `actions/github-script@v7` no longer 403s on `pulls.get()`. Repro: run history on PR #26 shows the `notify` job failing every push with `Resource not accessible by integration` and `x-accepted-github-permissions: pull_requests=read; contents=read` — exactly the perms now granted. Read-only is sufficient (workflow only reads `mergeable_state` and posts to Telegram; it never writes back to GitHub).
 - Notes: Repo's default token permissions are restricted (a sensible default GitHub now applies to new repos); this workflow needs to opt in. Doesn't affect T-407, which tracks live bot wiring + secret setup.
+### T-506 — Public GitBook v1
+- Status: done @Manjeet 2026-04-28
+- Depends-on: T-502
+- OS: any
+- Scope: docs
+- Acceptance: `gitbook/` populated with `.gitbook.yaml` + `SUMMARY.md` + 22 content pages across `introduction/` (3), `getting-started/` (3), `concepts/` (8), `architecture/` (2), `resources/` (5), plus the root `README.md`. Every page has frontmatter (`title`/`purpose`/`last_updated`). Concept pages cite the design-spec section in their `purpose` for spec-drift auditing. `.gitignore` punched a hole for `gitbook/**` (the repo uses deny-by-default allowlisting). `DOCS_INDEX.md` gains a "Public documentation (GitBook)" section. All 23 markdown files have frontmatter; all intra-gitbook relative links resolve. GitBook.com Git Sync to be configured by user in the GitBook UI against branch `main`, subdirectory `gitbook/`. Section structure modeled loosely on `docs.kimia.live` (intro → getting-started → concepts → architecture → resources); Kimia-specific surfaces (perp DEX, PT/YT, codama) dropped.
+- Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Two intentional `> **TODO**:` markers per AGENTS.md convention: pin canonical devnet USDC mint after T-113, full quickstart walkthrough lands with T-309.
 
 ### T-102 — Initialize Anchor workspace
 - Status: done @Pritwish 2026-04-28
