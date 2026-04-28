@@ -375,6 +375,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-506 — Public GitBook v1
+- Status: done @Manjeet 2026-04-28
+- Depends-on: T-502
+- OS: any
+- Scope: docs
+- Acceptance: `gitbook/` populated with `.gitbook.yaml` + `SUMMARY.md` + 22 content pages across `introduction/` (3), `getting-started/` (3), `concepts/` (8), `architecture/` (2), `resources/` (5), plus the root `README.md`. Every page has frontmatter (`title`/`purpose`/`last_updated`). Concept pages cite the design-spec section in their `purpose` for spec-drift auditing. `.gitignore` punched a hole for `gitbook/**` (the repo uses deny-by-default allowlisting). `DOCS_INDEX.md` gains a "Public documentation (GitBook)" section. All 23 markdown files have frontmatter; all intra-gitbook relative links resolve. GitBook.com Git Sync to be configured by user in the GitBook UI against branch `main`, subdirectory `gitbook/`. Section structure modeled loosely on `docs.kimia.live` (intro → getting-started → concepts → architecture → resources); Kimia-specific surfaces (perp DEX, PT/YT, codama) dropped.
+- Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Two intentional `> **TODO**:` markers per AGENTS.md convention: pin canonical devnet USDC mint after T-113, full quickstart walkthrough lands with T-309.
+
 ### T-102 — Initialize Anchor workspace
 - Status: done @Pritwish 2026-04-28
 - Depends-on: T-101
