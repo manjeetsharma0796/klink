@@ -1,0 +1,21 @@
+[toolchain]
+anchor_version = "1.0.0"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+agent_wallet = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv"
+
+[programs.localnet]
+agent_wallet = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"
+
+[hooks]

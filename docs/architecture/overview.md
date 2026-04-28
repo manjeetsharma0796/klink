@@ -59,7 +59,7 @@ flowchart LR
 
 | Layer | Tech | Responsibility |
 |---|---|---|
-| **On-chain** (Anchor program `agent_wallet`) | Rust, Anchor 0.30, Solana | Custody of USDC. Hard policy floor — reverts spends that violate `max_per_tx`, `daily_cap`, recipient allowlist, expiry, `max_deployed_fraction_bp`. Hardcoded program IDs at every CPI site (SPL Token, Kamino) — adding a new protocol requires a program upgrade gated by the multisig upgrade authority. |
+| **On-chain** (Anchor program `agent_wallet`) | Rust, Anchor 1.0, Solana 3.x | Custody of USDC. Hard policy floor — reverts spends that violate `max_per_tx`, `daily_cap`, recipient allowlist, expiry, `max_deployed_fraction_bp`. Hardcoded program IDs at every CPI site (SPL Token, Kamino) — adding a new protocol requires a program upgrade gated by the multisig upgrade authority. |
 | **Control plane** (backend) | Node 20, TS, Express, Drizzle, Postgres 16, Redis 7 | API surface, off-chain rich rules (URL allowlist, time-of-day), session-keypair signing, Dodo Payments treasury bridge, audit-log enrichment. Stateless — horizontally scalable. |
 | **Actor edge** | Phantom (human), session keypair (backend), bearer API key (agent) | Authentication and tx signing entry points. Owner key never leaves the device. |
 

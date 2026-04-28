@@ -81,7 +81,7 @@ If you find a dependency that *should* exist but isn't tracked yet, add a new ta
 | Concern | Windows | macOS | Linux |
 |---|---|---|---|
 | Solana CLI install | Native via `solana-install` (PowerShell) **or** WSL2 (recommended). Native works for `solana` and `anchor`; `solana-test-validator` is more reliable on WSL2 | `brew install solana` or `solana-install` | `solana-install` script |
-| Anchor install | `cargo install --git https://github.com/coral-xyz/anchor avm --locked --force`, then `avm install 0.30.0 && avm use 0.30.0` | same | same |
+| Anchor install | `cargo install --git https://github.com/coral-xyz/anchor avm --locked --force`, then `avm install 1.0.0 && avm use 1.0.0` | same | same |
 | Rust toolchain | `rustup` | `rustup` | `rustup` |
 | Bun (mandated for all JS/TS) | `irm bun.sh/install.ps1 \| iex` (PowerShell), or install in WSL2 | `brew install oven-sh/bun/bun` | `curl -fsSL https://bun.sh/install \| bash` |
 | Node (optional fallback) | whatever's installed | whatever's installed | whatever's installed |
