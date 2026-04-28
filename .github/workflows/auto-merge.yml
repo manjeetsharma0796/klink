@@ -1,0 +1,40 @@
+name: Auto-merge claims
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+jobs:
+  enable-auto-merge:
+    if: >-
+      github.event.pull_request.draft == false &&
+      (startsWith(github.event.pull_request.title, 'claim:') ||
+      startsWith(github.event.pull_request.title, 'unclaim:') ||
+      startsWith(github.event.pull_request.title, 'override:'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Enable auto-merge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr.head.repo.full_name !== context.repo.owner + '/' + context.repo.repo) {
+              core.info('Skipping auto-merge for forked PR.');
+              return;
+            }
+            try {
+              await github.graphql(
+                `mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: $mergeMethod}) {
+                    pullRequest { number }
+                  }
+                }`,
+                { pullRequestId: pr.node_id, mergeMethod: 'SQUASH' }
+              );
+              core.info(`Enabled auto-merge for PR #${pr.number}.`);
+            } catch (error) {
+              core.warning(`Auto-merge not enabled for PR #${pr.number}: ${error.message}`);
+            }
