@@ -180,7 +180,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 (All OS-agnostic. Anyone can pick.)
 
 ### T-205 — `POST /v1/wallet` build init_vault tx
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-103, T-203
 - OS: any
 - Scope: api
