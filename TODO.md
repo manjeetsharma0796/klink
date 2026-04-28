@@ -200,13 +200,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api
 - Acceptance: nonce single-use 60s in Redis; signature verified via tweetnacl; JWT issued (24h, jose); replay-attack test green.
 
-### T-204 — API-key middleware + bcrypt/argon2 hashing
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-202
-- OS: any
-- Scope: api
-- Acceptance: bearer token → hashed lookup → `req.session`, `req.wallet`. Constant-time compare. Tests for invalid/revoked keys.
-
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: pending
 - Depends-on: T-103, T-203
@@ -444,6 +437,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-204 — API-key middleware + bcrypt/argon2 hashing
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/auth/api-key.ts` exposes `requireApiKey` Express middleware + `generateApiKey` + `hashApiKey`. Tokens are `klink_dev_<base64url-32B>`; first 8 chars of body are `key_prefix` for the index lookup; full token verified against argon2id hash via `Bun.password.verify` (constant-time). Augments `Express.Request` with `session` + `wallet`. 12 tests at `apps/api/tests/auth/api-key.test.ts` cover: missing/non-Bearer/wrong-prefix/short-body inputs, prefix-not-found, api-key revoked, session revoked, hash mismatch, success path populates req.session+req.wallet, updateLastUsed fires async.
 
 ### T-202 — Postgres schema migrations
 - Status: done @Jishnu 2026-04-28
