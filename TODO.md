@@ -236,7 +236,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: builds revoke_session / update_session_allowlist tx for owner.
 
 ### T-208 — Session-secret encryption helper (AES-256-GCM)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-201
 - OS: any
 - Scope: crypto
@@ -407,7 +407,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
 ### T-404 — CI: lint + typecheck + test (Node)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-201
 - OS: any (CI runs on Linux)
 - Scope: ci
@@ -421,7 +421,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `anchor build` + `anchor test` on PR; cached toolchain.
 
 ### T-406 — Secrets-management posture (env-vars MVP)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: —
 - OS: any
 - Scope: docs + infra
