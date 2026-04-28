@@ -431,6 +431,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: docs + infra
 - Acceptance: documented plan in `docs/runbooks/secrets.md`; all dev machines using `.env.local` from the same template.
 
+### T-407 — Wire up Telegram bot + verify notifications
+- Status: pending
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
+- Notes: workflow YAML and runbook are already in the repo — only live bot wiring + secrets remain. This is the "team channel" referenced in `team-collaboration.md` §6 and §8.
+
 ---
 
 ## 5 — Docs + design

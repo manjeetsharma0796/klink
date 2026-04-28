@@ -1,0 +1,71 @@
+name: Telegram notify
+
+on:
+  pull_request:
+    types: [opened, closed]
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR opened
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        env:
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TITLE: ${{ github.event.pull_request.title }}
+          USER: ${{ github.event.pull_request.user.login }}
+          URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          case "$TITLE" in
+            claim:*) TAG="[CLAIM]" ;;
+            T-*)     TAG="[REVIEW]" ;;
+            *)       TAG="[PR]" ;;
+          esac
+          curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "text=${TAG} *${USER}* opened: \`${TITLE}\`
+${URL}"
+
+      - name: PR merged
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        env:
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TITLE: ${{ github.event.pull_request.title }}
+          USER: ${{ github.event.pull_request.user.login }}
+          URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          case "$TITLE" in
+            claim:*) TAG="[LOCK]" ;;
+            T-*)     TAG="[DONE]" ;;
+            *)       TAG="[MERGED]" ;;
+          esac
+          curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "text=${TAG} *${USER}* merged: \`${TITLE}\`
+${URL}"
+
+      - name: Push to main (direct, non-PR commits)
+        if: github.event_name == 'push'
+        env:
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MSG: ${{ github.event.head_commit.message }}
+          USER: ${{ github.event.head_commit.author.name }}
+          URL: ${{ github.event.head_commit.url }}
+        run: |
+          # Skip merge commits and squash-merged PR commits — already covered by the PR-merged step
+          if [[ "$MSG" =~ ^Merge[[:space:]]pull[[:space:]]request ]] || [[ "$MSG" =~ \(#[0-9]+\) ]]; then
+            exit 0
+          fi
+          FIRST_LINE=$(printf '%s\n' "$MSG" | head -n1)
+          curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT}" \
+            --data-urlencode "parse_mode=Markdown" \
+            --data-urlencode "text=[PUSH] *${USER}*: \`${FIRST_LINE}\`
+${URL}"

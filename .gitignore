@@ -11,6 +11,8 @@
 !TODO.md
 !docs/
 !docs/**
+!.github/
+!.github/**
 
 # Future code dirs (uncomment when added)
 # !src/
