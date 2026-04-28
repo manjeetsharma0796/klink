@@ -179,12 +179,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-205 — `POST /v1/wallet` build init_vault tx
-- Status: in-progress @Manjeet 2026-04-29
-- Depends-on: T-103, T-203
-- OS: any
-- Scope: api
-- Acceptance: returns base64 unsigned tx for Phantom to sign + submit; includes vault PDA + USDC ATA creation.
 
 ### T-206 — `POST /v1/session` (build add_session + mint API key)
 - Status: pending
@@ -360,6 +354,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-205 — `POST /v1/wallet` build init_vault tx
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-103, T-203
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` exports `POST /v1/wallet` (wired in `app.ts` behind `requireDashboardJwt`). Body `{ max_deployed_fraction_bp: integer 0..=10000 }` → `{ txBase64, vaultPda, vaultUsdcAta }`. Unsigned tx contains the `init_vault` instruction (manually encoded as the 8-byte Anchor discriminator `4d4f559621d9346a` + u16 LE arg, no `@coral-xyz/anchor` dep) plus `createAssociatedTokenAccountInstruction` for the off-curve vault USDC ATA, both with `feePayer = owner` (self-pay MVP — payer slot can swap to a treasury keypair when T-214 lands without changing on-chain accounts). Phantom signs + submits client-side; backend never holds the owner key (spec §3.2.1). Companion `apps/api/src/auth/jwt.ts` adds `requireDashboardJwt` (HS256 verify against `JWT_SECRET`, populates `req.user`) — reusable for every dashboard-JWT route to come (T-206/207/213/214/216/217). 23 new tests, 75 total green: middleware (missing/non-Bearer/empty/thrown verifier/happy/exact-token-forwarding) + pure tx-builder (PDA seeds, off-curve ATA, feePayer, blockhash, instruction count, discriminator pin, account-meta order) + handler (auth, validation matrix, RPC failure, base64 round-trip via `Transaction.from()`, unsigned signature slot).
+- Notes: New env vars on apps/api — `SOLANA_RPC_URL` (already implied by T-401's Helius pick), `USDC_MINT` (devnet mint, configurable), `KLINK_PROGRAM_ID` (defaults to the `Anchor.toml`-pinned id). Adds `@solana/web3.js@1.98.4` + `@solana/spl-token@0.4.14`. `biome.json` gains `.claude/**` to its ignore list so local Claude Code permission files don't trip lint.
 
 ### T-103 — `Vault` account + `init_vault` instruction
 - Status: done @Pritwish 2026-04-28
