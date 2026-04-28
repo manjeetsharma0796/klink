@@ -396,6 +396,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-409 — Auto-resolve TODO.md merge conflicts
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: `.gitattributes` declares `TODO.md merge=union` so concurrent edits to different sections auto-concatenate instead of producing conflict markers. `scripts/lint-todo.ts` (Bun) asserts (1) no duplicate `### T-XXX` headings and (2) every task block has exactly one `- Status:` line; runs in CI right after `bun install`. The CI failure on a same-task race becomes the new lock arbiter (replacing git-refuses). `docs/runbooks/team-collaboration.md` §2.3 documents the new merge mechanics. Smoke-tested: lint passes on current main (56 tasks); negative case (duplicate id + duplicate Status line) exits 1 with both errors enumerated.
+
 ### T-408 — Telegram leaderboard (per-push + daily cron)
 - Status: done @Jishnu 2026-04-28
 - Depends-on: T-407

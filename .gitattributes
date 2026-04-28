@@ -9,3 +9,11 @@
 *.webp binary
 *.bun-lockb binary
 bun.lock text eol=lf
+
+# T-409: auto-resolve concurrent edits to the team task board.
+# `merge=union` concatenates conflicting hunks instead of producing a conflict marker.
+# This is correct for the common case (two devs adding to different sections at once).
+# The same-line case (two devs editing the same `- Status:` line) silently produces a
+# duplicate Status line — caught by `scripts/lint-todo.py` in CI, which is what now
+# arbitrates same-task races (the second PR's CI goes red until rebased).
+TODO.md merge=union
