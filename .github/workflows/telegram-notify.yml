@@ -20,9 +20,11 @@ jobs:
           URL: ${{ github.event.pull_request.html_url }}
         run: |
           case "$TITLE" in
-            claim:*) TAG="[CLAIM]" ;;
-            T-*)     TAG="[REVIEW]" ;;
-            *)       TAG="[PR]" ;;
+            claim:*)    TAG="[CLAIM]" ;;
+            unclaim:*)  TAG="[UNCLAIM]" ;;
+            override:*) TAG="[OVERRIDE]" ;;
+            T-*)        TAG="[REVIEW]" ;;
+            *)          TAG="[PR]" ;;
           esac
           TEXT=$(printf '%s opened: `%s`\n%s' "${TAG} *${USER}*" "$TITLE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
@@ -40,9 +42,11 @@ jobs:
           URL: ${{ github.event.pull_request.html_url }}
         run: |
           case "$TITLE" in
-            claim:*) TAG="[LOCK]" ;;
-            T-*)     TAG="[DONE]" ;;
-            *)       TAG="[MERGED]" ;;
+            claim:*)    TAG="[LOCK]" ;;
+            unclaim:*)  TAG="[FREED]" ;;
+            override:*) TAG="[SEIZED]" ;;
+            T-*)        TAG="[DONE]" ;;
+            *)          TAG="[MERGED]" ;;
           esac
           TEXT=$(printf '%s merged: `%s`\n%s' "${TAG} *${USER}*" "$TITLE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \

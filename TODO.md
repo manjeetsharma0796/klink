@@ -16,10 +16,13 @@ Single source of truth for what's in flight. Anyone — human or Claude agent �
 4. **Finish** — same PR that merges the work also flips the line to `Status: done @your-handle YYYY-MM-DD` and moves the task block to the **Done** section at the bottom.
 5. **Stuck** — change to `Status: blocked — <one-line reason>` and ping the team channel. Keep the entry; do not delete it.
 6. **Add a task** — append a new block under the right section using the next free ID. State `Acceptance` clearly so anyone can pick it up cold.
+7. **Drop a claim** — flip `Status: in-progress @you DATE` back to `Status: pending`. PR title `unclaim: T-XXX`. No shame in it. To take *someone else's* claim, see [`team-collaboration.md`](docs/runbooks/team-collaboration.md) §2.2.
 
 ### Stale-claim rule
 
-If a task is `in-progress` for **more than 5 days with zero commits referencing its ID**, anyone may revert it to `pending` and re-claim. Add a `Reverted: <date> reason` line for paper trail.
+If a task is `in-progress` for **more than 5 days with zero commits referencing its ID**, anyone may revert it to `pending` and re-claim. Add a `Reverted: <date> by @you — reason` line for paper trail.
+
+You can also override a teammate's claim **before** the 5-day mark when you have concrete reason (conflict, stronger context, blocking your own work). Same mechanic, same paper-trail line. PR title: `override: T-XXX`. The 5-day rule is a guarantee that nothing rots forever — not a minimum cool-down. See [`docs/runbooks/team-collaboration.md`](docs/runbooks/team-collaboration.md) §2.2.
 
 ### Solo / no-review fast path
 

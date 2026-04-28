@@ -13,9 +13,13 @@ GitHub Actions workflow at [`.github/workflows/telegram-notify.yml`](../../.gith
 | Trigger | Tag |
 |---|---|
 | PR opened with title `claim: T-XXX` | `[CLAIM]` |
+| PR opened with title `unclaim: T-XXX` | `[UNCLAIM]` |
+| PR opened with title `override: T-XXX` | `[OVERRIDE]` |
 | PR opened with title `T-XXX —` | `[REVIEW]` |
 | Other PR opened | `[PR]` |
 | `claim:` PR merged | `[LOCK]` |
+| `unclaim:` PR merged | `[FREED]` |
+| `override:` PR merged | `[SEIZED]` |
 | `T-XXX` PR merged | `[DONE]` |
 | Other PR merged | `[MERGED]` |
 | Direct push to `main` (no PR) | `[PUSH]` |

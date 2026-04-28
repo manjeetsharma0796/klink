@@ -39,6 +39,24 @@ Lock cost ≈ one PR. Lock arbiter is GitHub's merge queue rather than humans.
 
 If you're working alone with no reviewer, edit `TODO.md` directly on `main`, push, then start the implementation branch. The push is the lock. Don't skip the visible status change — teammates need to see it.
 
+### 2.2 Multiple claims, unclaiming, and override
+
+Hold as many `in-progress` claims as you can usefully work. **No per-person ceiling** — self-discipline plus the override mechanic below replaces a hard limit.
+
+**Self-unclaim** (you decide not to work a task you've claimed):
+
+Flip your own line back: `Status: in-progress @you DATE` → `Status: pending`. Same two-phase mechanic — branch `unclaim/T-XXX-<slug>`, one-line diff, PR title `unclaim: T-XXX`. No paper-trail line needed; you're just freeing it.
+
+**Override** (you take a task someone else has claimed):
+
+When a teammate's claim is blocking you — they're stale, you have stronger context, or your work depends on it landing now — flip their status to `pending` yourself. Identical mechanic, but add a `Reverted: <date> by @you — <one-line reason>` line under the task block. Then claim it (separate PR or same PR with both edits). PR title for the override: `override: T-XXX`.
+
+You do **not** have to wait for the 5-day stale rule. That rule guarantees nothing rots forever — it's not a minimum cool-down. Override anytime you have a concrete reason; the paper-trail line makes it auditable.
+
+**No bypass.**
+
+Every status change — claim, self-unclaim, override, done — goes through the visible TODO.md edit + commit + push. No "I claimed it in Telegram" or "we agreed in DMs." The file is the protocol; the protocol is the file. Silent claims defeat the whole point.
+
 ## 3. Dependency check (the rule that prevents redundancy)
 
 Before claiming, confirm every ID in `Depends-on:` shows `Status: done` either inline or in the **Done** section. If even one is not done, **don't claim**:
