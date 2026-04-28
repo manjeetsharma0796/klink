@@ -10,7 +10,17 @@
       "scripts/**/*.ts",
       "*.json"
     ],
-    "ignore": ["**/node_modules", "**/dist", "**/build", "bun.lock", "**/.bun", "apps/*/drizzle/**"]
+    "ignore": [
+      "**/node_modules",
+      "**/dist",
+      "**/build",
+      "**/.next",
+      "**/next-env.d.ts",
+      "apps/web/tsconfig.json",
+      "apps/*/drizzle/**",
+      "bun.lock",
+      "**/.bun"
+    ]
   },
   "formatter": {
     "enabled": true,
