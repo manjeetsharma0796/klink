@@ -369,6 +369,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
+### T-506 — Public GitBook v1
+- Status: in-progress @Manjeet 2026-04-28
+- Depends-on: T-502
+- OS: any
+- Scope: docs
+- Acceptance: `gitbook/` populated with `.gitbook.yaml` + `SUMMARY.md` + ~14 content pages across `introduction/`, `getting-started/`, `concepts/`, `architecture/`, `resources/`. Every page has frontmatter (`title`/`purpose`/`last_updated`). Concept pages cite the design-spec section number as source-of-truth in their `purpose`. `DOCS_INDEX.md` gains a "Public documentation (GitBook)" section. GitBook.com Git Sync configured against branch `main`, subdirectory `gitbook/`. Site renders without broken intra-repo links.
+- Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Section structure modeled loosely on `docs.kimia.live` (intro → getting-started → concepts → architecture → resources); Kimia-specific surfaces (perp DEX, PT/YT, codama) dropped.
+
 ---
 
 ## Done
