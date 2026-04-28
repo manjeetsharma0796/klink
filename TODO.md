@@ -481,7 +481,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 _(newest first)_
 
 ### T-502 — Architecture overview doc
-- Status: done @Manjeet 2026-04-28
+- Status: done @Jishnu 2026-04-28
 - Depends-on: —
 - OS: any
 - Scope: docs
