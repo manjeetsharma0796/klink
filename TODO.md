@@ -193,13 +193,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-201 — Scaffold Express + TS + Drizzle (Bun)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: —
-- OS: any
-- Scope: scaffold
-- Acceptance: `apps/api/` with TS strict, Express, Drizzle, dotenv, `bun test` configured. `bun run dev` boots `:3000/health` returns 200. Bun workspace at repo root (`bunfig.toml` + `package.json` workspaces field).
-
 ### T-202 — Postgres schema migrations
 - Status: pending
 - Depends-on: T-201
@@ -479,6 +472,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-201 — Scaffold Express + TS + Drizzle (Bun)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: scaffold
+- Acceptance: `apps/api/` with TS strict, Express, Drizzle, dotenv, `bun test` configured. `bun run dev` boots `:3000/health` returns 200. Bun workspace at repo root (`bunfig.toml` + `package.json` workspaces field).
 
 ### T-502 — Architecture overview doc
 - Status: done @Jishnu 2026-04-28
