@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import type { Server } from "node:http";
 import { createApp } from "../src/app";
 
 const PORT = 3001;
-let server: Server;
+let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
 
 beforeAll(() => {
   const app = createApp();
@@ -19,6 +18,6 @@ describe("GET /health", () => {
     const res = await fetch(`http://localhost:${PORT}/health`);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ ok: true });
+    expect(body).totoEqual({ ok: true });
   });
 });
