@@ -483,7 +483,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## Done
 
-_(empty — move completed task blocks here, newest first)_
+_(empty — move completed task blocks here, newest first )_
 
 ---
 
