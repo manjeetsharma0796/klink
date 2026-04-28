@@ -49,17 +49,41 @@ Done by one person. Total time ~10 minutes. The other devs only need to join the
 
 ### 2.4 Get the chat ID
 
-The bot's privacy mode is on by default, which means it only sees `/commands` in groups. Two ways:
+`getUpdates` is finicky — privacy mode, an existing webhook, or already-consumed updates can all make it return `{ "ok": true, "result": [] }` even when you did everything right. **Use Option A first; it sidesteps all of that.**
 
-**Option A (fastest):** in the group, send `/start@klink_ci_bot` (or whatever the bot's username is). Then run, replacing the token:
+**Option A — `@userinfobot` (recommended, works regardless of bot state):**
 
-```bash
-curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates"
-```
+1. In Telegram search, find `@userinfobot` and start a DM with it.
+2. In the `klink-dev` group, long-press any message → **Forward** → send to `@userinfobot`.
+3. It replies with `Forwarded from chat <id>`. That's your `chat_id` — a negative number, often starting with `-100` for supergroups. Save it.
 
-In the JSON, find `"chat": { "id": -1001234567890, ... }`. **For groups the ID is negative**; supergroups start with `-100`. Save it.
+This bot does not need to be added to the group, and your klink bot's privacy/webhook state is irrelevant.
 
-**Option B:** message `@userinfobot` in DM, then forward any message from your group to it — it replies with the chat_id.
+**Option B — `getUpdates` (manual, more steps):**
+
+If you specifically want to verify your klink bot can see the group, or you don't want to use `@userinfobot`:
+
+1. Clear any stale webhook (a webhook will siphon every update and `getUpdates` will always be empty):
+
+   ```bash
+   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
+   ```
+
+2. In the group, get the bot to receive a message. With privacy mode on (the default), the bot only sees: commands addressed to it (`/foo@klink_ci_bot`), direct mentions (`@klink_ci_bot hi`), and replies to its own messages. The most reliable trigger:
+
+   - In `@BotFather` → `/setprivacy` → select your bot → **Disable**. Now the bot sees all group messages.
+   - Send any message in the group.
+   - After you've fetched the chat_id, you can re-enable privacy.
+
+3. Fetch:
+
+   ```bash
+   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates"
+   ```
+
+4. In the JSON, find `"chat": { "id": -1001234567890, ... }`. **For groups the ID is negative**; supergroups start with `-100`. Save it.
+
+If Option B still returns empty after disabling privacy + sending a fresh message, fall back to Option A.
 
 ### 2.5 Add GitHub secrets
 
@@ -93,7 +117,7 @@ The first dev to complete §2 fills in this row, which closes T-407.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `getUpdates` returns `{ "ok": true, "result": [] }` | bot has privacy on and no command was sent | send `/start@<botname>` in the group, retry |
+| `getUpdates` returns `{ "ok": true, "result": [] }` | privacy mode + no addressed command sent, OR a webhook is configured siphoning updates, OR previous `getUpdates` already consumed them | (1) `curl .../deleteWebhook` to clear webhook; (2) `@BotFather` → `/setprivacy` → **Disable**; (3) send a fresh message in the group; (4) retry. Or just use `@userinfobot` (§2.4 Option A). |
 | Workflow runs but Telegram silent | wrong chat_id (positive instead of negative, or missing `-100` prefix for supergroups) | re-fetch chat_id with the bot's perspective via `getUpdates` |
 | Workflow step exits with `Bad Request: chat not found` | bot was removed from group, or chat_id changed (group → supergroup migration) | re-add bot, re-fetch chat_id, update `TELEGRAM_CHAT_ID` secret |
 | `parse_mode=Markdown` failure on a PR title containing literal `*` or backtick | Markdown can't be escaped in legacy mode | switch to `parse_mode=MarkdownV2` in the workflow and add `\` escaping, OR drop `parse_mode` entirely |

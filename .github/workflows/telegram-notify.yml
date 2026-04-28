@@ -24,11 +24,11 @@ jobs:
             T-*)     TAG="[REVIEW]" ;;
             *)       TAG="[PR]" ;;
           esac
+          TEXT=$(printf '%s opened: `%s`\n%s' "${TAG} *${USER}*" "$TITLE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "parse_mode=Markdown" \
-            --data-urlencode "text=${TAG} *${USER}* opened: \`${TITLE}\`
-${URL}"
+            --data-urlencode "text=${TEXT}"
 
       - name: PR merged
         if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
@@ -44,11 +44,11 @@ ${URL}"
             T-*)     TAG="[DONE]" ;;
             *)       TAG="[MERGED]" ;;
           esac
+          TEXT=$(printf '%s merged: `%s`\n%s' "${TAG} *${USER}*" "$TITLE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "parse_mode=Markdown" \
-            --data-urlencode "text=${TAG} *${USER}* merged: \`${TITLE}\`
-${URL}"
+            --data-urlencode "text=${TEXT}"
 
       - name: Push to main (direct, non-PR commits)
         if: github.event_name == 'push'
@@ -64,8 +64,8 @@ ${URL}"
             exit 0
           fi
           FIRST_LINE=$(printf '%s\n' "$MSG" | head -n1)
+          TEXT=$(printf '[PUSH] *%s*: `%s`\n%s' "$USER" "$FIRST_LINE" "$URL")
           curl -sS -X POST "https://api.telegram.org/bot${BOT}/sendMessage" \
             --data-urlencode "chat_id=${CHAT}" \
             --data-urlencode "parse_mode=Markdown" \
-            --data-urlencode "text=[PUSH] *${USER}*: \`${FIRST_LINE}\`
-${URL}"
+            --data-urlencode "text=${TEXT}"
