@@ -20,7 +20,8 @@
       "apps/web/tsconfig.json",
       "apps/*/drizzle/**",
       "bun.lock",
-      "**/.bun"
+      "**/.bun",
+      ".claude/**"
     ]
   },
   "formatter": {
