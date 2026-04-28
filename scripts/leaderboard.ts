@@ -96,7 +96,14 @@ for (const m of todoSrc.matchAll(doneRe)) {
   if (date === today || date === yesterday) bump(`@${handle}`, "tasks");
 }
 
-// 3. Format output
+// 3. Project totals — count current TODO.md state (not just window).
+//   pending: `- Status: pending` — anyone could pick
+//   done:    `- Status: done @<handle> <date>` — historical, all time
+const totalPending = (todoSrc.match(/^- Status: pending$/gm) ?? []).length;
+const totalDone = (todoSrc.match(/^- Status: done @[A-Za-z0-9_-]+ \d{4}-\d{2}-\d{2}/gm) ?? [])
+  .length;
+
+// 4. Format output
 const rows = [...byKey.values()].sort((a, b) => b.commits + b.tasks - (a.commits + a.tasks));
 
 const lines: string[] = [`[BOARD] ${TITLE}`, ""];
@@ -109,6 +116,8 @@ if (rows.length === 0) {
     lines.push(`${row.display} — ${row.commits} ${cw}, ${row.tasks} ${tw} done`);
   }
 }
+lines.push("");
+lines.push(`Project: ${totalPending} tasks pending, ${totalDone} done`);
 lines.push("");
 lines.push("Keep working team");
 
