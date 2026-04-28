@@ -14,13 +14,17 @@
 !.github/
 !.github/**
 
-# Future code dirs (uncomment when added)
-# !src/
-# !src/**
+# Code dirs
+!apps/
+!apps/**
+!programs/
+!programs/**
+
+# Future config files (uncomment when added by scaffold tasks)
 # !package.json
+# !pnpm-workspace.yaml
+# !pnpm-lock.yaml
 # !tsconfig.json
-# !programs/
-# !programs/**
 # !Anchor.toml
 # !Cargo.toml
 
