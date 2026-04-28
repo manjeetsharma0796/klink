@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import {
@@ -82,7 +82,11 @@ export function buildInitVaultTx(args: BuildWalletTxArgs): BuiltWalletTx {
     data,
   });
 
-  const ataIx = createAssociatedTokenAccountInstruction(
+  // Idempotent variant: ATAs are deterministic, so anyone can front-run by
+  // pre-creating the address. The non-idempotent instruction would then
+  // revert with `account already exists` and block vault initialization.
+  // This variant succeeds even if the ATA is already there.
+  const ataIx = createAssociatedTokenAccountIdempotentInstruction(
     args.owner, // payer for the ATA rent
     vaultUsdcAta, // ata to create
     vaultPda, // wallet that owns the ata (the off-curve vault PDA)
@@ -167,7 +171,11 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
         usdcMint: getUsdcMint(),
         recentBlockhash,
       });
-    } catch (_err) {
+    } catch (err) {
+      // Most likely a missing/invalid env var (USDC_MINT, KLINK_PROGRAM_ID).
+      // Log the underlying error so ops can see *which* config is wrong;
+      // return a generic 500 to the caller (no internal details leaked).
+      console.error("[POST /v1/wallet] build tx failed:", err);
       res.status(500).json({ error: "failed to build tx" });
       return;
     }

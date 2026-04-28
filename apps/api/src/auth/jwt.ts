@@ -25,12 +25,25 @@ export interface KlinkUser {
   pubkey: string;
 }
 
+/**
+ * Distinguishes "operator screwed up the env" (`MisconfiguredError`) from
+ * "user sent a bad token" (every other thrown error). The middleware turns
+ * the former into a 500 and the latter into a 401 — masking config errors as
+ * 401 made deployment issues look like auth bugs.
+ */
+export class MisconfiguredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MisconfiguredError";
+  }
+}
+
 export type JwtVerifier = (token: string) => Promise<KlinkUser>;
 
 const defaultVerifier: JwtVerifier = async (token) => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error("JWT_SECRET is not set");
+    throw new MisconfiguredError("JWT_SECRET is not set");
   }
   const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
     algorithms: ["HS256"],
@@ -63,7 +76,14 @@ export function makeRequireDashboardJwt(opts: MakeRequireDashboardJwtOpts = {}) 
     let user: KlinkUser;
     try {
       user = await verify(token);
-    } catch {
+    } catch (err) {
+      if (err instanceof MisconfiguredError) {
+        // Server's fault, not the caller's. Log so ops can see which env is
+        // wrong; return a generic 500 (no internal details leaked).
+        console.error("[requireDashboardJwt] misconfigured:", err.message);
+        res.status(500).json({ error: "server misconfigured" });
+        return;
+      }
       res.status(401).json({ error: "invalid jwt" });
       return;
     }

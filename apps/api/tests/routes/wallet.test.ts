@@ -166,12 +166,30 @@ describe("buildInitVaultTx", () => {
     const ataIx = built.tx.instructions[1];
     if (!ataIx) throw new Error("expected createATA instruction at index 1");
     expect(ataIx.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID)).toBe(true);
-    // Account-meta pattern from @solana/spl-token's createAssociatedTokenAccountInstruction:
+    // Account-meta pattern from @solana/spl-token's createAssociatedTokenAccountIdempotentInstruction:
     // [payer, ata, wallet, mint, system, token_program]
     expect(ataIx.keys.some((k) => k.pubkey.equals(built.vaultUsdcAta))).toBe(true);
     expect(ataIx.keys.some((k) => k.pubkey.equals(built.vaultPda))).toBe(true);
     expect(ataIx.keys.some((k) => k.pubkey.equals(USDC_MINT))).toBe(true);
     expect(ataIx.keys.some((k) => k.pubkey.equals(TOKEN_PROGRAM_ID))).toBe(true);
+  });
+
+  it("uses the IDEMPOTENT ATA instruction (data byte = 0x01) so a front-run pre-create can't DoS vault init", () => {
+    const owner = Keypair.generate().publicKey;
+    const built = buildInitVaultTx({
+      owner,
+      maxDeployedFractionBp: 0,
+      programId: PROGRAM_ID,
+      usdcMint: USDC_MINT,
+      recentBlockhash: FAKE_BLOCKHASH,
+    });
+    const ataIx = built.tx.instructions[1];
+    if (!ataIx) throw new Error("expected createATA instruction at index 1");
+    // The Associated Token Program treats `data = []` as Create (non-idempotent)
+    // and `data = [1]` as CreateIdempotent. We need [1] so a third-party
+    // front-running the ATA address can't make our init_vault tx revert.
+    expect(ataIx.data.length).toBe(1);
+    expect(ataIx.data[0]).toBe(1);
   });
 });
 

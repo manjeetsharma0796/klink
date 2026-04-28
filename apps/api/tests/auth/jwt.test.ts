@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
-import { type KlinkUser, makeRequireDashboardJwt } from "../../src/auth/jwt";
+import { type KlinkUser, MisconfiguredError, makeRequireDashboardJwt } from "../../src/auth/jwt";
 
 type AugRequest = Request & { user?: KlinkUser };
 
@@ -83,6 +83,26 @@ describe("requireDashboardJwt", () => {
     }) as NextFunction);
     expect(captured.status).toBe(401);
     expect(captured.body).toEqual({ error: "invalid jwt" });
+    expect(nextCalled).toBe(false);
+  });
+
+  it("returns 500 (not 401) when verifier throws MisconfiguredError", async () => {
+    // Distinguishes server-side env misconfiguration (e.g. JWT_SECRET missing)
+    // from caller-supplied bad tokens. Without this, an ops error masquerades
+    // as an auth failure.
+    const middleware = makeRequireDashboardJwt({
+      verify: async () => {
+        throw new MisconfiguredError("JWT_SECRET is not set");
+      },
+    });
+    const req = makeReq("Bearer x.y.z");
+    const { res, captured } = makeRes();
+    let nextCalled = false;
+    await middleware(req, res, (() => {
+      nextCalled = true;
+    }) as NextFunction);
+    expect(captured.status).toBe(500);
+    expect(captured.body).toEqual({ error: "server misconfigured" });
     expect(nextCalled).toBe(false);
   });
 
