@@ -194,7 +194,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 (All OS-agnostic. Anyone can pick.)
 
 ### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-201, T-202
 - OS: any
 - Scope: api
@@ -222,7 +222,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: builds revoke_session / update_session_allowlist tx for owner.
 
 ### T-209 — Off-chain policy enforcer (URL + time-of-day)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-202, T-204
 - OS: any
 - Scope: api
@@ -285,7 +285,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: returns vault USDC ATA + QR data-url.
 
 ### T-220 — Service catalog seed
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-202
 - OS: any
 - Scope: data
