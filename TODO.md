@@ -201,7 +201,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: nonce single-use 60s in Redis; signature verified via tweetnacl; JWT issued (24h, jose); replay-attack test green.
 
 ### T-204 — API-key middleware + bcrypt/argon2 hashing
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-28
 - Depends-on: T-202
 - OS: any
 - Scope: api
