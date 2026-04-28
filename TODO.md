@@ -343,20 +343,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 4 — Infrastructure / DevOps
 
-### T-401 — Choose RPC provider
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: —
-- OS: any
-- Scope: infra
-- Acceptance: short memo comparing Helius / QuickNode / Triton on price + region + features; team picks one; devnet credentials in shared vault.
-
-### T-402 — Postgres + Redis dev hosting
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201
-- OS: any
-- Scope: infra
-- Acceptance: shared dev DB (Neon / Supabase / Railway) accessible to all four devs; Upstash Redis for nonces.
-
 ### T-403 — Backend deploy target
 - Status: pending
 - Depends-on: T-201
@@ -404,18 +390,32 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
-### T-505 — Pricing model decision memo
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: —
-- OS: any
-- Scope: design
-- Acceptance: memo `docs/memos/2026-XX-XX-pricing.md`; flat fee vs % of policy-gated volume vs free-then-enterprise compared.
-
 ---
 
 ## Done
 
 _(newest first)_
+
+### T-505 — Pricing model decision memo
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: design
+- Acceptance: memo at [`docs/memos/2026-04-28-pricing-model.md`](docs/memos/2026-04-28-pricing-model.md). Compares flat fee / % volume / free+enterprise; recommends staged free→enterprise rollout (free during 60-day MVP, enterprise tier post-hackathon).
+
+### T-402 — Postgres + Redis dev hosting
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any
+- Scope: infra
+- Acceptance: **Neon Postgres** (region `ap-southeast-1`) wired during T-202; **Upstash Redis** (TLS) wired during T-203. Connection strings live in `apps/api/.env`. Shared between devs via `.env` file passing per @Jishnu's call (KMS migration deferred to v2 per [`secrets.md`](docs/runbooks/secrets.md) §7).
+
+### T-401 — Choose RPC provider
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: memo at [`docs/memos/2026-04-28-rpc-provider.md`](docs/memos/2026-04-28-rpc-provider.md). Compares Helius / QuickNode / Triton; recommends **Helius** for dev/staging (free tier covers MVP, Solana-focused, IST-friendly edge). Live credential will be added to shared `.env` as `SOLANA_RPC_URL` before T-205 needs it.
 
 ### T-220 — Service catalog seed
 - Status: done @Jishnu 2026-04-28
