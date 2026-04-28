@@ -193,13 +193,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201, T-202
-- OS: any
-- Scope: api
-- Acceptance: nonce single-use 60s in Redis; signature verified via tweetnacl; JWT issued (24h, jose); replay-attack test green.
-
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: pending
 - Depends-on: T-103, T-203
@@ -220,13 +213,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: builds revoke_session / update_session_allowlist tx for owner.
-
-### T-209 — Off-chain policy enforcer (URL + time-of-day)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-202, T-204
-- OS: any
-- Scope: api
-- Acceptance: matches §3.5; path-segment-only wildcards; deny is audited; unit-tested with timezone edge cases.
 
 ### T-210 — `POST /v1/spend/transfer`
 - Status: pending
@@ -283,13 +269,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: returns vault USDC ATA + QR data-url.
-
-### T-220 — Service catalog seed
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-202
-- OS: any
-- Scope: data
-- Acceptance: anthropic / openai / exa / firecrawl entries with mpp.dev `base_url` and recipient pubkey loaded via migration.
 
 ---
 
@@ -437,6 +416,27 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-220 — Service catalog seed
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202
+- OS: any
+- Scope: data
+- Acceptance: 4 rows (anthropic-claude / openai-chatgpt / exa-search / firecrawl) seeded via `bun run db:seed` (idempotent through `onConflictDoNothing` on `slug`). All rows enabled=false with placeholder `paymentRecipientPubkey` (system program 32×`1`); T-211 must replace pubkeys with real mpp.dev recipients before flipping `enabled=true`.
+
+### T-209 — Off-chain policy enforcer (URL + time-of-day)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-202, T-204
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/policy/off-chain.ts` exports `checkOffChainPolicy({ walletId, url, nowMs? })` returning `{allowed:true} | {allowed:false, reason}`. `matchUrl` enforces path-segment-only wildcards (no host wildcards). `withinTimeWindow` uses Intl.DateTimeFormat for proper timezone handling. 14 unit tests cover URL match cases + timezone edge cases (IST shift) + DOW bitmask + curated-service short-circuit.
+
+### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201, T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/auth/siws.ts` issues nonce via Redis `setex` (60s TTL), atomically consumes via `getdel` (single-use), verifies Ed25519 signature with `tweetnacl.sign.detached.verify`, mints HS256 JWT (24h) via `jose.SignJWT`. Replay attack test green: same payload twice → second call returns 401 "nonce unknown or already used". Wired into `apps/api/src/app.ts`. 11 tests.
 
 ### T-204 — API-key middleware + bcrypt/argon2 hashing
 - Status: done @Jishnu 2026-04-28
