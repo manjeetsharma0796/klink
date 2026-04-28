@@ -20,7 +20,7 @@ Group entries by section. Keep alphabetical within sections.
 
 ## Architecture & Design
 
-_(none yet — design doc in progress in current brainstorm session)_
+- [Architecture overview](docs/architecture/overview.md) — three-layer summary with Mermaid diagrams (component view + spend-flow sequence); pointer doc to the design spec [updated 2026-04-28]
 
 ## Specs
 

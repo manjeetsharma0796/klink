@@ -453,13 +453,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: docs
 - Acceptance: `docs/runbooks/dev-environment.md` with install commands for Solana CLI, Anchor, Rust, Node, pnpm, Postgres, Redis on Windows (incl. WSL2 note), macOS (Homebrew), Linux (apt/dnf). One row per dev attesting their box is configured.
 
-### T-502 — Architecture overview doc
-- Status: pending
-- Depends-on: —
-- OS: any
-- Scope: docs
-- Acceptance: `docs/architecture/overview.md` with the §1 diagram extracted from the design spec; updated on every architectural change.
-
 ### T-503 — Demo replay script
 - Status: pending
 - Depends-on: T-309
@@ -485,7 +478,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## Done
 
-_(empty — move completed task blocks here, newest first)_
+_(newest first)_
+
+### T-502 — Architecture overview doc
+- Status: done @Manjeet 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: docs
+- Acceptance: `docs/architecture/overview.md` with the §1 diagram extracted from the design spec; updated on every architectural change.
 
 ---
 
