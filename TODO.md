@@ -82,7 +82,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - `done @handle YYYY-MM-DD` — completed; move block to Done
 
 ### T-101 — Install Solana CLI + Anchor on every dev machine
-- Status: in-progress @Jishnu 2026-04-28
+- Status: pending
 - Depends-on: —
 - OS: per-dev (each person does their own; this task is N parallel claims)
 - Scope: setup
