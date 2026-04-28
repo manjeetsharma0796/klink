@@ -310,7 +310,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 3 — Dashboard + SDK
 
 ### T-301 — Next.js dashboard scaffold
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-28
 - Depends-on: —
 - OS: any
 - Scope: scaffold
