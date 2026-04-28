@@ -82,7 +82,7 @@ Each dev appends a row after their setup verifies. This row is the artifact that
 
 | Dev | OS / Shell | Solana | Anchor | Bun | Date | Notes |
 |---|---|---|---|---|---|---|
-| _(pending — Jishnu)_ | _backend role; Bun + Postgres only — no Solana / Anchor needed for backend tasks_ | n/a (role-scoped) | n/a (role-scoped) | `1.x` | YYYY-MM-DD | will do integration after Anchor program is published by another dev |
+| @Jishnu | Windows native | n/a (role-scoped) | n/a (role-scoped) | `1.3.11` | 2026-04-28 | backend-only; Bun + Neon Postgres + Upstash Redis confirmed; T-201..T-220 + T-401/T-402/T-505 done. Will do integration after Anchor program is published by another dev. |
 | _(pending — Manjeet)_ | | | | | | |
 | _(pending — Pritwish)_ | _macOS_ | | | | | |
 | _(pending — Mouli)_ | | | | | | |
