@@ -374,6 +374,13 @@ _(newest first)_
 - OS: any
 - Scope: anchor-program
 - Acceptance: matches design spec §2.2.1 (`owner`, `max_deployed_fraction_bp`, `deployed_amount`, `bump`); PDA seeds `["vault", owner.key()]`; reverts on duplicate init via Anchor's `init` constraint (account-already-exists). Unit-tested in T-110. Implementation split the program into modules — `state.rs` (Vault account + `MAX_BP` const), `errors.rs` (`AgentWalletError::FractionOutOfRange`), `instructions/init_vault.rs` (context + handler), `instructions/mod.rs` re-exports — so T-104+ can land each instruction as a separate file. `init_vault` takes a separate `payer` and `owner` signer (sponsored model: backend pays rent, owner signs to consent to a vault under their pubkey); enforces `max_deployed_fraction_bp ≤ 10_000`. The stub `initialize` from `anchor init` is gone; `tests/src/test_initialize.rs` removed (T-110 replaces with the §6.1.1 revert suite). `anchor build` green; IDL at `target/idl/agent_wallet.json` shows `init_vault` instruction + `Vault` account exactly as specced.
+### T-506 — Public GitBook v1
+- Status: done @Manjeet 2026-04-28
+- Depends-on: T-502
+- OS: any
+- Scope: docs
+- Acceptance: `gitbook/` populated with `.gitbook.yaml` + `SUMMARY.md` + 22 content pages across `introduction/` (3), `getting-started/` (3), `concepts/` (8), `architecture/` (2), `resources/` (5), plus the root `README.md`. Every page has frontmatter (`title`/`purpose`/`last_updated`). Concept pages cite the design-spec section in their `purpose` for spec-drift auditing. `.gitignore` punched a hole for `gitbook/**` (the repo uses deny-by-default allowlisting). `DOCS_INDEX.md` gains a "Public documentation (GitBook)" section. All 23 markdown files have frontmatter; all intra-gitbook relative links resolve. GitBook.com Git Sync to be configured by user in the GitBook UI against branch `main`, subdirectory `gitbook/`. Section structure modeled loosely on `docs.kimia.live` (intro → getting-started → concepts → architecture → resources); Kimia-specific surfaces (perp DEX, PT/YT, codama) dropped.
+- Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Two intentional `> **TODO**:` markers per AGENTS.md convention: pin canonical devnet USDC mint after T-113, full quickstart walkthrough lands with T-309.
 
 ### T-102 — Initialize Anchor workspace
 - Status: done @Pritwish 2026-04-28
