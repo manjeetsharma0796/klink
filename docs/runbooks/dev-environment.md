@@ -84,13 +84,14 @@ Each dev appends a row after their setup verifies. This row is the artifact that
 |---|---|---|---|---|---|---|
 | @Jishnu | Windows native | n/a (role-scoped) | n/a (role-scoped) | `1.3.11` | 2026-04-28 | backend-only; Bun + Neon Postgres + Upstash Redis confirmed; T-201..T-220 + T-401/T-402/T-505 done. Will do integration after Anchor program is published by another dev. |
 | _(pending — Manjeet)_ | | | | | | |
-| _(pending — Pritwish)_ | _macOS_ | | | | | |
+| @Pritwish | Ubuntu 24.04 / bash | `3.1.13` ⚠️ | `0.30.0` | `1.3.6` | 2026-04-28 | Solana CLI ahead of pin (`3.1.13` vs `1.18.x`); active anchor switched to 0.30.0 via `avm use 0.30.0` after install. `1.0.0` also installed under `avm`. Solana downgrade deferred until T-102 confirms whether 3.x breaks an Anchor 0.30 build — see §5. Rust `1.93.0`. |
 | _(pending — Mouli)_ | | | | | | |
 
 ## 5. Common gotchas
 
 > **TODO** (T-501): collect from each dev's setup attempt. Seed entries below are unverified.
 
+- **Solana CLI version drift on a fresh `release.solana.com/stable` install**: in 2026-04 the upstream `stable` channel resolves to `3.1.13` (Agave client), not the pinned `1.18.x`. The vanilla install command in §2 therefore over-installs by two majors. Two workarounds: (a) pin via `sh -c "$(curl -sSfL https://release.solana.com/v1.18.26/install)"` on a fresh box, or (b) install latest then `solana-install init 1.18.26` to step back. T-102 will confirm whether Anchor 0.30 actually breaks against Solana 3.x; if it does, T-501 should update §2 to pin the URL. Tracked in @Pritwish's row in §4.
 - **Windows native + `solana-test-validator`**: known to hang on first run; switch to WSL2.
 - **macOS Apple Silicon**: Anchor build occasionally fails on `aarch64` toolchain mismatch; `rustup target add x86_64-apple-darwin` works around.
 - **First `cargo install avm`** on a fresh box: takes ~10 min. Don't kill it.
