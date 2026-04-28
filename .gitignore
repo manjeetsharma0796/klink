@@ -3,6 +3,7 @@
 
 # Allow the directories we care about
 !.gitignore
+!.gitattributes
 !AGENTS.md
 !CLAUDE.md
 !CONTEXT.md
@@ -24,6 +25,7 @@
 !package.json
 !bunfig.toml
 !bun.lock
+!biome.json
 
 # Future config files (uncomment when added by scaffold tasks)
 # !tsconfig.json

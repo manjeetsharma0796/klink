@@ -235,13 +235,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api
 - Acceptance: builds revoke_session / update_session_allowlist tx for owner.
 
-### T-208 — Session-secret encryption helper (AES-256-GCM)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201
-- OS: any
-- Scope: crypto
-- Acceptance: encrypt/decrypt round-trips; master key from env; test for wrong-key failure; documented rotation procedure.
-
 ### T-209 — Off-chain policy enforcer (URL + time-of-day)
 - Status: pending
 - Depends-on: T-202, T-204
@@ -406,26 +399,12 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: infra
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
-### T-404 — CI: lint + typecheck + test (Node)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201
-- OS: any (CI runs on Linux)
-- Scope: ci
-- Acceptance: GitHub Actions; PRs blocked on red CI.
-
 ### T-405 — CI: anchor build + test
 - Status: pending
 - Depends-on: T-102
 - OS: any
 - Scope: ci
 - Acceptance: `anchor build` + `anchor test` on PR; cached toolchain.
-
-### T-406 — Secrets-management posture (env-vars MVP)
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: —
-- OS: any
-- Scope: docs + infra
-- Acceptance: documented plan in `docs/runbooks/secrets.md`; all dev machines using `.env.local` from the same template.
 
 ### T-407 — Wire up Telegram bot + verify notifications
 - Status: pending
@@ -472,6 +451,27 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-406 — Secrets-management posture (env-vars MVP)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: docs + infra
+- Acceptance: documented plan in `docs/runbooks/secrets.md`; all dev machines using `.env.local` from the same template. (Per-dev attestation continues in `dev-environment.md`; runbook itself is committed.)
+
+### T-404 — CI: lint + typecheck + test (Bun)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any (CI runs on Linux)
+- Scope: ci
+- Acceptance: GitHub Actions workflow `.github/workflows/ci.yml` runs `bun install --frozen-lockfile`, `bun run lint` (Biome), `bun --filter '*' typecheck`, `bun --filter '*' test` on every PR + push to main. Branch protection (PR-blocking) is a one-time repo-settings step — see PR description.
+
+### T-208 — Session-secret encryption helper (AES-256-GCM)
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any
+- Scope: crypto
+- Acceptance: encrypt/decrypt round-trips; master key from env; test for wrong-key failure; documented rotation procedure (`docs/runbooks/secrets.md` §4). Implementation at `apps/api/src/crypto/session-secret.ts`, 8 tests at `apps/api/tests/crypto/session-secret.test.ts` (all passing).
 
 ### T-201 — Scaffold Express + TS + Drizzle (Bun)
 - Status: done @Jishnu 2026-04-28
