@@ -365,6 +365,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
 - Notes: workflow YAML and runbook are already in the repo — only live bot wiring + secrets remain. This is the "team channel" referenced in `team-collaboration.md` §6 and §8.
 
+### T-408 — Telegram leaderboard (per-push + daily cron)
+- Status: in-progress @Jishnu 2026-04-28
+- Depends-on: T-407
+- OS: any
+- Scope: infra
+- Acceptance: `scripts/leaderboard.ts` produces a Telegram-ready leaderboard from `git log` (commits per author, last 24h) + `TODO.md` Done section (tasks closed today/yesterday per `@handle`); per-push step in `telegram-notify.yml` posts session leaderboard after every push to `main`; new `leaderboard-daily.yml` cron fires at 03:30 UTC (09:00 IST) for daily summary. Both messages end with "Keep working team".
+
 ---
 
 ## 5 — Docs + design
