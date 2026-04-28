@@ -20,10 +20,12 @@
 !programs/
 !programs/**
 
+# Root config files (committed)
+!package.json
+!bunfig.toml
+!bun.lock
+
 # Future config files (uncomment when added by scaffold tasks)
-# !package.json
-# !pnpm-workspace.yaml
-# !pnpm-lock.yaml
 # !tsconfig.json
 # !Anchor.toml
 # !Cargo.toml
@@ -32,6 +34,7 @@
 node_modules/
 .env
 .env.*
+!**/.env.example
 *.log
 .DS_Store
 target/
