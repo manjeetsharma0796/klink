@@ -383,6 +383,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
+### T-510 — README — Claude Code prompt cookbook + PR-review walkthrough
+- Status: in-progress @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: docs
+- Acceptance: `README.md` gains a "Working with Claude Code" section showing the minimal-prompt patterns (claim, do, merged, complete-all, unclaim, override, fix-the-conflict) and the four-step task lifecycle (claim PR → impl PR → review/merge → continue). Brief PR-review checklist: check CI, skim diff, click Squash and merge, say `merged` to Claude.
+
 ---
 
 ## Done
