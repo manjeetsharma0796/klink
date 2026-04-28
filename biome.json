@@ -3,7 +3,7 @@
   "files": {
     "ignoreUnknown": true,
     "include": ["apps/**/*.ts", "apps/**/*.tsx", "apps/**/*.js", "apps/**/*.json", "*.json"],
-    "ignore": ["**/node_modules", "**/dist", "**/build", "bun.lock", "**/.bun"]
+    "ignore": ["**/node_modules", "**/dist", "**/build", "bun.lock", "**/.bun", "apps/*/drizzle/**"]
   },
   "formatter": {
     "enabled": true,

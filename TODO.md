@@ -193,13 +193,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-202 — Postgres schema migrations
-- Status: in-progress @Jishnu 2026-04-28
-- Depends-on: T-201
-- OS: any
-- Scope: db
-- Acceptance: every table in spec §3.3 created via Drizzle migration; `bun run db:migrate` is idempotent.
-
 ### T-203 — SIWS auth (`/v1/auth/siws/nonce` + `/v1/auth/siws`)
 - Status: pending
 - Depends-on: T-201, T-202
@@ -451,6 +444,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-202 — Postgres schema migrations
+- Status: done @Jishnu 2026-04-28
+- Depends-on: T-201
+- OS: any
+- Scope: db
+- Acceptance: 9 tables (users, wallets, sessions, api_keys, off_chain_policies, service_catalog, audit_log, dodo_payments, treasury_disbursements) + 2 enums (audit_decision, dodo_payment_status) created via Drizzle migration in `apps/api/drizzle/0000_*.sql`. `bun run db:migrate` applied successfully against Neon dev DB; re-run is idempotent (drizzle's `__drizzle_migrations` table tracks state).
 
 ### T-406 — Secrets-management posture (env-vars MVP)
 - Status: done @Jishnu 2026-04-28
