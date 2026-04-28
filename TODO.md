@@ -389,6 +389,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-510 — README — Claude Code prompt cookbook + PR-review walkthrough
+- Status: done @Jishnu 2026-04-28
+- Depends-on: —
+- OS: any
+- Scope: docs
+- Acceptance: `README.md` gains a "Working with Claude Code" section: 9-row prompt cookbook (claim / do / merged / complete-all / unclaim / override / fix-the-conflict / leaderboard / what's-unblocked), 4-step lifecycle, 4-step PR-review checklist, 3 one-shot question patterns, and a "when to bypass Claude" warning list (secrets, force-push, mainnet deploy).
+
 ### T-301 — Next.js dashboard scaffold
 - Status: done @Manjeet 2026-04-28
 - Depends-on: —
