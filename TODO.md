@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # TODO
@@ -88,13 +88,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: setup
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
-
-### T-104 — `Session` account + `add_session` instruction
-- Status: pending
-- Depends-on: T-103
-- OS: any
-- Scope: anchor-program
-- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only.
 
 ### T-105 — `transfer_usdc` instruction with all reverts
 - Status: pending
@@ -354,6 +347,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-104 — `Session` account + `add_session` instruction
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only. Implementation: `Session` struct lives in `state.rs` next to `Vault` (430 byte payload + 8 disc, ~$0.50 rent as specced). `MAX_RECIPIENTS = 10` exported as a const so `transfer_usdc` (T-105) can iterate the same fixed slot count. New `AgentWalletError` variants `TooManyRecipients`, `ExpiryInPast`, `NotVaultOwner`. `instructions/add_session.rs` is a separate file mirroring the `init_vault` shape — sponsored payer + owner signer; Vault is loaded via `seeds = ["vault", owner.key()]` with `has_one = owner @ NotVaultOwner` so trying to register a session against someone else's vault reverts. Session PDA seeds are `["session", vault.key(), session_pubkey.as_ref()]` — `session_pubkey` is a plain `Pubkey` arg (not a Signer; the off-chain backend keypair never appears at session-creation time). On-chain init sets `daily_spent = 0`, `daily_window_start = now`, packs the variable-length `Vec<Pubkey>` into the fixed `[Pubkey; 10]` array (extra slots stay `Pubkey::default()` and can never match a real recipient). `expiry == 0` means never; non-zero must be in the future. Duplicate creation reverts via Anchor's `init` constraint. `anchor build` green; IDL at `target/idl/agent_wallet.json` shows `add_session` with all six args, the `Session` account, and the new error variants. Tests in T-110.
 
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: done @Manjeet 2026-04-29

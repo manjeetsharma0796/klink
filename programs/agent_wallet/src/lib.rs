@@ -15,4 +15,24 @@ pub mod agent_wallet {
     pub fn init_vault(ctx: Context<InitVault>, max_deployed_fraction_bp: u16) -> Result<()> {
         instructions::init_vault::init_vault(ctx, max_deployed_fraction_bp)
     }
+
+    pub fn add_session(
+        ctx: Context<AddSession>,
+        session_pubkey: Pubkey,
+        max_per_tx: u64,
+        daily_cap: u64,
+        expiry: i64,
+        allowed_recipients: Vec<Pubkey>,
+        allowed_instructions: u32,
+    ) -> Result<()> {
+        instructions::add_session::add_session(
+            ctx,
+            session_pubkey,
+            max_per_tx,
+            daily_cap,
+            expiry,
+            allowed_recipients,
+            allowed_instructions,
+        )
+    }
 }
