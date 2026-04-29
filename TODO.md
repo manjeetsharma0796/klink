@@ -90,13 +90,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-108 — `kamino_deposit` CPI
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-103, T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner.
-
 ### T-109 — `kamino_withdraw` CPI
 - Status: pending
 - Depends-on: T-108
@@ -327,6 +320,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-108 — `kamino_deposit` CPI
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-103, T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner. Implementation: new `programs/agent_wallet/src/kamino.rs` module pins the program ID `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` (same on mainnet + devnet, verified against the public Kamino-Finance/klend repo) and exposes a typed `deposit_reserve_liquidity` CPI helper. The Anchor instruction discriminator `[0xa9, 0xc9, 0x1e, 0x7e, 0x06, 0xcd, 0x66, 0x44]` is `sha256("global:deposit_reserve_liquidity")[..8]` — re-derivable via `echo -n "global:deposit_reserve_liquidity" | sha256sum | head -c 16`. New `state.rs` constants `KAMINO_DEPOSIT_BIT = 1` and `KAMINO_WITHDRAW_BIT = 2` (T-109) match §2.4. The `KaminoDeposit` accounts struct uses `Option<Account<Session>>` so the **same instruction supports both auth paths**: session signer (with bit 1 set) OR owner — picked at runtime by checking whether `session` was supplied. The Kamino accounts (`reserve`, `lending_market`, `lending_market_authority`, `reserve_liquidity_supply`, `reserve_collateral_mint`) are `UncheckedAccount` because the wallet program doesn't validate them structurally — Kamino's own program does that on the CPI; the §2.6 typed-instruction safety floor is the `address = kamino::PROGRAM_ID` constraint on `kamino_program`, which makes adding a new yield protocol require a wallet-program upgrade gated by the multisig (T-114). Pre-flight uses checked arithmetic in multiplication form `new_deployed * 10000 ≤ max_bp * total` to avoid the integer-division precision loss of the spec's `/ total` formulation; `total = vault_usdc_ata.amount + vault.deployed_amount`. The `amount > liquid` early-fail saves CU and gives a clearer error than letting the SPL Token transfer inside Kamino's CPI bounce. New error variants: `AmountZero`, `InsufficientLiquidity`, `MathOverflow`, `DeployedFractionExceeded`, `WrongKaminoProgram`. State update happens **after** CPI returns Ok — the `vault.deployed_amount` bump is the last write. `vault` is loaded by-value early (owner pubkey, bump, max_bp, prior_deployed) so the Anchor borrow checker is happy across the CPI boundary. `anchor build` green; IDL exposes `kamino_deposit(amount: u64)` with 12 accounts (auth signer, vault writable, session optional, both vault token ATAs writable, 5 Kamino accounts, kamino_program address-pinned, token_program). Devnet reserve address verification (which specific Kamino USDC reserve to point at) is deferred to T-113 smoke test. Tests in T-110 + T-112.
 
 ### T-107 — `set_max_deployed_fraction`
 - Status: done @Pritwish 2026-04-29
