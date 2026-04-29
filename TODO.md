@@ -154,12 +154,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api
 - Acceptance: §4.2.3 flow; URL allowlist enforced; agent owns transport.
 
-### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
-- Status: in-progress @Manjeet 2026-04-29
-- Depends-on: T-108, T-109, T-204
-- OS: any
-- Scope: api
-- Acceptance: §4.3 flow; on-chain pre-flight; reads accrued via klend-sdk; partial-liquidity → 409.
 
 ### T-214 — `POST /v1/fund/dodo-checkout`
 - Status: pending
@@ -280,6 +274,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-108, T-109, T-204
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts` exports three handlers wired into `createApp()` behind `requireApiKey`. `POST /v1/yield/deposit { amount }` (USDC base units) prepends an idempotent vault-collateral ATA create then a manually-encoded `kamino_deposit` instruction (8-byte Anchor discriminator `ed08bcbb73633155` + u64 LE), signs with the session keypair, and submits via `sendAndConfirmTransaction`; audit-logs allow on success and deny on submit failure. `POST /v1/yield/withdraw { amount }` (cToken base units) builds `kamino_withdraw` (`c765292dd562e0c8`), snapshots `vault.deployed_amount` before + after the tx, and returns `409 PARTIAL_LIQUIDITY { tx_signature, requested, available }` if the actual USDC delta is less than requested (spec §5). `GET /v1/yield/position` reads on-chain `vault.deployed_amount` via a minimal Borsh offset parser plus the vault's cToken ATA balance via `getTokenAccountBalance`, returning `{ deployed_amount, ctoken_balance, accrued: null }`. Companion: `apps/api/src/program/agent-wallet.ts` gained `buildKaminoDepositIx`, `buildKaminoWithdrawIx`, and `encodeAmountU64` — both ix builders share one private helper since `KaminoDeposit<'info>` and `KaminoWithdraw<'info>` are layout-identical (12 accounts in the same order). 26 new tests (workspace 117 → 143): discriminator pins, encodeAmountU64 LE byte ordering, ix structure (12-key meta order, signer/writable flags, deposit/withdraw account-meta equality), `readDeployedAmountFromVault` offset + truncation, handler 401-without-auth + 400-on-bad-body for all three, position happy path, position 503-on-RPC-failure, position cToken-ATA derivation. Lint clean, typecheck green.
+- Notes: API-key auth only for v1 — JWT (owner-signing) path deferred to a follow-up because it has a different response shape (base64 unsigned tx vs tx_signature). `accrued` field is `null` pending klend-sdk integration; the cToken balance is a workable proxy until then. Five new required env vars on apps/api: `KAMINO_USDC_RESERVE`, `KAMINO_LENDING_MARKET`, `KAMINO_LENDING_MARKET_AUTHORITY`, `KAMINO_RESERVE_LIQUIDITY_SUPPLY`, `KAMINO_RESERVE_COLLATERAL_MINT` (plus `KAMINO_PROGRAM_ID` with sensible default). Builds on T-205's `requireApiKey` middleware shape (`req.session` + `req.wallet`) and T-210's submit-and-audit pattern.
 
 ### T-217 — `GET /v1/fund/deposit-address`
 - Status: done @Jishnu 2026-04-29
