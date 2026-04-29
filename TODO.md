@@ -89,13 +89,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-104 — `Session` account + `add_session` instruction
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-103
-- OS: any
-- Scope: anchor-program
-- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only.
-
 ### T-105 — `transfer_usdc` instruction with all reverts
 - Status: pending
 - Depends-on: T-104
