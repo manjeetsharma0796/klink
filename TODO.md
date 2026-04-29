@@ -90,13 +90,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-109 — `kamino_withdraw` CPI
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-108
-- OS: any
-- Scope: anchor-program
-- Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress).
-
 ### T-110 — TDD revert suite (spec §6.1.1)
 - Status: in-progress @Manish 2026-04-29
 - Depends-on: T-105, T-106, T-107
@@ -320,6 +313,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-109 — `kamino_withdraw` CPI
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-108
+- OS: any
+- Scope: anchor-program
+- Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress). Implementation: `instructions/kamino_withdraw.rs` mirrors T-108 — same `Option<Account<Session>>` auth split (session bit 2 OR owner), same hardcoded Kamino program ID, opposite asset flow (burn cTokens out of `vault_collateral_ata`, receive USDC into `vault_usdc_ata`). Extends `kamino.rs` with `redeem_reserve_collateral` discriminator `[0xea, 0x75, 0xb5, 0x7d, 0xb9, 0x8e, 0xdc, 0x1d]` (= `sha256("global:redeem_reserve_collateral")[..8]`) and a typed CPI helper. The arg is the **collateral amount** Kamino burns; off-chain backend (T-213) converts USDC target → cToken amount via klend-sdk before signing. The §2.5 pre-flight `amount ≤ vault.deployed_amount` is loose — `amount` is in cTokens, `deployed_amount` is in USDC base units, so the bound is "no more than what was deposited" which suffices for the §5 utilization-stress story (caller cannot ask Kamino to release more than the wallet contributed). To handle Kamino's "may be partial under utilization stress" semantics from §5, the handler snapshots `vault_usdc_ata.amount` before the CPI, calls `reload()` after (Anchor's `Account<TokenAccount>` doesn't auto-refresh post-CPI), computes `actual = post_liquid - pre_liquid`, and **decrements `deployed_amount` by the actual amount**, not the requested. `saturating_sub` against `prior_deployed` is defensive against the (impossible-but) case where Kamino returns more than recorded. New error `AmountExceedsDeployed`. `anchor build` green; IDL exposes all 8 instructions including `kamino_withdraw(amount: u64)` with the 12 accounts. With T-108 + T-109 merged, **T-112 (integration test)** is now unblocked — its dep set was T-105/T-106/T-108/T-109. Tests in T-110 (deposit revert, owned by @Manish) + T-112.
 
 ### T-108 — `kamino_deposit` CPI
 - Status: done @Pritwish 2026-04-29

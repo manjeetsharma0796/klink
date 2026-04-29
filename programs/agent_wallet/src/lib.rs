@@ -60,6 +60,10 @@ pub mod agent_wallet {
         instructions::kamino_deposit::kamino_deposit(ctx, amount)
     }
 
+    pub fn kamino_withdraw(ctx: Context<KaminoWithdraw>, amount: u64) -> Result<()> {
+        instructions::kamino_withdraw::kamino_withdraw(ctx, amount)
+    }
+
     pub fn update_session_allowlist(
         ctx: Context<UpdateSessionAllowlist>,
         action: AllowlistAction,
