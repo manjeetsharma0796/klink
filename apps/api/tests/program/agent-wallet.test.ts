@@ -1,12 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import {
+  ALLOWLIST_ACTION,
   MAX_ALLOWED_RECIPIENTS,
   PROGRAM_ID,
   buildAddSessionIx,
+  buildRevokeSessionIx,
+  buildTransferUsdcIx,
+  buildUpdateSessionAllowlistIx,
   deriveSessionPda,
   deriveVaultPda,
   encodeAddSessionArgs,
+  encodeTransferUsdcArgs,
+  encodeUpdateSessionAllowlistArgs,
   instructionDiscriminator,
 } from "../../src/program/agent-wallet";
 
@@ -212,10 +218,223 @@ describe("buildAddSessionIx", () => {
     expect(ix.keys[4]?.isWritable).toBe(false);
   });
 
-  it("data length matches discriminator + encoded args", () => {
+  it("data length matches discriminator + encoded args (T-206)", () => {
     const a = args();
     const ix = buildAddSessionIx(a);
     const expected = 8 + 32 + 8 + 8 + 8 + 4 + 1 * 32 + 4;
     expect(ix.data.length).toBe(expected);
+  });
+});
+
+// ===========================================================================
+// T-207 — buildRevokeSessionIx
+// ===========================================================================
+
+describe("buildRevokeSessionIx", () => {
+  function args() {
+    return {
+      owner: Keypair.generate().publicKey,
+      sessionPubkey: Keypair.generate().publicKey,
+    };
+  }
+
+  it("uses the revoke_session discriminator", () => {
+    expect(instructionDiscriminator("revoke_session").toString("hex")).toBe("565cc678900207c2");
+    const ix = buildRevokeSessionIx(args());
+    expect(ix.data.toString("hex")).toBe("565cc678900207c2");
+  });
+
+  it("emits 3 keys: [owner (signer+writable), vault (read-only), session (writable)]", () => {
+    const a = args();
+    const ix = buildRevokeSessionIx(a);
+    expect(ix.keys.length).toBe(3);
+
+    expect(ix.keys[0]?.pubkey.equals(a.owner)).toBe(true);
+    expect(ix.keys[0]?.isSigner).toBe(true);
+    expect(ix.keys[0]?.isWritable).toBe(true);
+
+    const [expectedVault] = deriveVaultPda(a.owner);
+    expect(ix.keys[1]?.pubkey.equals(expectedVault)).toBe(true);
+    expect(ix.keys[1]?.isWritable).toBe(false);
+
+    const [expectedSession] = deriveSessionPda(expectedVault, a.sessionPubkey);
+    expect(ix.keys[2]?.pubkey.equals(expectedSession)).toBe(true);
+    expect(ix.keys[2]?.isWritable).toBe(true); // close = owner needs writable
+  });
+
+  it("data has no args after the 8-byte discriminator", () => {
+    const ix = buildRevokeSessionIx(args());
+    expect(ix.data.length).toBe(8);
+  });
+});
+
+// ===========================================================================
+// T-207 — encodeUpdateSessionAllowlistArgs / buildUpdateSessionAllowlistIx
+// ===========================================================================
+
+describe("encodeUpdateSessionAllowlistArgs", () => {
+  it("encodes action enum as a single u8 (Add=0, Remove=1, Set=2)", () => {
+    expect(encodeUpdateSessionAllowlistArgs({ action: "Add" })[0]).toBe(0);
+    expect(encodeUpdateSessionAllowlistArgs({ action: "Remove" })[0]).toBe(1);
+    expect(encodeUpdateSessionAllowlistArgs({ action: "Set" })[0]).toBe(2);
+  });
+
+  it("encodes Option::None as 0x00 byte for both recipients and bitmap", () => {
+    const buf = encodeUpdateSessionAllowlistArgs({ action: "Add" });
+    // [action(1)][none(1)][none(1)] = 3 bytes
+    expect(buf.length).toBe(3);
+    expect(buf[1]).toBe(0); // recipients = None
+    expect(buf[2]).toBe(0); // bitmap = None
+  });
+
+  it("encodes Option::Some(recipients) as 0x01 + u32 len + N*32 bytes", () => {
+    const r0 = Keypair.generate().publicKey;
+    const r1 = Keypair.generate().publicKey;
+    const buf = encodeUpdateSessionAllowlistArgs({ action: "Set", recipients: [r0, r1] });
+    expect(buf[0]).toBe(2); // action = Set
+    expect(buf[1]).toBe(1); // recipients = Some
+    expect(buf.readUInt32LE(2)).toBe(2);
+    const slice0 = buf.subarray(6, 6 + 32);
+    const slice1 = buf.subarray(6 + 32, 6 + 64);
+    expect(Buffer.compare(slice0, r0.toBuffer())).toBe(0);
+    expect(Buffer.compare(slice1, r1.toBuffer())).toBe(0);
+    expect(buf[6 + 64]).toBe(0); // bitmap = None
+  });
+
+  it("encodes Option::Some(bitmap) as 0x01 + u32", () => {
+    const buf = encodeUpdateSessionAllowlistArgs({
+      action: "Add",
+      instructionsBitmap: 0b0111,
+    });
+    // [action(1)][none(1)][some(1)][u32(4)] = 7 bytes
+    expect(buf.length).toBe(7);
+    expect(buf[1]).toBe(0); // recipients = None
+    expect(buf[2]).toBe(1); // bitmap = Some
+    expect(buf.readUInt32LE(3)).toBe(0b0111);
+  });
+
+  it("rejects more than MAX_ALLOWED_RECIPIENTS", () => {
+    const tooMany = Array.from(
+      { length: MAX_ALLOWED_RECIPIENTS + 1 },
+      () => Keypair.generate().publicKey,
+    );
+    expect(() => encodeUpdateSessionAllowlistArgs({ action: "Set", recipients: tooMany })).toThrow(
+      /exceeds MAX_RECIPIENTS/,
+    );
+  });
+
+  it("rejects bitmap out of u32 range", () => {
+    expect(() =>
+      encodeUpdateSessionAllowlistArgs({ action: "Add", instructionsBitmap: 0x1_0000_0000 }),
+    ).toThrow(/u32/);
+  });
+});
+
+describe("buildUpdateSessionAllowlistIx", () => {
+  function args() {
+    return {
+      owner: Keypair.generate().publicKey,
+      sessionPubkey: Keypair.generate().publicKey,
+      action: "Set" as const,
+      recipients: [Keypair.generate().publicKey],
+      instructionsBitmap: 1,
+    };
+  }
+
+  it("uses the update_session_allowlist discriminator", () => {
+    expect(instructionDiscriminator("update_session_allowlist").toString("hex")).toBe(
+      "80e84d7d0846a9e1",
+    );
+    const ix = buildUpdateSessionAllowlistIx(args());
+    expect(ix.data.subarray(0, 8).toString("hex")).toBe("80e84d7d0846a9e1");
+  });
+
+  it("emits 3 keys: [owner (signer, RO), vault (RO), session (writable)]", () => {
+    const a = args();
+    const ix = buildUpdateSessionAllowlistIx(a);
+    expect(ix.keys.length).toBe(3);
+    expect(ix.keys[0]?.isSigner).toBe(true);
+    expect(ix.keys[0]?.isWritable).toBe(false);
+    expect(ix.keys[1]?.isWritable).toBe(false);
+    expect(ix.keys[2]?.isWritable).toBe(true);
+  });
+
+  it("ALLOWLIST_ACTION constant matches rust enum order (Add=0, Remove=1, Set=2)", () => {
+    expect(ALLOWLIST_ACTION.Add).toBe(0);
+    expect(ALLOWLIST_ACTION.Remove).toBe(1);
+    expect(ALLOWLIST_ACTION.Set).toBe(2);
+  });
+});
+
+// ===========================================================================
+// T-210 — encodeTransferUsdcArgs / buildTransferUsdcIx
+// ===========================================================================
+
+describe("encodeTransferUsdcArgs", () => {
+  it("encodes amount(u64 LE) + recipient(32 raw bytes)", () => {
+    const recipient = Keypair.generate().publicKey;
+    const buf = encodeTransferUsdcArgs(1_234_567n, recipient);
+    expect(buf.length).toBe(40);
+    expect(buf.readBigUInt64LE(0)).toBe(1_234_567n);
+    expect(Buffer.compare(buf.subarray(8), recipient.toBuffer())).toBe(0);
+  });
+});
+
+describe("buildTransferUsdcIx", () => {
+  // Devnet USDC mint, also used in wallet.test.ts.
+  const TOKEN_PROGRAM_FAKE = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+  function args() {
+    const owner = Keypair.generate().publicKey;
+    const sessionKp = Keypair.generate();
+    const recipient = Keypair.generate().publicKey;
+    const [vault] = deriveVaultPda(owner);
+    return {
+      sessionSigner: sessionKp.publicKey,
+      sessionPubkey: sessionKp.publicKey,
+      vault,
+      vaultUsdcAta: Keypair.generate().publicKey, // simulating an ATA pubkey
+      recipient,
+      recipientUsdcAta: Keypair.generate().publicKey,
+      amount: 1_000_000n,
+      tokenProgramId: TOKEN_PROGRAM_FAKE,
+    };
+  }
+
+  it("uses the transfer_usdc discriminator", () => {
+    expect(instructionDiscriminator("transfer_usdc").toString("hex")).toBe("a49e78b74062f40b");
+    const ix = buildTransferUsdcIx(args());
+    expect(ix.data.subarray(0, 8).toString("hex")).toBe("a49e78b74062f40b");
+  });
+
+  it("emits 6 keys in the order matching TransferUsdc<'info>", () => {
+    const a = args();
+    const ix = buildTransferUsdcIx(a);
+    expect(ix.keys.length).toBe(6);
+
+    expect(ix.keys[0]?.pubkey.equals(a.sessionSigner)).toBe(true);
+    expect(ix.keys[0]?.isSigner).toBe(true);
+    expect(ix.keys[0]?.isWritable).toBe(false);
+
+    const [expectedSession] = deriveSessionPda(a.vault, a.sessionPubkey);
+    expect(ix.keys[1]?.pubkey.equals(expectedSession)).toBe(true);
+    expect(ix.keys[1]?.isWritable).toBe(true);
+
+    expect(ix.keys[2]?.pubkey.equals(a.vault)).toBe(true);
+    expect(ix.keys[2]?.isWritable).toBe(false);
+
+    expect(ix.keys[3]?.pubkey.equals(a.vaultUsdcAta)).toBe(true);
+    expect(ix.keys[3]?.isWritable).toBe(true);
+
+    expect(ix.keys[4]?.pubkey.equals(a.recipientUsdcAta)).toBe(true);
+    expect(ix.keys[4]?.isWritable).toBe(true);
+
+    expect(ix.keys[5]?.pubkey.equals(TOKEN_PROGRAM_FAKE)).toBe(true);
+    expect(ix.keys[5]?.isWritable).toBe(false);
+  });
+
+  it("data length is discriminator + 8-byte amount + 32-byte recipient = 48 bytes", () => {
+    const ix = buildTransferUsdcIx(args());
+    expect(ix.data.length).toBe(48);
   });
 });
