@@ -349,19 +349,19 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
-### T-507 — Public docs: drop competitor framing, problem-first hook
-- Status: in-progress @Manjeet 2026-04-29
-- Depends-on: T-506
-- OS: any
-- Scope: docs
-- Acceptance: zero mentions of `Locus`, `ERC-4337`, `EVM`, `Ethereum`, `Privy`, `Turnkey`, or any "Klink-vs-X" comparative framing across `gitbook/**`. `gitbook/introduction/what-is-klink.md` rewritten with a problem-first hook (the three-true-things invariant) and standalone first-mover positioning — no "we deliberately rejected" framing, no internal-strategy framing, no `CONTEXT.md` link. Three smaller surgical edits: drop EVM bullet from `concepts/overview.md`, drop "(like Locus on Base)" parenthetical from `architecture/overview.md`, reframe "Why Solana and not Ethereum?" → "Why Solana?" in `resources/faq.md` with Solana-strengths-only answer.
-- Notes: Public docs only — `CONTEXT.md`, design spec, and other internal team docs keep their full strategic framing. The comparative analysis lives in CONTEXT.md §6 for team reference; the public site sells what Klink IS, not what it isn't.
-
 ---
 
 ## Done
 
 _(newest first)_
+
+### T-507 — Public docs: drop competitor framing, problem-first hook
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-506
+- OS: any
+- Scope: docs
+- Acceptance: zero mentions of `Locus`, `ERC-4337`, `EVM`, `Ethereum`, `Privy`, `Turnkey`, or any "Klink-vs-X" comparative framing across `gitbook/**` (verified by `grep -ri` returning zero matches). `gitbook/introduction/what-is-klink.md` rewritten with a problem-first hook (the three-true-things invariant) and standalone first-mover positioning — no "we deliberately rejected" framing, no internal-strategy framing, no `CONTEXT.md` link. Three smaller surgical edits: dropped EVM bullet from `concepts/overview.md`, dropped "(like Locus on Base)" parenthetical from `architecture/overview.md`, reframed "Why Solana and not Ethereum?" → "Why Solana?" in `resources/faq.md` with Solana-strengths-only answer. All four touched files have `last_updated: 2026-04-29`.
+- Notes: Public docs only. `CONTEXT.md`, the design spec, and other internal team docs keep their full strategic framing — the comparative analysis still lives in CONTEXT.md §6 for team reference. Public docs now sell what Klink IS, not what it isn't.
 
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: done @Manjeet 2026-04-29
