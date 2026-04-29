@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # TODO
@@ -90,7 +90,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
 ### T-104 — `Session` account + `add_session` instruction
-- Status: pending
+- Status: in-progress @Pritwish 2026-04-29
 - Depends-on: T-103
 - OS: any
 - Scope: anchor-program
