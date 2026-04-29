@@ -89,13 +89,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-105 — `transfer_usdc` instruction with all reverts
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: implements all 5 revert conditions from §2.5 (recipient allowlist, max_per_tx, daily cap with rolling-24h reset, expiry, instruction-bit). Each revert covered by its own test in T-110.
-
 ### T-106 — `revoke_session` + `update_session_allowlist`
 - Status: pending
 - Depends-on: T-104
@@ -347,6 +340,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-105 — `transfer_usdc` instruction with all reverts
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: implements all 5 §2.5 reverts (recipient allowlist, max_per_tx, rolling-24h daily_cap, expiry, instruction-bit) + the implicit session-signer match. Implementation: `instructions/transfer_usdc.rs` — handler walks the reverts in spec §2.5 order, then CPIs to SPL Token with the Vault PDA as transfer authority (`["vault", owner]` + cached `vault.bump` re-seeded into `CpiContext::new_with_signer`). New `state.rs` constants: `SECONDS_PER_DAY = 86_400` (rolling-24h, not calendar) and `TRANSFER_USDC_BIT = 0` (matches §2.4). The rolling-24h logic resets `daily_window_start` and `daily_spent` in-place when `now ≥ window + 86_400`; `checked_add` guards `daily_spent + amount` against u64 overflow (`DailyCapOverflow` error). `recipient` is a runtime arg checked against the populated slice of `session.allowed_recipients` (so the trailing `Pubkey::default()` slots can never match). The `recipient_usdc_ata` account is constrained `owner == recipient` AND `mint == vault_usdc_ata.mint` so an attacker can't pass an allowlisted recipient pubkey while pointing the funds ATA at their own account. `session` carries `has_one = vault @ SessionVaultMismatch` to block pairing a high-cap session with a different vault's ATA. New `AgentWalletError` variants: SessionSignerMismatch, SessionVaultMismatch, InstructionNotAllowed, RecipientNotAllowed, RecipientAtaMismatch, WrongMint, AmountExceedsMaxPerTx, DailyCapExceeded, DailyCapOverflow, SessionExpired. Memo / payment-id is **not** an arg here — backends should add an SPL Memo instruction adjacent to `transfer_usdc` in the same tx (keeps the on-chain handler focused on enforcement). New dep: `anchor-spl = 1.0.0` in `programs/agent_wallet/Cargo.toml` with `idl-build` feature wired up. Anchor 1.0 changed `CpiContext::new_with_signer` to take `program_id: Pubkey` instead of `AccountInfo` — handler passes `token_program.key()`. `anchor build` green; IDL exposes `transfer_usdc(amount: u64, recipient: pubkey)` with the 6 expected accounts. Full revert tests land in T-110.
 
 ### T-104 — `Session` account + `add_session` instruction
 - Status: done @Pritwish 2026-04-29
