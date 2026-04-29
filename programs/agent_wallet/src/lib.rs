@@ -43,4 +43,22 @@ pub mod agent_wallet {
     ) -> Result<()> {
         instructions::transfer_usdc::transfer_usdc(ctx, amount, recipient)
     }
+
+    pub fn revoke_session(ctx: Context<RevokeSession>) -> Result<()> {
+        instructions::revoke_session::revoke_session(ctx)
+    }
+
+    pub fn update_session_allowlist(
+        ctx: Context<UpdateSessionAllowlist>,
+        action: AllowlistAction,
+        recipients: Option<Vec<Pubkey>>,
+        instructions_bitmap: Option<u32>,
+    ) -> Result<()> {
+        instructions::update_session_allowlist::update_session_allowlist(
+            ctx,
+            action,
+            recipients,
+            instructions_bitmap,
+        )
+    }
 }
