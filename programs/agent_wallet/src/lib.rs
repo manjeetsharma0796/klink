@@ -35,4 +35,12 @@ pub mod agent_wallet {
             allowed_instructions,
         )
     }
+
+    pub fn transfer_usdc(
+        ctx: Context<TransferUsdc>,
+        amount: u64,
+        recipient: Pubkey,
+    ) -> Result<()> {
+        instructions::transfer_usdc::transfer_usdc(ctx, amount, recipient)
+    }
 }

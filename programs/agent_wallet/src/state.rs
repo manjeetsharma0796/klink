@@ -30,6 +30,15 @@ impl Vault {
 /// Hard upper bound on basis-point values. 10_000 bp = 100%.
 pub const MAX_BP: u16 = 10_000;
 
+/// Length of the rolling daily-cap window. Exactly 24h, no calendar logic
+/// (UTC midnight resets are off-spec — see §2.5 "rolling 24h").
+pub const SECONDS_PER_DAY: i64 = 86_400;
+
+/// Bit position of `transfer_usdc` in the `Session.allowed_instructions`
+/// bitmap. Spec §2.4 — bit 0. Other typed-instruction bits (`kamino_*`)
+/// land alongside their handlers in T-108/T-109.
+pub const TRANSFER_USDC_BIT: u32 = 0;
+
 /// Fixed allowlist size — chosen to keep `Session` rent under ~$0.50 and
 /// give Anchor a stack-sized array (no per-row reallocation). Spec §2.2.2.
 pub const MAX_RECIPIENTS: usize = 10;
