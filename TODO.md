@@ -155,7 +155,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: §4.2.3 flow; URL allowlist enforced; agent owns transport.
 
 ### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-108, T-109, T-204
 - OS: any
 - Scope: api
