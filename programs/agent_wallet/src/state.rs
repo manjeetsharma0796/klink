@@ -35,9 +35,16 @@ pub const MAX_BP: u16 = 10_000;
 pub const SECONDS_PER_DAY: i64 = 86_400;
 
 /// Bit position of `transfer_usdc` in the `Session.allowed_instructions`
-/// bitmap. Spec §2.4 — bit 0. Other typed-instruction bits (`kamino_*`)
-/// land alongside their handlers in T-108/T-109.
+/// bitmap. Spec §2.4 — bit 0.
 pub const TRANSFER_USDC_BIT: u32 = 0;
+
+/// Spec §2.4 — bit 1. Session must have this bit set to call
+/// `kamino_deposit`; the owner can always invoke (no bit check).
+pub const KAMINO_DEPOSIT_BIT: u32 = 1;
+
+/// Spec §2.4 — bit 2. Session must have this bit set to call
+/// `kamino_withdraw`; owner is unrestricted. (Lands with T-109.)
+pub const KAMINO_WITHDRAW_BIT: u32 = 2;
 
 /// Fixed allowlist size — chosen to keep `Session` rent under ~$0.50 and
 /// give Anchor a stack-sized array (no per-row reallocation). Spec §2.2.2.
