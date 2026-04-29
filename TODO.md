@@ -184,7 +184,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: web
 
 ### T-309 — TypeScript SDK package (`@klink/sdk`)
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-210, T-211, T-212, T-213
 - OS: any
 - Scope: sdk
