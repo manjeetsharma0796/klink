@@ -142,14 +142,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 
 ### T-214 — `POST /v1/fund/dodo-checkout`
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: T-202
 - OS: any
 - Scope: api
 - Acceptance: creates Dodo session; INSERT `dodo_payments(pending)`; returns `checkout_url`.
 
 ### T-215 — `POST /v1/webhooks/dodo` + treasury-disburser worker
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: T-214
 - OS: any
 - Scope: api + worker
@@ -254,6 +254,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
+
+### T-508 — API surface review (internal vs exposed)
+- Status: in-progress @Jishnu 2026-04-30
+- Depends-on: —
+- OS: any
+- Scope: docs + design
+- Acceptance: `docs/architecture/api-surface.md` lists every `/v1/*` route with proposed visibility (`public` / `dashboard-only` / `agent-only` / `webhook` / `internal`), the auth model, and a one-line description. Manual review pass marks each row as confirmed or flagged for change. Reviewer signs off in the doc's attestation row before mainnet exposure.
 
 ---
 
