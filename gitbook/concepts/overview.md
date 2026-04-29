@@ -1,7 +1,7 @@
 ---
 title: Concepts overview
 purpose: Mental model — three actors, three layers, when to reach for Klink. Source of truth = docs/specs/2026-04-28-agent-wallet-design.md §1
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # Concepts overview
@@ -52,7 +52,6 @@ Klink is a fit when:
 
 Klink is **not** a fit when:
 
-* You're building on Ethereum or any other EVM chain (use ERC-4337 + Safe modules)
 * You need automatic yield rebalancing or auto-withdraw before spend ([Roadmap](../resources/roadmap.md) — these are explicitly out of MVP scope)
 * You need multi-sig recovery beyond "owner pubkey is master"
 * You're building a custodial product (Klink is non-custodial by design)
