@@ -49,6 +49,7 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 | `@Manjeet` | Windows | Server side/integration/maintainance/system/debugging | IST |
 | `@Pritwish` | Linux | TBD | IST |
 | `@Mouli` | TBD | TBD | IST |
+| `@Manish` | macOS | TBD | IST |
 
 > **Action:** Each person fills in their row before claiming a first task.
 
@@ -104,7 +105,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress).
 
 ### T-110 — TDD revert suite (spec §6.1.1)
-- Status: pending
+- Status: in-progress @Manish 2026-04-29
 - Depends-on: T-105, T-106, T-107
 - OS: any
 - Scope: tests
