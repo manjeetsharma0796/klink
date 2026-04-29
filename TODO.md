@@ -141,21 +141,21 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 
 ### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: T-210, T-220
 - OS: any
 - Scope: api
 - Acceptance: full §4.2.2 flow; pre-flight against `allowed_recipients`; quoted-amount check; X-Payment-Proof retry.
 
 ### T-212 — `POST /v1/spend/sign-payment` (custom x402 sign-only)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: T-210
 - OS: any
 - Scope: api
 - Acceptance: §4.2.3 flow; URL allowlist enforced; agent owns transport.
 
 ### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: T-108, T-109, T-204
 - OS: any
 - Scope: api
