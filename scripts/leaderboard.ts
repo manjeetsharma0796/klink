@@ -79,9 +79,16 @@ if (commitLog) {
   }
 }
 
-// 2. Tasks marked done in TODO.md today or yesterday (UTC)
-const today = new Date().toISOString().slice(0, 10);
-const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+// 2. Tasks marked done in TODO.md today or yesterday (IST).
+// Team is IST per TODO.md, and `done @<handle> <date>` rows are written
+// with the author's local-day date — usually IST. UTC drifts 5.5h behind,
+// so a row dated 2026-04-30 by an IST author is "future" in UTC for half
+// the day and gets skipped from the rolling window. Pin to IST so the
+// per-handle tally matches what people see in TODO.md.
+const istDate = (ms: number): string =>
+  new Date(ms).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const today = istDate(Date.now());
+const yesterday = istDate(Date.now() - 86_400_000);
 let todoSrc = "";
 try {
   todoSrc = readFileSync("TODO.md", "utf8");
