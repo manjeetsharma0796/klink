@@ -43,4 +43,22 @@ pub enum AgentWalletError {
 
     #[msg("session has expired (now >= session.expiry)")]
     SessionExpired,
+
+    #[msg("amount must be non-zero")]
+    AmountZero,
+
+    #[msg("vault does not hold enough liquid balance for this deposit")]
+    InsufficientLiquidity,
+
+    #[msg("checked arithmetic overflowed u64")]
+    MathOverflow,
+
+    #[msg("deposit would push (deployed + amount) past max_deployed_fraction_bp of total")]
+    DeployedFractionExceeded,
+
+    #[msg("supplied kamino_program account does not match the hardcoded Kamino Klend program ID")]
+    WrongKaminoProgram,
+
+    #[msg("amount exceeds vault.deployed_amount")]
+    AmountExceedsDeployed,
 }

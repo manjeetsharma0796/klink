@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 pub mod errors;
 pub mod instructions;
+pub mod kamino;
 pub mod state;
 
 use crate::instructions::*;
@@ -53,6 +54,14 @@ pub mod agent_wallet {
         bp: u16,
     ) -> Result<()> {
         instructions::set_max_deployed_fraction::set_max_deployed_fraction(ctx, bp)
+    }
+
+    pub fn kamino_deposit(ctx: Context<KaminoDeposit>, amount: u64) -> Result<()> {
+        instructions::kamino_deposit::kamino_deposit(ctx, amount)
+    }
+
+    pub fn kamino_withdraw(ctx: Context<KaminoWithdraw>, amount: u64) -> Result<()> {
+        instructions::kamino_withdraw::kamino_withdraw(ctx, amount)
     }
 
     pub fn update_session_allowlist(
