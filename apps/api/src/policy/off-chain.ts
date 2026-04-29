@@ -22,7 +22,7 @@ export interface AllowedUrlEntry {
 export type LoadPolicy = (walletId: string) => Promise<OffChainPolicyRow | null>;
 export type IsCuratedSlug = (url: string) => Promise<boolean>;
 
-const defaultLoadPolicy: LoadPolicy = async (walletId) => {
+export const defaultLoadPolicy: LoadPolicy = async (walletId) => {
   const db = getDb();
   const rows = await db
     .select({

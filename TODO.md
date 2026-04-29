@@ -139,19 +139,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 (All OS-agnostic. Anyone can pick.)
 
 
-### T-207 — `DELETE /v1/session/:id` + `PATCH /v1/session/:id/allowlist`
-- Status: pending
-- Depends-on: T-206
-- OS: any
-- Scope: api
-- Acceptance: builds revoke_session / update_session_allowlist tx for owner.
-
-### T-210 — `POST /v1/spend/transfer`
-- Status: pending
-- Depends-on: T-105, T-206, T-208, T-209
-- OS: any
-- Scope: api
-- Acceptance: full preamble; sign + submit with session keypair; returns `tx_signature`; audit log writes both allow and deny.
 
 ### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
 - Status: pending
@@ -188,19 +175,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api + worker
 - Acceptance: HMAC verify; idempotent on `dodo_session_id`; worker submits treasury → vault USDC transfer; replay-attack test.
 
-### T-216 — `GET /v1/audit` paginated
-- Status: pending
-- Depends-on: T-209, T-210
-- OS: any
-- Scope: api
-- Acceptance: cursor pagination; filter by decision (allow/deny); ordered by `created_at desc`.
-
-### T-217 — `GET /v1/fund/deposit-address`
-- Status: pending
-- Depends-on: T-205
-- OS: any
-- Scope: api
-- Acceptance: returns vault USDC ATA + QR data-url.
 
 ---
 
@@ -306,6 +280,34 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-217 — `GET /v1/fund/deposit-address`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-205
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/fund.ts` — owner-authenticated GET. Validates wallet ownership via `wallets.id` + `users.id` join, returns `{ vault_pda, usdc_ata, qr_data_url }`. QR rendered server-side via `qrcode` lib (256px, error-correction M). 404 for unknown / cross-user wallets.
+
+### T-216 — `GET /v1/audit` paginated
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-209, T-210
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/audit.ts` — cursor-paginated read scoped to caller's wallets via `wallets.user_id = req.user.id`. `cursor` param is the last-seen `id` (bigserial); results in `id desc` so paging is monotonic. `decision` filter (`allow|deny|all`); `limit` capped at 200, default 50. Returns `{ entries, next_cursor }`.
+
+### T-210 — `POST /v1/spend/transfer`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-105, T-206, T-208, T-209
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` — API-key-authenticated direct USDC transfer. Pre-flight: time-of-day via T-209 policy, liquidity via `getTokenAccountBalance`. Decrypts session secret with T-208, reconstructs Keypair, builds new `buildTransferUsdcIx` (T-105 instruction), signs + `sendAndConfirmTransaction`. Audit log written for both `allow` (with tx_signature) and `deny` (`OUTSIDE_TIME_WINDOW`, `INSUFFICIENT_LIQUID`, `ON_CHAIN_REVERT: <message>`). Recipient + cap + expiry remain enforced on-chain (T-105). Discriminator pinned `a49e78b74062f40b`. Connection / liquidity / submit / loadPolicy all dep-injectable for tests.
+
+### T-207 — `DELETE /v1/session/:id` + `PATCH /v1/session/:id/allowlist`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-206
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` extended with `deleteSessionHandler` + `patchSessionAllowlistHandler`. Both build owner-signed unsigned txs (Phantom signs client-side; backend never holds owner key). Ownership check via `sessions → wallets → users.id` join. PATCH body accepts `{ action: 'Add'|'Remove'|'Set', recipients?, allowed_instructions? }` with `Option<Vec<Pubkey>>` + `Option<u32>` Borsh layout. New `agent-wallet.ts` builders: `buildRevokeSessionIx` (discriminator `565cc678900207c2`), `buildUpdateSessionAllowlistIx` (`80e84d7d0846a9e1`), `ALLOWLIST_ACTION` constant matching rust enum order.
 
 ### T-206 — `POST /v1/session` (build add_session + mint API key)
 - Status: done @Jishnu 2026-04-29

@@ -6,8 +6,11 @@ import { encryptSessionSecret } from "../crypto/session-secret";
 import { getDb } from "../db/client";
 import { apiKeys, sessions, wallets } from "../db/schema";
 import {
+  type AllowlistAction,
   MAX_ALLOWED_RECIPIENTS,
   buildAddSessionIx,
+  buildRevokeSessionIx,
+  buildUpdateSessionAllowlistIx,
   serializeUnsignedTx,
 } from "../program/agent-wallet";
 
@@ -250,3 +253,223 @@ export function makePostSessionHandler(deps: MakePostSessionDeps = {}) {
 }
 
 export const postSessionHandler = makePostSessionHandler();
+
+// ---------------------------------------------------------------------------
+// T-207 — DELETE /v1/session/:id  (revoke_session)
+//         PATCH  /v1/session/:id/allowlist  (update_session_allowlist)
+//
+// Both build owner-signed unsigned txs; the dashboard hands them to Phantom.
+// Backend never holds the owner key. Mirrors the build-then-Phantom pattern
+// used by POST /v1/wallet (T-205) and POST /v1/session (T-206).
+// ---------------------------------------------------------------------------
+
+export interface MakeSessionMutationDeps {
+  blockhash?: BlockhashFetcher;
+}
+
+async function loadOwnedSession(
+  db: ReturnType<typeof getDb>,
+  userId: string,
+  sessionId: string,
+): Promise<{ sessionPubkey: string; ownerPubkey: string } | null> {
+  // Join sessions → wallets → users to confirm the caller owns this session.
+  // The user-scoping is what makes the route safe to expose by URL id.
+  const rows = await db
+    .select({
+      sessionPubkey: sessions.sessionPubkey,
+      walletId: sessions.walletId,
+      walletUserId: wallets.userId,
+    })
+    .from(sessions)
+    .innerJoin(wallets, eq(sessions.walletId, wallets.id))
+    .where(and(eq(sessions.id, sessionId), eq(wallets.userId, userId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  // We don't actually need the wallet's ownerPubkey from DB — JWT pubkey is
+  // authoritative. Returning sessionPubkey is enough.
+  return { sessionPubkey: row.sessionPubkey, ownerPubkey: "" };
+}
+
+export function makeDeleteSessionHandler(deps: MakeSessionMutationDeps = {}) {
+  const getBlockhash =
+    deps.blockhash ??
+    (async () => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const { blockhash } = await conn.getLatestBlockhash("finalized");
+      return blockhash;
+    });
+
+  return async function deleteSession(req: Request, res: Response) {
+    const userId = req.user?.id;
+    const userPubkey = req.user?.pubkey;
+    if (!userId || !userPubkey) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+    const sessionId = req.params.id;
+    if (typeof sessionId !== "string" || !sessionId) {
+      res.status(400).json({ error: "session id required in path" });
+      return;
+    }
+
+    let owner: PublicKey;
+    try {
+      owner = new PublicKey(userPubkey);
+    } catch {
+      res.status(400).json({ error: "invalid owner pubkey on jwt" });
+      return;
+    }
+
+    const db = getDb();
+    const row = await loadOwnedSession(db, userId, sessionId);
+    if (!row) {
+      res.status(404).json({ error: "session not found" });
+      return;
+    }
+
+    let recentBlockhash: string;
+    try {
+      recentBlockhash = await getBlockhash();
+    } catch (err) {
+      console.error("[DELETE /v1/session/:id] rpc unavailable:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    const ix = buildRevokeSessionIx({
+      owner,
+      sessionPubkey: new PublicKey(row.sessionPubkey),
+    });
+    const tx = new Transaction({ feePayer: owner, recentBlockhash });
+    tx.add(ix);
+    const txBase64 = serializeUnsignedTx(tx);
+
+    res.json({
+      txBase64,
+      sessionId,
+      sessionPubkey: row.sessionPubkey,
+    });
+  };
+}
+
+export const deleteSessionHandler = makeDeleteSessionHandler();
+
+interface PatchSessionAllowlistBody {
+  action: AllowlistAction;
+  recipients?: string[] | null;
+  allowed_instructions?: number | null;
+}
+
+function parsePatchBody(
+  raw: unknown,
+): { ok: true; body: PatchSessionAllowlistBody } | ValidationError {
+  if (!raw || typeof raw !== "object") return fail(400, "request body must be JSON object");
+  const b = raw as Record<string, unknown>;
+  if (b.action !== "Add" && b.action !== "Remove" && b.action !== "Set") {
+    return fail(400, "action must be 'Add' | 'Remove' | 'Set'");
+  }
+  if (b.recipients !== undefined && b.recipients !== null) {
+    if (!Array.isArray(b.recipients)) return fail(400, "recipients must be array or null");
+    if (b.recipients.length > MAX_ALLOWED_RECIPIENTS) {
+      return fail(400, `recipients exceeds max ${MAX_ALLOWED_RECIPIENTS}`);
+    }
+    for (const r of b.recipients) {
+      if (typeof r !== "string") return fail(400, "recipients entries must be base58 strings");
+    }
+  }
+  if (b.allowed_instructions !== undefined && b.allowed_instructions !== null) {
+    if (
+      typeof b.allowed_instructions !== "number" ||
+      !Number.isInteger(b.allowed_instructions) ||
+      b.allowed_instructions < 0 ||
+      b.allowed_instructions > 0xffff_ffff
+    ) {
+      return fail(400, "allowed_instructions must be a u32 integer or null");
+    }
+  }
+  return {
+    ok: true,
+    body: {
+      action: b.action,
+      recipients: (b.recipients as string[] | null | undefined) ?? null,
+      allowed_instructions: (b.allowed_instructions as number | null | undefined) ?? null,
+    },
+  };
+}
+
+export function makePatchSessionAllowlistHandler(deps: MakeSessionMutationDeps = {}) {
+  const getBlockhash =
+    deps.blockhash ??
+    (async () => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const { blockhash } = await conn.getLatestBlockhash("finalized");
+      return blockhash;
+    });
+
+  return async function patchSessionAllowlist(req: Request, res: Response) {
+    const userId = req.user?.id;
+    const userPubkey = req.user?.pubkey;
+    if (!userId || !userPubkey) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+    const sessionId = req.params.id;
+    if (typeof sessionId !== "string" || !sessionId) {
+      res.status(400).json({ error: "session id required in path" });
+      return;
+    }
+
+    const parsed = parsePatchBody(req.body);
+    if (!parsed.ok) {
+      res.status(parsed.status).json(parsed.body);
+      return;
+    }
+    const body = parsed.body;
+
+    let owner: PublicKey;
+    let recipients: PublicKey[] | null;
+    try {
+      owner = new PublicKey(userPubkey);
+      recipients = body.recipients ? body.recipients.map((r) => new PublicKey(r)) : null;
+    } catch {
+      res.status(400).json({ error: "invalid base58 in pubkey or recipients" });
+      return;
+    }
+
+    const db = getDb();
+    const row = await loadOwnedSession(db, userId, sessionId);
+    if (!row) {
+      res.status(404).json({ error: "session not found" });
+      return;
+    }
+
+    let recentBlockhash: string;
+    try {
+      recentBlockhash = await getBlockhash();
+    } catch (err) {
+      console.error("[PATCH /v1/session/:id/allowlist] rpc unavailable:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    const ix = buildUpdateSessionAllowlistIx({
+      owner,
+      sessionPubkey: new PublicKey(row.sessionPubkey),
+      action: body.action,
+      recipients,
+      instructionsBitmap: body.allowed_instructions,
+    });
+    const tx = new Transaction({ feePayer: owner, recentBlockhash });
+    tx.add(ix);
+    const txBase64 = serializeUnsignedTx(tx);
+
+    res.json({
+      txBase64,
+      sessionId,
+      sessionPubkey: row.sessionPubkey,
+    });
+  };
+}
+
+export const patchSessionAllowlistHandler = makePatchSessionAllowlistHandler();
