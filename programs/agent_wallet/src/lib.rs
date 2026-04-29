@@ -48,6 +48,13 @@ pub mod agent_wallet {
         instructions::revoke_session::revoke_session(ctx)
     }
 
+    pub fn set_max_deployed_fraction(
+        ctx: Context<SetMaxDeployedFraction>,
+        bp: u16,
+    ) -> Result<()> {
+        instructions::set_max_deployed_fraction::set_max_deployed_fraction(ctx, bp)
+    }
+
     pub fn update_session_allowlist(
         ctx: Context<UpdateSessionAllowlist>,
         action: AllowlistAction,

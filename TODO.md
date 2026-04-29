@@ -89,13 +89,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-107 — `set_max_deployed_fraction`
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-103
-- OS: any
-- Scope: anchor-program
-- Acceptance: owner-only; bounded 0–10000 bp.
-
 ### T-108 — `kamino_deposit` CPI
 - Status: pending
 - Depends-on: T-103, T-104
@@ -333,6 +326,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-107 — `set_max_deployed_fraction`
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: owner-only; bounded 0–10000 bp. Implementation: `instructions/set_max_deployed_fraction.rs` — owner-signed setter that re-uses `MAX_BP` from T-103's `state.rs` and `FractionOutOfRange` + `NotVaultOwner` from `errors.rs` (no new errors needed). `bp = 0` is allowed and effectively disables further `kamino_deposit`s — useful as an emergency unwind switch without rewriting any session policy. The cap itself is enforced at `kamino_deposit` time (T-108) per §2.5; this instruction only mutates the stored `bp`. `anchor build` green; IDL exposes `set_max_deployed_fraction(bp: u16)` with two accounts (owner signer + vault PDA). With T-105/T-106/T-107 all done, **T-110 (TDD revert suite) is now unblocked**.
 
 ### T-106 — `revoke_session` + `update_session_allowlist`
 - Status: done @Pritwish 2026-04-29
