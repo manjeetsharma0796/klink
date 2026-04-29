@@ -58,4 +58,7 @@ pub enum AgentWalletError {
 
     #[msg("supplied kamino_program account does not match the hardcoded Kamino Klend program ID")]
     WrongKaminoProgram,
+
+    #[msg("amount exceeds vault.deployed_amount")]
+    AmountExceedsDeployed,
 }
