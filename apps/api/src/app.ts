@@ -11,6 +11,11 @@ import {
 } from "./routes/session";
 import { postSpendTransferHandler } from "./routes/spend";
 import { postWalletHandler } from "./routes/wallet";
+import {
+  getYieldPositionHandler,
+  postYieldDepositHandler,
+  postYieldWithdrawHandler,
+} from "./routes/yield";
 
 export function createApp(): Express {
   const app = express();
@@ -36,6 +41,12 @@ export function createApp(): Express {
   // Spend (T-210): API-key-authenticated direct USDC transfer. Backend signs
   // with the session keypair (decrypted from DB) and submits.
   app.post("/v1/spend/transfer", requireApiKey, postSpendTransferHandler);
+
+  // Yield (T-213): API-key-authenticated Kamino deposits / withdraws / position.
+  // Owner-signing path (dashboard JWT, Phantom signs) deferred to a follow-up.
+  app.post("/v1/yield/deposit", requireApiKey, postYieldDepositHandler);
+  app.post("/v1/yield/withdraw", requireApiKey, postYieldWithdrawHandler);
+  app.get("/v1/yield/position", requireApiKey, getYieldPositionHandler);
 
   // Audit (T-216): cursor-paginated read scoped to caller's wallets.
   app.get("/v1/audit", requireDashboardJwt, getAuditHandler);

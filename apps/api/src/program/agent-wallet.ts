@@ -298,3 +298,87 @@ export function buildTransferUsdcIx(opts: BuildTransferUsdcIxOpts): TransactionI
     data,
   });
 }
+
+// ---------------------------------------------------------------------------
+// kamino_deposit / kamino_withdraw — T-213
+//
+// Both share an account layout with one auth slot and an optional session
+// slot. For the API-key (session-signing) path we always pass the session
+// PDA; the owner-signing path is deferred to a follow-up alongside JWT auth
+// on these routes.
+//
+// Args: just `amount: u64` LE — same shape as `kamino_deposit(amount)` and
+// `kamino_withdraw(amount)` in `programs/agent_wallet/src/instructions/`.
+// ---------------------------------------------------------------------------
+
+/** Encodes a single u64 LE — used for both kamino_deposit and kamino_withdraw. */
+export function encodeAmountU64(amount: bigint): Buffer {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(amount, 0);
+  return buf;
+}
+
+export interface BuildKaminoIxOpts {
+  /** Auth signer pubkey. API-key path → session keypair pubkey. */
+  auth: PublicKey;
+  /** Vault PDA. From DB `wallets.vault_pda`. */
+  vault: PublicKey;
+  /** Session keypair pubkey (for deriving session PDA). */
+  sessionPubkey: PublicKey;
+  /** Vault's USDC ATA. From DB `wallets.usdc_ata`. */
+  vaultUsdcAta: PublicKey;
+  /** Vault's cToken (collateral) ATA — derived from kamino reserve collateral mint. */
+  vaultCollateralAta: PublicKey;
+  /** Amount: USDC base units for deposit; cToken base units for withdraw. */
+  amount: bigint;
+  /** Hardcoded Kamino program id (matches `programs/agent_wallet/src/kamino.rs::PROGRAM_ID`). */
+  kaminoProgramId: PublicKey;
+  /** Kamino reserve account (USDC reserve in the configured market). */
+  kaminoReserve: PublicKey;
+  /** Kamino lending market account (parent of the reserve). */
+  kaminoLendingMarket: PublicKey;
+  /** Kamino lending-market authority PDA — derived by the Kamino program. */
+  kaminoLendingMarketAuthority: PublicKey;
+  /** Reserve's USDC supply ATA. */
+  kaminoReserveLiquiditySupply: PublicKey;
+  /** Reserve's cToken (collateral) mint. */
+  kaminoReserveCollateralMint: PublicKey;
+  /** SPL Token program id. */
+  tokenProgramId: PublicKey;
+}
+
+function buildKaminoIx(opts: BuildKaminoIxOpts, instruction: "kamino_deposit" | "kamino_withdraw") {
+  const [session] = deriveSessionPda(opts.vault, opts.sessionPubkey);
+
+  const data = Buffer.concat([instructionDiscriminator(instruction), encodeAmountU64(opts.amount)]);
+
+  // Order matches `KaminoDeposit<'info>` / `KaminoWithdraw<'info>` in
+  // `programs/agent_wallet/src/instructions/kamino_*.rs`. Both structs share
+  // an identical layout — only the asset-flow direction differs at runtime.
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: opts.auth, isSigner: true, isWritable: false }, // 1. auth (signer)
+      { pubkey: opts.vault, isSigner: false, isWritable: true }, // 2. vault (mut: deployed_amount)
+      { pubkey: session, isSigner: false, isWritable: false }, // 3. session (Option, always Some on api-key path)
+      { pubkey: opts.vaultUsdcAta, isSigner: false, isWritable: true }, // 4. vault_usdc_ata (mut)
+      { pubkey: opts.vaultCollateralAta, isSigner: false, isWritable: true }, // 5. vault_collateral_ata (mut)
+      { pubkey: opts.kaminoReserve, isSigner: false, isWritable: true }, // 6. kamino_reserve (mut)
+      { pubkey: opts.kaminoLendingMarket, isSigner: false, isWritable: false }, // 7. kamino_lending_market
+      { pubkey: opts.kaminoLendingMarketAuthority, isSigner: false, isWritable: false }, // 8. kamino_lending_market_authority
+      { pubkey: opts.kaminoReserveLiquiditySupply, isSigner: false, isWritable: true }, // 9. kamino_reserve_liquidity_supply (mut)
+      { pubkey: opts.kaminoReserveCollateralMint, isSigner: false, isWritable: true }, // 10. kamino_reserve_collateral_mint (mut)
+      { pubkey: opts.kaminoProgramId, isSigner: false, isWritable: false }, // 11. kamino_program
+      { pubkey: opts.tokenProgramId, isSigner: false, isWritable: false }, // 12. token_program
+    ],
+    data,
+  });
+}
+
+export function buildKaminoDepositIx(opts: BuildKaminoIxOpts): TransactionInstruction {
+  return buildKaminoIx(opts, "kamino_deposit");
+}
+
+export function buildKaminoWithdrawIx(opts: BuildKaminoIxOpts): TransactionInstruction {
+  return buildKaminoIx(opts, "kamino_withdraw");
+}
