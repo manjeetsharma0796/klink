@@ -84,7 +84,7 @@ Each dev appends a row after their setup verifies. This row is the artifact that
 |---|---|---|---|---|---|---|
 | @Jishnu | Windows native | n/a (role-scoped) | n/a (role-scoped) | `1.3.11` | 2026-04-28 | backend-only; Bun + Neon Postgres + Upstash Redis confirmed; T-201..T-220 + T-401/T-402/T-505 done. Will do integration after Anchor program is published by another dev. |
 | _(pending — Manjeet)_ | | | | | | |
-| @Pritwish | Ubuntu 24.04 / bash | `3.1.13` | `1.0.0` | `1.3.6` | 2026-04-28 | T-102 outcome: Anchor 0.30 didn't build on stable Rust 1.93 (`proc-macro2::Span::source_file()` removed in proc-macro2 ≥ 1.0.80); switched the project pin to Anchor 1.0, which builds clean against Solana 3.1.13. `0.30.0`/`0.30.1` remain installed under `avm` for archaeology. Rust `1.93.0`. |
+| @Prithwish | Ubuntu 24.04 / bash | `3.1.13` | `1.0.0` | `1.3.6` | 2026-04-28 | T-102 outcome: Anchor 0.30 didn't build on stable Rust 1.93 (`proc-macro2::Span::source_file()` removed in proc-macro2 ≥ 1.0.80); switched the project pin to Anchor 1.0, which builds clean against Solana 3.1.13. `0.30.0`/`0.30.1` remain installed under `avm` for archaeology. Rust `1.93.0`. |
 | _(pending — Mouli)_ | | | | | | |
 
 ## 5. Common gotchas
