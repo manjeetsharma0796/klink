@@ -141,21 +141,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 
 
-### T-214 — `POST /v1/fund/dodo-checkout`
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: T-202
-- OS: any
-- Scope: api
-- Acceptance: creates Dodo session; INSERT `dodo_payments(pending)`; returns `checkout_url`.
-
-### T-215 — `POST /v1/webhooks/dodo` + treasury-disburser worker
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: T-214
-- OS: any
-- Scope: api + worker
-- Acceptance: HMAC verify; idempotent on `dodo_session_id`; worker submits treasury → vault USDC transfer; replay-attack test.
-
-
 ---
 
 ## 3 — Dashboard + SDK
@@ -255,18 +240,32 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
-### T-508 — API surface review (internal vs exposed)
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: —
-- OS: any
-- Scope: docs + design
-- Acceptance: `docs/architecture/api-surface.md` lists every `/v1/*` route with proposed visibility (`public` / `dashboard-only` / `agent-only` / `webhook` / `internal`), the auth model, and a one-line description. Manual review pass marks each row as confirmed or flagged for change. Reviewer signs off in the doc's attestation row before mainnet exposure.
-
 ---
 
 ## Done
 
 _(newest first)_
+
+### T-508 — API surface review (internal vs exposed)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: —
+- OS: any
+- Scope: docs + design
+- Acceptance: `docs/architecture/api-surface.md` lists every `/v1/*` route with proposed visibility (`public` / `dashboard-only` / `agent-only` / `webhook` / `internal`), the auth model, and a one-line description. Manual review pass marks each row as confirmed or flagged for change. Reviewer signs off in the doc's attestation row before mainnet exposure.
+
+### T-215 — `POST /v1/webhooks/dodo` + treasury-disburser worker
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-214
+- OS: any
+- Scope: api + worker
+- Acceptance: `apps/api/src/routes/dodo.ts` — HMAC-SHA256 verify (timing-safe, length-checked) over `req.rawBody` (captured by `express.json({ verify })` in `app.ts` so the bytes Dodo signed survive parsing). Idempotency key = `dodo_session_id`: replays return 200 `{ status: "already_settled" }` after the first success; orphan webhooks return 200 `{ status: "unknown_session" }` so Dodo stops retrying while ops can investigate via the loud server log. Disburser is inline: SPL transfer treasury USDC ATA → vault USDC ATA, signed by `TREASURY_SECRET_KEY` keypair (accepts base58 OR `solana-keygen` JSON array). On success: UPDATE `dodo_payments(status=settled, settled_at, treasury_tx_signature)`, INSERT `treasury_disbursements`, INSERT `audit_log(action=fund_dodo, decision=allow)`. On RPC submit failure: UPDATE `dodo_payments.status=failed`, audit `decision=deny` with truncated error, return 503 so Dodo retries (failed status blocks the next replay from disbursing). 6 unit tests over `verifyDodoSignature` — happy path, body tamper, wrong secret, missing/empty header, wrong-length header (would crash `timingSafeEqual` if length-check were missing), non-hex character (parsed-buffer length check catches it).
+
+### T-214 — `POST /v1/fund/dodo-checkout`
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/dodo.ts` — dashboard-JWT-authenticated. Body `{ amount_usd: int 1..10000, wallet_id: uuid, success_url?, cancel_url? }`. Wallet ownership check via `wallets.user_id = req.user.id`; same 404 for not-found and wrong-owner so existence isn't leaked. Calls injectable `createSession` (default = `fetch DODO_API_BASE_URL/checkout/sessions` with bearer `DODO_API_KEY`); on Dodo failure returns 502. INSERTs `dodo_payments(status=pending, dodo_session_id, amount_usd in cents, amount_usdc = $usd × 1_000_000)` — the unique `dodo_session_id` constraint is the idempotency key for T-215. Response `{ checkout_url, dodo_session_id }`.
 
 ### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
 - Status: done @Jishnu 2026-04-30
