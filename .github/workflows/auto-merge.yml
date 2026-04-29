@@ -6,11 +6,24 @@ on:
 
 jobs:
   enable-auto-merge:
+    # Two classes of PR get auto-merge enabled:
+    #
+    # 1. Bookkeeping PRs (claim:/unclaim:/override:) — one-line TODO.md flips.
+    #    No diff to review. Auto-merging them locks claims faster (T-410).
+    #
+    # 2. Implementation PRs (T-XXX — …) — feature/fix/docs work. CI gates the
+    #    merge (lint-typecheck-test, anchor-ci, etc.). GitHub waits for all
+    #    checks to pass, then merges. T-412 added this so authors don't have
+    #    to babysit "click Squash and merge" once CI goes green.
+    #
+    # Drafts are excluded from both classes — mark a PR ready-for-review to
+    # let auto-merge pick it up.
     if: >-
       github.event.pull_request.draft == false &&
       (startsWith(github.event.pull_request.title, 'claim:') ||
       startsWith(github.event.pull_request.title, 'unclaim:') ||
-      startsWith(github.event.pull_request.title, 'override:'))
+      startsWith(github.event.pull_request.title, 'override:') ||
+      startsWith(github.event.pull_request.title, 'T-'))
     runs-on: ubuntu-latest
     permissions:
       contents: write

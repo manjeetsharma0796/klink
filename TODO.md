@@ -355,6 +355,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-412 — Auto-enable auto-merge for `T-XXX` implementation PRs
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-410
+- OS: any (CI runs on Linux)
+- Scope: infra
+- Acceptance: `.github/workflows/auto-merge.yml` `if:` clause extended with `startsWith(title, 'T-')`. Every PR titled `T-XXX — …` now gets auto-merge (squash) enabled the moment it opens; GitHub waits for all checks to pass and merges automatically. Drafts still excluded. Branch-protection / required-checks are NOT a precondition — `enablePullRequestAutoMerge` GraphQL mutation handles the queue itself, identical to how the existing `claim:/unclaim:/override:` paths already work on this repo.
+- Notes: Behavior change for implementation PRs — they now merge themselves on green. The 60-second "skim the diff before merge" pass that the README cookbook recommends becomes opt-in (mark PR as draft to keep manual control, or close before checks complete). Trade-off accepted: CI catches lint/type/test bugs; logic bugs that slip past CI would also slip past a 60-second human skim. Mainnet PRs should keep the manual gate (file as a future task when the team approaches T-115 external review).
+
 ### T-205 — `POST /v1/wallet` build init_vault tx
 - Status: done @Manjeet 2026-04-29
 - Depends-on: T-103, T-203
