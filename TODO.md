@@ -47,7 +47,7 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 |---|---|---|---|
 | `@Jishnu` | Windows | Server side/integration/maintainance/system/debugging | IST |
 | `@Manjeet` | Windows | Server side/integration/maintainance/system/debugging | IST |
-| `@Pritwish` | Linux | TBD | IST |
+| `@Prithwish` | Linux | TBD | IST |
 | `@Mouli` | TBD | TBD | IST |
 | `@Manish` | macOS | TBD | IST |
 
@@ -138,13 +138,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-
-### T-206 — `POST /v1/session` (build add_session + mint API key)
-- Status: in-progress @Jishnu 2026-04-29
-- Depends-on: T-104, T-204, T-208
-- OS: any
-- Scope: api
-- Acceptance: generates session keypair (AES-256-GCM stored), builds add_session tx for owner Phantom, returns API key once with `klink_dev_` prefix.
 
 ### T-207 — `DELETE /v1/session/:id` + `PATCH /v1/session/:id/allowlist`
 - Status: pending
@@ -314,6 +307,12 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-206 — `POST /v1/session` (build add_session + mint API key)
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-104, T-204, T-208
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` posts, owner-authenticated via `requireDashboardJwt` (T-205's middleware). Generates Solana session keypair, encrypts secretKey with AES-256-GCM (T-208), mints `klink_dev_<base64url-32B>` API key with argon2id hash (T-204), inserts `sessions` + `api_keys` rows in one DB transaction. Builds unsigned `add_session` tx via new `apps/api/src/program/agent-wallet.ts` (Anchor discriminator + Borsh args + PDA derivation, no IDL needed). Server-side blockhash fetch via `SOLANA_RPC_URL`. Response: `{ txBase64, sessionId, sessionPubkey, apiKey, keyPrefix, expiresAt, vaultPda, usdcAta }`. 27 unit tests covering discriminator pin (`e55e19c1840d37bc`), PDA derivation, Borsh layout per byte, and account-meta order; all 101 api tests pass.
 ### T-109 — `kamino_withdraw` CPI
 - Status: done @Pritwish 2026-04-29
 - Depends-on: T-108
@@ -329,28 +328,28 @@ _(newest first)_
 - Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner. Implementation: new `programs/agent_wallet/src/kamino.rs` module pins the program ID `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` (same on mainnet + devnet, verified against the public Kamino-Finance/klend repo) and exposes a typed `deposit_reserve_liquidity` CPI helper. The Anchor instruction discriminator `[0xa9, 0xc9, 0x1e, 0x7e, 0x06, 0xcd, 0x66, 0x44]` is `sha256("global:deposit_reserve_liquidity")[..8]` — re-derivable via `echo -n "global:deposit_reserve_liquidity" | sha256sum | head -c 16`. New `state.rs` constants `KAMINO_DEPOSIT_BIT = 1` and `KAMINO_WITHDRAW_BIT = 2` (T-109) match §2.4. The `KaminoDeposit` accounts struct uses `Option<Account<Session>>` so the **same instruction supports both auth paths**: session signer (with bit 1 set) OR owner — picked at runtime by checking whether `session` was supplied. The Kamino accounts (`reserve`, `lending_market`, `lending_market_authority`, `reserve_liquidity_supply`, `reserve_collateral_mint`) are `UncheckedAccount` because the wallet program doesn't validate them structurally — Kamino's own program does that on the CPI; the §2.6 typed-instruction safety floor is the `address = kamino::PROGRAM_ID` constraint on `kamino_program`, which makes adding a new yield protocol require a wallet-program upgrade gated by the multisig (T-114). Pre-flight uses checked arithmetic in multiplication form `new_deployed * 10000 ≤ max_bp * total` to avoid the integer-division precision loss of the spec's `/ total` formulation; `total = vault_usdc_ata.amount + vault.deployed_amount`. The `amount > liquid` early-fail saves CU and gives a clearer error than letting the SPL Token transfer inside Kamino's CPI bounce. New error variants: `AmountZero`, `InsufficientLiquidity`, `MathOverflow`, `DeployedFractionExceeded`, `WrongKaminoProgram`. State update happens **after** CPI returns Ok — the `vault.deployed_amount` bump is the last write. `vault` is loaded by-value early (owner pubkey, bump, max_bp, prior_deployed) so the Anchor borrow checker is happy across the CPI boundary. `anchor build` green; IDL exposes `kamino_deposit(amount: u64)` with 12 accounts (auth signer, vault writable, session optional, both vault token ATAs writable, 5 Kamino accounts, kamino_program address-pinned, token_program). Devnet reserve address verification (which specific Kamino USDC reserve to point at) is deferred to T-113 smoke test. Tests in T-110 + T-112.
 
 ### T-107 — `set_max_deployed_fraction`
-- Status: done @Pritwish 2026-04-29
+- Status: done @Prithwish 2026-04-29
 - Depends-on: T-103
 - OS: any
 - Scope: anchor-program
 - Acceptance: owner-only; bounded 0–10000 bp. Implementation: `instructions/set_max_deployed_fraction.rs` — owner-signed setter that re-uses `MAX_BP` from T-103's `state.rs` and `FractionOutOfRange` + `NotVaultOwner` from `errors.rs` (no new errors needed). `bp = 0` is allowed and effectively disables further `kamino_deposit`s — useful as an emergency unwind switch without rewriting any session policy. The cap itself is enforced at `kamino_deposit` time (T-108) per §2.5; this instruction only mutates the stored `bp`. `anchor build` green; IDL exposes `set_max_deployed_fraction(bp: u16)` with two accounts (owner signer + vault PDA). With T-105/T-106/T-107 all done, **T-110 (TDD revert suite) is now unblocked**.
 
 ### T-106 — `revoke_session` + `update_session_allowlist`
-- Status: done @Pritwish 2026-04-29
+- Status: done @Prithwish 2026-04-29
 - Depends-on: T-104
 - OS: any
 - Scope: anchor-program
 - Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only. Implementation: `revoke_session()` is a no-op handler whose work is done by Anchor's `close = owner` constraint on the Session account — lamports flow back to the owner and the discriminator is zeroed so the PDA can't be re-used (a new `add_session` for the same `(vault, session_pubkey)` would re-init from scratch). Owner can call without the backend being online — that's the §1.2 session-key-leak escape hatch. `update_session_allowlist(action, recipients?, instructions_bitmap?)` exposes the spec §2.3 mutation: `recipients` and `instructions_bitmap` are independently optional (passing only the bitmap is a no-op on the allowlist; passing only recipients leaves the bitmap untouched). The `AllowlistAction` enum is `Anchor{Serialize,Deserialize}` and applies to the recipient list only — `Add` appends + skips duplicates already present (errors `TooManyRecipients` when the count would push past `MAX_RECIPIENTS`); `Remove` filters and compacts survivors into a fresh `[Pubkey; 10]` so the unused trailing slots stay `Pubkey::default()` (preserves the invariant that `transfer_usdc`'s allowlist slice can never accidentally match a real address); `Set` replaces wholesale, length checked against `MAX_RECIPIENTS`, empty Vec is allowed and effectively pauses spending. Both instructions are owner-signed with `has_one = owner @ NotVaultOwner` on Vault and `has_one = vault @ SessionVaultMismatch` on Session — without the latter a malicious caller could close another vault's session by signing as their own owner. No new error variants (re-uses `NotVaultOwner`, `SessionVaultMismatch`, `TooManyRecipients`). `anchor build` green; IDL exposes `revoke_session()` (3 accounts) and `update_session_allowlist(action, recipients, instructions_bitmap)` (3 accounts) with the `AllowlistAction` enum. Tests in T-110.
 
 ### T-105 — `transfer_usdc` instruction with all reverts
-- Status: done @Pritwish 2026-04-29
+- Status: done @Prithwish 2026-04-29
 - Depends-on: T-104
 - OS: any
 - Scope: anchor-program
 - Acceptance: implements all 5 §2.5 reverts (recipient allowlist, max_per_tx, rolling-24h daily_cap, expiry, instruction-bit) + the implicit session-signer match. Implementation: `instructions/transfer_usdc.rs` — handler walks the reverts in spec §2.5 order, then CPIs to SPL Token with the Vault PDA as transfer authority (`["vault", owner]` + cached `vault.bump` re-seeded into `CpiContext::new_with_signer`). New `state.rs` constants: `SECONDS_PER_DAY = 86_400` (rolling-24h, not calendar) and `TRANSFER_USDC_BIT = 0` (matches §2.4). The rolling-24h logic resets `daily_window_start` and `daily_spent` in-place when `now ≥ window + 86_400`; `checked_add` guards `daily_spent + amount` against u64 overflow (`DailyCapOverflow` error). `recipient` is a runtime arg checked against the populated slice of `session.allowed_recipients` (so the trailing `Pubkey::default()` slots can never match). The `recipient_usdc_ata` account is constrained `owner == recipient` AND `mint == vault_usdc_ata.mint` so an attacker can't pass an allowlisted recipient pubkey while pointing the funds ATA at their own account. `session` carries `has_one = vault @ SessionVaultMismatch` to block pairing a high-cap session with a different vault's ATA. New `AgentWalletError` variants: SessionSignerMismatch, SessionVaultMismatch, InstructionNotAllowed, RecipientNotAllowed, RecipientAtaMismatch, WrongMint, AmountExceedsMaxPerTx, DailyCapExceeded, DailyCapOverflow, SessionExpired. Memo / payment-id is **not** an arg here — backends should add an SPL Memo instruction adjacent to `transfer_usdc` in the same tx (keeps the on-chain handler focused on enforcement). New dep: `anchor-spl = 1.0.0` in `programs/agent_wallet/Cargo.toml` with `idl-build` feature wired up. Anchor 1.0 changed `CpiContext::new_with_signer` to take `program_id: Pubkey` instead of `AccountInfo` — handler passes `token_program.key()`. `anchor build` green; IDL exposes `transfer_usdc(amount: u64, recipient: pubkey)` with the 6 expected accounts. Full revert tests land in T-110.
 
 ### T-104 — `Session` account + `add_session` instruction
-- Status: done @Pritwish 2026-04-29
+- Status: done @Prithwish 2026-04-29
 - Depends-on: T-103
 - OS: any
 - Scope: anchor-program
@@ -372,7 +371,7 @@ _(newest first)_
 - Notes: New env vars on apps/api — `SOLANA_RPC_URL` (already implied by T-401's Helius pick), `USDC_MINT` (devnet mint, configurable), `KLINK_PROGRAM_ID` (defaults to the `Anchor.toml`-pinned id). Adds `@solana/web3.js@1.98.4` + `@solana/spl-token@0.4.14`. `biome.json` gains `.claude/**` to its ignore list so local Claude Code permission files don't trip lint.
 
 ### T-103 — `Vault` account + `init_vault` instruction
-- Status: done @Pritwish 2026-04-28
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-102
 - OS: any
 - Scope: anchor-program
@@ -401,14 +400,14 @@ _(newest first)_
 - Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Two intentional `> **TODO**:` markers per AGENTS.md convention: pin canonical devnet USDC mint after T-113, full quickstart walkthrough lands with T-309.
 
 ### T-102 — Initialize Anchor workspace
-- Status: done @Pritwish 2026-04-28
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-101
 - OS: any
 - Scope: scaffold
 - Acceptance: `programs/agent_wallet/` exists with stub `lib.rs` (`initialize` no-op + `Initialize` empty `#[derive(Accounts)]`); `anchor build` succeeds locally; CI green via T-405. Implementation: scaffold produced via `anchor init agent_wallet --no-git --test-template rust`, pruned to repo conventions (Bun is the only JS/TS runner — dropped the scaffold `package.json` / `tsconfig.json` / `yarn.lock`; kept `migrations/deploy.ts` as the placeholder Anchor expects, and the Rust `tests/` workspace member). Anchor 0.30 was abandoned: it doesn't compile against modern stable Rust because `anchor-syn` 0.30 calls `proc_macro2::Span::source_file()`, which proc-macro2 ≥ 1.0.80 dropped. Pivoted the project pin to **Anchor 1.0** + Solana 3.1.13 + Rust 1.93 stable; build is clean. `target/deploy/agent_wallet-keypair.json` is committed (gitignore exception) so the dev/devnet program ID stays stable across the team — T-114 swaps it for a Squads multisig before mainnet. Pin updates rolled into `docs/runbooks/dev-environment.md` (§1, §2, §3, §4 attestation, §5 gotcha), `docs/runbooks/team-collaboration.md` §4, `docs/architecture/overview.md`, and the T-101 task notes.
 
 ### T-302 — Phantom SIWS sign-in
-- Status: done @Pritwish 2026-04-28
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-203, T-301
 - OS: any
 - Scope: web
