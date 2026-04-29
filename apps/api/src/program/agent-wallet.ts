@@ -298,3 +298,106 @@ export function buildTransferUsdcIx(opts: BuildTransferUsdcIxOpts): TransactionI
     data,
   });
 }
+
+// ---------------------------------------------------------------------------
+// kamino_deposit / kamino_withdraw — T-213
+//
+// Source of truth: programs/agent_wallet/src/instructions/kamino_deposit.rs
+// (and kamino_withdraw.rs). Both have the same 12-account shape; the
+// instruction discriminator distinguishes them. The Kamino-specific
+// addresses (reserve, lending market, etc.) are env-configured because
+// they're per-network constants.
+// ---------------------------------------------------------------------------
+
+export const KAMINO_PROGRAM_ID = new PublicKey("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
+
+export interface KaminoReserveAddrs {
+  reserve: PublicKey;
+  lendingMarket: PublicKey;
+  /** PDA derived by Kamino. Configured server-side. */
+  lendingMarketAuthority: PublicKey;
+  reserveLiquiditySupply: PublicKey;
+  reserveCollateralMint: PublicKey;
+}
+
+export interface BuildKaminoIxOpts {
+  /** Backend session keypair OR owner — the signer ("auth" account in rust). */
+  auth: PublicKey;
+  /** Vault PDA. */
+  vault: PublicKey;
+  /**
+   * Session keypair pubkey to derive the session PDA. Pass `null` for the
+   * owner-signed path; we substitute the program ID as the optional-account
+   * placeholder, matching Anchor's convention for Option<Account<...>>.
+   */
+  sessionPubkey: PublicKey | null;
+  vaultUsdcAta: PublicKey;
+  vaultCollateralAta: PublicKey;
+  kamino: KaminoReserveAddrs;
+  tokenProgramId: PublicKey;
+  amount: bigint;
+}
+
+function buildKaminoIx(
+  name: "kamino_deposit" | "kamino_withdraw",
+  opts: BuildKaminoIxOpts,
+): TransactionInstruction {
+  const data = Buffer.alloc(8 + 8);
+  instructionDiscriminator(name).copy(data, 0);
+  data.writeBigUInt64LE(opts.amount, 8);
+
+  // Optional Session account: use program ID as the placeholder when None
+  // (Anchor convention for Option<Account<'info, T>>).
+  const sessionMeta =
+    opts.sessionPubkey !== null ? deriveSessionPda(opts.vault, opts.sessionPubkey)[0] : PROGRAM_ID;
+
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      // 1. auth (signer)
+      { pubkey: opts.auth, isSigner: true, isWritable: false },
+      // 2. vault (mut — deployed_amount updated)
+      { pubkey: opts.vault, isSigner: false, isWritable: true },
+      // 3. session (optional — placeholder=PROGRAM_ID when None)
+      { pubkey: sessionMeta, isSigner: false, isWritable: false },
+      // 4. vault_usdc_ata (mut)
+      { pubkey: opts.vaultUsdcAta, isSigner: false, isWritable: true },
+      // 5. vault_collateral_ata (mut)
+      { pubkey: opts.vaultCollateralAta, isSigner: false, isWritable: true },
+      // 6. kamino_reserve (mut)
+      { pubkey: opts.kamino.reserve, isSigner: false, isWritable: true },
+      // 7. kamino_lending_market (read-only)
+      { pubkey: opts.kamino.lendingMarket, isSigner: false, isWritable: false },
+      // 8. kamino_lending_market_authority (read-only)
+      { pubkey: opts.kamino.lendingMarketAuthority, isSigner: false, isWritable: false },
+      // 9. kamino_reserve_liquidity_supply (mut)
+      { pubkey: opts.kamino.reserveLiquiditySupply, isSigner: false, isWritable: true },
+      // 10. kamino_reserve_collateral_mint (mut)
+      { pubkey: opts.kamino.reserveCollateralMint, isSigner: false, isWritable: true },
+      // 11. kamino_program (read-only, address-pinned to KAMINO_PROGRAM_ID on-chain)
+      { pubkey: KAMINO_PROGRAM_ID, isSigner: false, isWritable: false },
+      // 12. token_program
+      { pubkey: opts.tokenProgramId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
+export const buildKaminoDepositIx = (opts: BuildKaminoIxOpts) =>
+  buildKaminoIx("kamino_deposit", opts);
+export const buildKaminoWithdrawIx = (opts: BuildKaminoIxOpts) =>
+  buildKaminoIx("kamino_withdraw", opts);
+
+/**
+ * Parse the on-chain Vault account binary into the fields we need for
+ * `GET /v1/yield/position`. Layout (from `state.rs`):
+ *   8B Anchor discriminator + 32B owner + 2B max_bp + 8B deployed_amount + 1B bump
+ * deployed_amount sits at offset 42.
+ */
+export function decodeVaultDeployedAmount(data: Buffer): bigint {
+  const VAULT_DEPLOYED_OFFSET = 8 + 32 + 2;
+  if (data.length < VAULT_DEPLOYED_OFFSET + 8) {
+    throw new Error(`vault account too short: ${data.length} bytes`);
+  }
+  return data.readBigUInt64LE(VAULT_DEPLOYED_OFFSET);
+}

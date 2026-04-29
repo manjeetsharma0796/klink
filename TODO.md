@@ -140,26 +140,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 
 
-### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: T-210, T-220
-- OS: any
-- Scope: api
-- Acceptance: full §4.2.2 flow; pre-flight against `allowed_recipients`; quoted-amount check; X-Payment-Proof retry.
-
-### T-212 — `POST /v1/spend/sign-payment` (custom x402 sign-only)
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: T-210
-- OS: any
-- Scope: api
-- Acceptance: §4.2.3 flow; URL allowlist enforced; agent owns transport.
-
-### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: T-108, T-109, T-204
-- OS: any
-- Scope: api
-- Acceptance: §4.3 flow; on-chain pre-flight; reads accrued via klend-sdk; partial-liquidity → 409.
 
 ### T-214 — `POST /v1/fund/dodo-checkout`
 - Status: pending
@@ -280,6 +260,27 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-108, T-109, T-204
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts`. Deposit + withdraw are session-signed; reuse the decrypt-keypair pattern from T-210. Build via new `buildKaminoDepositIx` / `buildKaminoWithdrawIx` (same 12-account shape, distinguished by discriminator). Kamino-specific addresses (reserve, lending market, lending-market authority, reserve liquidity supply, reserve collateral mint) loaded from env (`KAMINO_RESERVE`, etc.) — populated when T-113 lands. Withdraw revert → 409 (per §4.3 partial-liquidity), deposit revert → 402. `GET /v1/yield/position` reads on-chain Vault account, decodes `deployed_amount` at offset 42 via `decodeVaultDeployedAmount`. Accrued yield deferred (klend-sdk follow-up); `accrued: null` in response.
+
+### T-212 — `POST /v1/spend/sign-payment` (custom x402 sign-only)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-210
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` extended. Off-chain policy via T-209's `checkOffChainPolicy({ url, walletId })` — full URL-allowlist + time-of-day path. Decrypt + build + sign + submit, then audit. Returns `{ tx_signature, payment_proof_header }` where `payment_proof_header` is the base58 signature for the agent's `X-Payment-Proof:` retry. Same deny taxonomy as T-210 (URL_NOT_ALLOWED / OUTSIDE_TIME_WINDOW / INSUFFICIENT_LIQUID / ON_CHAIN_REVERT).
+
+### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-210, T-220
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` extended. Catalog lookup by slug (T-220's seed); rejects disabled / unknown rows. Probe service via injectable `fetch`; expects 402 + JSON `{ amount, recipient }` requirements. Quoted amount ≤ `max_amount` enforced (else QUOTED_OVER_MAX deny + audit). Liquidity check, decrypt session, build/sign/submit `transfer_usdc`. Retry service with `X-Payment-Proof: <signature>`; forwards service response (status, content-type, body) to agent with `x-tx-signature` header. Retry-after-pay failure logged as `RETRY_FAILED: ...` allow row (money already moved) + 502 to agent.
 
 ### T-217 — `GET /v1/fund/deposit-address`
 - Status: done @Jishnu 2026-04-29
