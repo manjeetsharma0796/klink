@@ -153,7 +153,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 
 ### T-206 — `POST /v1/session` (build add_session + mint API key)
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-29
 - Depends-on: T-104, T-204, T-208
 - OS: any
 - Scope: api
