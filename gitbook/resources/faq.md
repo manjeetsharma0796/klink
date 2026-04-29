@@ -1,7 +1,7 @@
 ---
 title: FAQ
 purpose: Frequently asked questions about Klink — custody, fees, audit, scope
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # FAQ
@@ -14,9 +14,9 @@ No. The human owner's Phantom keypair is the master authority and never leaves t
 
 Solana. Devnet during MVP; mainnet is gated on the external program review checkpoint (T-115).
 
-## Why Solana and not Ethereum?
+## Why Solana?
 
-On-chain policy enforcement is structurally cleaner on Solana. PDAs make custom-account-with-policy programs the natural pattern; EVM needs ERC-4337 + Safe modules to approximate the same thing. Compute is cheap enough to run policy checks per tx, and sub-cent fees let agents do high-frequency micropayments without per-tx cost dominating economics. See [What is Klink?](../introduction/what-is-klink.md) for the full positioning.
+Klink's core idea is putting policy directly inside the wallet account so the chain itself enforces it. PDAs make that pattern natural, cheap compute makes per-tx checks practical, sub-cent fees let agents do high-frequency micropayments without cost dominating economics, and fast finality makes session revocation feel instant. See [What is Klink?](../introduction/what-is-klink.md) for the full positioning.
 
 ## What if my session keypair leaks?
 

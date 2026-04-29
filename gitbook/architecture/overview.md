@@ -1,7 +1,7 @@
 ---
 title: System overview
 purpose: Three-layer architecture — diagrams, where state lives, the spend hot path. Public mirror of docs/architecture/overview.md.
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # System overview
@@ -114,7 +114,7 @@ Yield deposits and withdrawals follow the same pattern via `kamino_deposit` / `k
 | Approach | Problem |
 |---|---|
 | **Pure on-chain** | Solana programs can't natively express "no spending between 22:00 and 06:00 UTC" without oracles or custom timekeeping. URL allowlists are off-chain by nature. |
-| **Pure off-chain** (like Locus on Base) | The whole point of a Solana primitive is trustless safety — if the backend is the only policy authority, the user has to trust the backend. Hybrid keeps the safety floor trustless and adds rich rules above it. |
+| **Pure off-chain** | The whole point of a Solana-native primitive is trustless safety — if the backend is the only policy authority, the user has to trust the backend. Hybrid keeps the safety floor trustless and adds rich rules above it. |
 
 The on-chain layer is the trustless guarantee. The off-chain layer is enrichment — convenient, but the worst case if the backend is compromised is bounded by what's already on-chain.
 
