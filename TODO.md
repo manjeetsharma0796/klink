@@ -89,13 +89,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-106 — `revoke_session` + `update_session_allowlist`
-- Status: in-progress @Pritwish 2026-04-29
-- Depends-on: T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only.
-
 ### T-107 — `set_max_deployed_fraction`
 - Status: pending
 - Depends-on: T-103
@@ -340,6 +333,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-106 — `revoke_session` + `update_session_allowlist`
+- Status: done @Pritwish 2026-04-29
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only. Implementation: `revoke_session()` is a no-op handler whose work is done by Anchor's `close = owner` constraint on the Session account — lamports flow back to the owner and the discriminator is zeroed so the PDA can't be re-used (a new `add_session` for the same `(vault, session_pubkey)` would re-init from scratch). Owner can call without the backend being online — that's the §1.2 session-key-leak escape hatch. `update_session_allowlist(action, recipients?, instructions_bitmap?)` exposes the spec §2.3 mutation: `recipients` and `instructions_bitmap` are independently optional (passing only the bitmap is a no-op on the allowlist; passing only recipients leaves the bitmap untouched). The `AllowlistAction` enum is `Anchor{Serialize,Deserialize}` and applies to the recipient list only — `Add` appends + skips duplicates already present (errors `TooManyRecipients` when the count would push past `MAX_RECIPIENTS`); `Remove` filters and compacts survivors into a fresh `[Pubkey; 10]` so the unused trailing slots stay `Pubkey::default()` (preserves the invariant that `transfer_usdc`'s allowlist slice can never accidentally match a real address); `Set` replaces wholesale, length checked against `MAX_RECIPIENTS`, empty Vec is allowed and effectively pauses spending. Both instructions are owner-signed with `has_one = owner @ NotVaultOwner` on Vault and `has_one = vault @ SessionVaultMismatch` on Session — without the latter a malicious caller could close another vault's session by signing as their own owner. No new error variants (re-uses `NotVaultOwner`, `SessionVaultMismatch`, `TooManyRecipients`). `anchor build` green; IDL exposes `revoke_session()` (3 accounts) and `update_session_allowlist(action, recipients, instructions_bitmap)` (3 accounts) with the `AllowlistAction` enum. Tests in T-110.
 
 ### T-105 — `transfer_usdc` instruction with all reverts
 - Status: done @Pritwish 2026-04-29
