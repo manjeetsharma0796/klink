@@ -41,7 +41,7 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 
 ## Team
 
-> **Team channel:** _(TBD — paste link here, e.g. Discord/Slack/Telegram. This is the place referenced by `team-collaboration.md` §6 and §8.)_
+> **Team channel:** Telegram group `klink-dev` — bot [`@klinkdotfun_bot`](https://t.me/klinkdotfun_bot). Invite link is shared off-repo (DM @Jishnu / @Manjeet for access — public invite intentionally not committed). Notification workflow: [`.github/workflows/telegram-notify.yml`](.github/workflows/telegram-notify.yml). This is the place referenced by `team-collaboration.md` §6 and §8.
 
 | Handle | OS | Strengths / preferred area | Timezone |
 |---|---|---|---|
@@ -246,14 +246,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: infra
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
-### T-407 — Wire up Telegram bot + verify notifications
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: —
-- OS: any
-- Scope: infra
-- Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
-- Notes: workflow YAML and runbook are already in the repo — only live bot wiring + secrets remain. This is the "team channel" referenced in `team-collaboration.md` §6 and §8.
-
 ---
 
 ## 5 — Docs + design
@@ -332,6 +324,13 @@ _(newest first)_
 ### T-103 — `Vault` account + `init_vault` instruction
 - Status: done @Pritwish 2026-04-28
 >>>>>>> main
+### T-407 — Wire up Telegram bot + verify notifications
+- Status: done @Jishnu 2026-04-30
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: bot `@klinkdotfun_bot` created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in the GitHub repo; smoke test verified live in production traffic — `[BOARD] Session leaderboard` posts on every push to `main` (the bug surfaced in PR #53 was the IST-vs-UTC date-window in the leaderboard, not a wiring issue), and `[REVIEW]`/`[DONE]` tags fired correctly on PRs #51 and #53. Attestation row in [`docs/runbooks/telegram-notifications.md`](docs/runbooks/telegram-notifications.md) §3 filled in; team-channel pointer in TODO.md Team section now points at the bot + workflow file. Public invite link intentionally NOT committed — shared off-repo (DM Jishnu/Manjeet) so it can't be harvested from the public repo. With T-407 closed, T-408 (Telegram leaderboard) is now end-to-end live.
+
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30
 - Depends-on: —
