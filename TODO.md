@@ -208,7 +208,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
 ### T-407 — Wire up Telegram bot + verify notifications
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: —
 - OS: any
 - Scope: infra
