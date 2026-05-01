@@ -1,16 +1,18 @@
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { generateApiKey, hashApiKey } from "../auth/api-key";
 import { encryptSessionSecret } from "../crypto/session-secret";
 import { getDb } from "../db/client";
-import { apiKeys, sessions, wallets } from "../db/schema";
+import { apiKeys, offChainPolicies, sessions, wallets } from "../db/schema";
 import {
   type AllowlistAction,
   MAX_ALLOWED_RECIPIENTS,
   buildAddSessionIx,
   buildRevokeSessionIx,
   buildUpdateSessionAllowlistIx,
+  decodeSessionAccount,
+  deriveSessionPda,
   serializeUnsignedTx,
 } from "../program/agent-wallet";
 
@@ -473,3 +475,200 @@ export function makePatchSessionAllowlistHandler(deps: MakeSessionMutationDeps =
 }
 
 export const patchSessionAllowlistHandler = makePatchSessionAllowlistHandler();
+
+// ---------------------------------------------------------------------------
+// T-218 — GET /v1/sessions
+//
+// Lists every session attached to wallets owned by the caller. Powers the
+// dashboard's session list (T-304).
+// ---------------------------------------------------------------------------
+
+export async function getSessionsHandler(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "auth required" });
+    return;
+  }
+  const filterWalletId = typeof req.query.wallet_id === "string" ? req.query.wallet_id : null;
+
+  const db = getDb();
+
+  // Look up the caller's wallet IDs first; this scopes the join cleanly and
+  // makes the empty-result case obvious (no wallets ⇒ no sessions, no 404).
+  const ownedWallets = await db
+    .select({ id: wallets.id })
+    .from(wallets)
+    .where(
+      filterWalletId
+        ? and(eq(wallets.userId, userId), eq(wallets.id, filterWalletId))
+        : eq(wallets.userId, userId),
+    );
+  if (ownedWallets.length === 0) {
+    res.json([]);
+    return;
+  }
+  const walletIds = ownedWallets.map((w) => w.id);
+
+  const rows = await db
+    .select({
+      id: sessions.id,
+      walletId: sessions.walletId,
+      label: sessions.label,
+      sessionPubkey: sessions.sessionPubkey,
+      expiresAt: sessions.expiresAt,
+      revokedAt: sessions.revokedAt,
+      createdAt: sessions.createdAt,
+      keyPrefix: apiKeys.keyPrefix,
+    })
+    .from(sessions)
+    // Inner join: a session without an API key shouldn't exist (T-206 inserts
+    // both in one tx) — surfacing it as missing in the dashboard would be
+    // misleading. The session/api_key pair is the unit.
+    .innerJoin(apiKeys, eq(apiKeys.sessionId, sessions.id))
+    .where(inArray(sessions.walletId, walletIds))
+    .orderBy(desc(sessions.createdAt));
+
+  res.json(rows);
+}
+
+// ---------------------------------------------------------------------------
+// T-219 — GET /v1/sessions/:id
+//
+// Single-session read with on-chain projection merged in. Powers the session
+// detail / allowlist editor in the dashboard (T-305). 404s for both
+// "not found" and "wrong owner" so existence isn't leaked across users.
+// ---------------------------------------------------------------------------
+
+export type ConnectionFactory = () => Connection;
+
+export interface MakeGetSessionDeps {
+  connection?: ConnectionFactory;
+}
+
+export function makeGetSessionHandler(deps: MakeGetSessionDeps = {}) {
+  const newConn =
+    deps.connection ?? (() => new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed"));
+
+  return async function getSession(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const userPubkey = req.user?.pubkey;
+    if (!userId || !userPubkey) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+    const sessionId = req.params.id;
+    if (typeof sessionId !== "string" || !sessionId) {
+      res.status(400).json({ error: "session id required in path" });
+      return;
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: sessions.id,
+        walletId: sessions.walletId,
+        label: sessions.label,
+        sessionPubkey: sessions.sessionPubkey,
+        expiresAt: sessions.expiresAt,
+        revokedAt: sessions.revokedAt,
+        createdAt: sessions.createdAt,
+        keyPrefix: apiKeys.keyPrefix,
+        vaultPda: wallets.vaultPda,
+      })
+      .from(sessions)
+      .innerJoin(wallets, eq(sessions.walletId, wallets.id))
+      .innerJoin(apiKeys, eq(apiKeys.sessionId, sessions.id))
+      .where(and(eq(sessions.id, sessionId), eq(wallets.userId, userId)))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      res.status(404).json({ error: "session not found" });
+      return;
+    }
+
+    // Off-chain policy is wallet-scoped (one row per wallet); attach if present.
+    const policyRows = await db
+      .select({
+        allowedUrls: offChainPolicies.allowedUrls,
+        timeWindowStartMin: offChainPolicies.timeWindowStartMin,
+        timeWindowEndMin: offChainPolicies.timeWindowEndMin,
+        timeWindowDowBitmask: offChainPolicies.timeWindowDowBitmask,
+        timezone: offChainPolicies.timezone,
+      })
+      .from(offChainPolicies)
+      .where(eq(offChainPolicies.walletId, row.walletId))
+      .limit(1);
+    const offChain = policyRows[0] ?? null;
+
+    // On-chain Session account read. PDA = ["session", vault, session_pubkey].
+    let owner: PublicKey;
+    let vault: PublicKey;
+    let sessionPubkey: PublicKey;
+    try {
+      owner = new PublicKey(userPubkey);
+      vault = new PublicKey(row.vaultPda);
+      sessionPubkey = new PublicKey(row.sessionPubkey);
+    } catch {
+      res.status(500).json({ error: "wallet/session pubkey malformed in DB" });
+      return;
+    }
+    // owner is unused for the PDA derivation but kept for parity with other
+    // routes that build owner-signed txs; suppress unused-var by referencing.
+    void owner;
+    const [sessionPda] = deriveSessionPda(vault, sessionPubkey);
+
+    let onChain: ReturnType<typeof decodeSessionAccount> | null = null;
+    let onChainError: string | null = null;
+    try {
+      const conn = newConn();
+      const info = await conn.getAccountInfo(sessionPda, "confirmed");
+      if (!info) {
+        // Session row exists in DB but the on-chain PDA doesn't — happens
+        // between POST /v1/session and the owner submitting the tx.
+        onChainError = "session pda not yet on chain";
+      } else {
+        onChain = decodeSessionAccount(Buffer.from(info.data));
+      }
+    } catch (err) {
+      console.error("[GET /v1/sessions/:id] on-chain read failed:", err);
+      onChainError = "rpc unavailable";
+    }
+
+    res.json({
+      id: row.id,
+      walletId: row.walletId,
+      label: row.label,
+      sessionPubkey: row.sessionPubkey,
+      expiresAt: row.expiresAt,
+      revokedAt: row.revokedAt,
+      createdAt: row.createdAt,
+      keyPrefix: row.keyPrefix,
+      onChain: onChain
+        ? {
+            // Convert bigints to decimal strings — JSON can't represent u64
+            // safely as Number once we cross 2^53.
+            maxPerTx: onChain.maxPerTx.toString(),
+            dailyCap: onChain.dailyCap.toString(),
+            dailySpent: onChain.dailySpent.toString(),
+            dailyWindowStart: Number(onChain.dailyWindowStart),
+            expiry: Number(onChain.expiry),
+            allowedRecipients: onChain.allowedRecipients.map((p) => p.toBase58()),
+            allowedRecipientsCount: onChain.allowedRecipientsCount,
+            allowedInstructions: onChain.allowedInstructions,
+          }
+        : null,
+      onChainError,
+      offChainPolicy: offChain
+        ? {
+            allowedUrls: offChain.allowedUrls,
+            timeWindowStartMin: offChain.timeWindowStartMin,
+            timeWindowEndMin: offChain.timeWindowEndMin,
+            timeWindowDowBitmask: offChain.timeWindowDowBitmask,
+            timezone: offChain.timezone,
+          }
+        : null,
+    });
+  };
+}
+
+export const getSessionHandler = makeGetSessionHandler();
