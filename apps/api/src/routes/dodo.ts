@@ -7,9 +7,13 @@ import {
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import bs58 from "bs58";
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
+// Treasury loader shared with spend.ts + yield.ts agent paths (T-226).
+import {
+  loadTreasury as defaultLoadTreasury,
+  loadTreasuryAta as defaultLoadTreasuryAta,
+} from "../crypto/treasury";
 import { getDb } from "../db/client";
 import { auditLog, dodoPayments, treasuryDisbursements, wallets } from "../db/schema";
 
@@ -258,21 +262,6 @@ export interface MakePostDodoWebhookDeps {
   loadTreasury?: () => Keypair;
   /** Test seam: override the treasury USDC ATA pubkey. */
   loadTreasuryAta?: () => PublicKey;
-}
-
-function defaultLoadTreasury(): Keypair {
-  const raw = envOrThrow("TREASURY_SECRET_KEY");
-  // Accept either base58 (Phantom export) or JSON array (`solana-keygen` output).
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("[")) {
-    const arr = JSON.parse(trimmed) as number[];
-    return Keypair.fromSecretKey(Uint8Array.from(arr));
-  }
-  return Keypair.fromSecretKey(bs58.decode(trimmed));
-}
-
-function defaultLoadTreasuryAta(): PublicKey {
-  return new PublicKey(envOrThrow("TREASURY_USDC_ATA"));
 }
 
 export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {

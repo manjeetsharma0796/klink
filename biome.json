@@ -22,7 +22,8 @@
       "apps/*/drizzle/**",
       "bun.lock",
       "**/.bun",
-      ".claude/**"
+      ".claude/**",
+      ".devnet-test-keypair.json"
     ]
   },
   "formatter": {
