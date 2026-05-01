@@ -68,18 +68,18 @@ export function SignIn() {
     <div className="flex flex-col items-center gap-3">
       <WalletMultiButton />
       {connected && phase !== "done" && (
-        <p className="text-sm text-gray-600">{phaseLabel(phase)}</p>
+        <p className="text-sm text-muted-foreground">{phaseLabel(phase)}</p>
       )}
       {phase === "error" && (
         <div className="flex flex-col items-center gap-2">
-          <p className="text-sm text-red-600">{error ?? "sign-in failed"}</p>
+          <p className="text-sm text-destructive">{error ?? "sign-in failed"}</p>
           <button
             type="button"
             onClick={() => {
               setPhase("idle");
               void signIn();
             }}
-            className="rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-100"
+            className="rounded-md border border-input bg-background px-3 py-1 text-sm hover:bg-secondary/50"
           >
             Try again
           </button>
@@ -90,7 +90,7 @@ export function SignIn() {
               setPhase("idle");
               setError(null);
             }}
-            className="text-xs text-gray-500 underline"
+            className="text-xs text-muted-foreground underline"
           >
             Disconnect wallet
           </button>
