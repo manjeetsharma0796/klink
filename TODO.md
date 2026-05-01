@@ -208,13 +208,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 5 — Docs + design
 
-### T-501 — Per-OS dev-environment runbook
-- Status: in-progress @Jishnu 2026-05-02
-- Depends-on: —
-- OS: any (content covers all three)
-- Scope: docs
-- Acceptance: `docs/runbooks/dev-environment.md` with install commands for Solana CLI, Anchor, Rust, Node, pnpm, Postgres, Redis on Windows (incl. WSL2 note), macOS (Homebrew), Linux (apt/dnf). One row per dev attesting their box is configured.
-
 ### T-503 — Demo replay script
 - Status: pending
 - Depends-on: T-309
@@ -234,6 +227,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-501 — Per-OS dev-environment runbook
+- Status: done @Jishnu 2026-05-02
+- Depends-on: —
+- OS: any (content covers all three)
+- Scope: docs
+- Acceptance: `docs/runbooks/dev-environment.md` extended from a stub into a full per-OS install runbook. New §2.4 adds Fedora/RHEL `dnf` commands (closes the apt/dnf coverage gap in the original acceptance). Postgres + Redis install commands added to every per-OS section. New §4 adds local Postgres bootstrap (`CREATE ROLE klink … CREATE DATABASE klink_dev …` + `db:migrate`) so devs can work offline. New §5 walks through clone → `bun install` → env-file fill → typecheck/test/lint → `bun --filter @klink/api dev`. §3 verify list expanded to include `psql` and `redis-cli ping`. §6 attestation table widened with Postgres + Redis columns; rows pre-seeded for @Manjeet/@Manish/@Mouli; @Jishnu's row updated with managed (Neon/Upstash) values + 2026-05-02 date. Note re Bun mandate: T-501 was originally written calling for Node/pnpm install commands — superseded by the team's Bun-only decision (per `team-collaboration.md`); the runbook now mandates `bun` for runtime + package manager + test runner with no Node/pnpm steps.
 
 ### T-224 — `GET /v1/wallet` (read wallet)
 - Status: done @Jishnu 2026-05-02
@@ -276,13 +276,6 @@ _(newest first)_
 - OS: any
 - Scope: api
 - Acceptance: `apps/api/src/routes/session.ts` `getSessionsHandler` — dashboard-JWT-authenticated. Two-step query: fetch caller's wallet IDs first (so empty wallets → empty array, not 404), then `inArray` filter on sessions joined to `api_keys` for the prefix. Optional `?wallet_id=` filter to scope to one vault. `INNER JOIN api_keys` because T-206 inserts both rows in one transaction — a session without an API key would be a corrupt state, not a UI rendering case. Result `[{ id, walletId, label, sessionPubkey, expiresAt, revokedAt, keyPrefix, createdAt }]` ordered `createdAt desc`. Mounted at `GET /v1/sessions`.
-
-### T-407 — Wire up Telegram bot + verify notifications
-- Status: done @Jishnu 2026-04-30
-- Depends-on: —
-- OS: any
-- Scope: infra
-- Acceptance: bot `@klinkdotfun_bot` created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in the GitHub repo; smoke test verified live in production traffic — `[BOARD] Session leaderboard` posts on every push to `main` (the bug surfaced in PR #53 was the IST-vs-UTC date-window in the leaderboard, not a wiring issue), and `[REVIEW]`/`[DONE]` tags fired correctly on PRs #51 and #53. Attestation row in [`docs/runbooks/telegram-notifications.md`](docs/runbooks/telegram-notifications.md) §3 filled in; team-channel pointer in TODO.md Team section now points at the bot + workflow file. Public invite link intentionally NOT committed — shared off-repo (DM Jishnu/Manjeet) so it can't be harvested from the public repo. With T-407 closed, T-408 (Telegram leaderboard) is now end-to-end live.
 
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30
