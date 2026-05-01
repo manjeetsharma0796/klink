@@ -135,13 +135,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 3 — Dashboard + SDK
 
-### T-309 — TypeScript SDK package (`@klink/sdk`)
-- Status: in-progress @Manjeet 2026-04-29
-- Depends-on: T-210, T-211, T-212, T-213
-- OS: any
-- Scope: sdk
-- Acceptance: typed client for all `/v1/spend/*` and `/v1/yield/*` endpoints; published to local Bun workspace.
-
 ### T-310 — SDK quickstart README
 - Status: pending
 - Depends-on: T-309
@@ -153,7 +146,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 4 — Infrastructure / DevOps
 
 ### T-403 — Backend deploy target
-- Status: pending
+- Status: in-progress @Manjeet 2026-05-02
 - Depends-on: T-201
 - OS: any
 - Scope: infra
@@ -280,6 +273,19 @@ _(newest first)_
 - OS: any
 - Scope: api
 - Acceptance: `apps/api/src/routes/session.ts` `getSessionsHandler` — dashboard-JWT-authenticated. Two-step query: fetch caller's wallet IDs first (so empty wallets → empty array, not 404), then `inArray` filter on sessions joined to `api_keys` for the prefix. Optional `?wallet_id=` filter to scope to one vault. `INNER JOIN api_keys` because T-206 inserts both rows in one transaction — a session without an API key would be a corrupt state, not a UI rendering case. Result `[{ id, walletId, label, sessionPubkey, expiresAt, revokedAt, keyPrefix, createdAt }]` ordered `createdAt desc`. Mounted at `GET /v1/sessions`.
+### T-309 — TypeScript SDK package (`@klink/sdk`)
+- Status: done @Manjeet 2026-05-02
+- Depends-on: T-210, T-211, T-212, T-213
+- OS: any
+- Scope: sdk
+- Acceptance: typed client for all `/v1/spend/*` and `/v1/yield/*` endpoints; published to local Bun workspace. Implementation: `packages/sdk/` with `KlinkClient` class, typed request/response shapes, `KlinkApiError` with status + body, injectable `FetchLike` for testing. 18 tests covering all 6 endpoints (spend/transfer, spend/sign-payment, spend/service pass-through, yield/deposit, yield/withdraw, yield/position), error taxonomy, base-url normalization, and non-JSON error resilience. Root `package.json` workspaces extended to `packages/*`; `.gitignore` and `biome.json` updated. Lint + typecheck + 155 total tests green.
+
+### T-407 — Wire up Telegram bot + verify notifications
+- Status: done @Jishnu 2026-05-02
+- Depends-on: —
+- OS: any
+- Scope: infra
+- Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
 
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30

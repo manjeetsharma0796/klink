@@ -1,7 +1,7 @@
 {
   "name": "klink",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "bun --filter @klink/api dev",
     "test": "bun --filter '*' test",
