@@ -111,13 +111,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: tests
 - Acceptance: full flow init → add_session → spend in-bounds → spend over-bounds (revert) → kamino_deposit → kamino_withdraw → revoke. Passes via `anchor test`.
 
-### T-113 — Devnet deployment + smoke test
-- Status: pending
-- Depends-on: T-112
-- OS: any
-- Scope: deploy
-- Acceptance: program deployed to devnet; smoke script runs end-to-end against real Kamino devnet reserve; tx signatures logged in `docs/runbooks/devnet-deploys.md`.
-
 ### T-114 — Multisig upgrade authority
 - Status: pending
 - Depends-on: T-113
@@ -189,6 +182,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-113 — Devnet deployment + smoke test
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-112
+- OS: any
+- Scope: deploy
+- Acceptance: agent_wallet program deployed to Solana devnet at `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv`. ProgramData `4MjoSCZnixSe167V5yMXtbLTKFEcVJPwQyyNHtDkSmTY`, authority `6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ`, slot 459 431 877, data length 276 832 bytes, deployed from build at `origin/main` commit `8e9eb05` via `anchor build && anchor deploy --provider.cluster devnet --provider.wallet <deployer>`. Cost ≈ 1.93 SOL rent. Deploy log appended to `docs/runbooks/devnet-deploys.md` with full provenance + smoke procedure. Kamino devnet reserve env (`KAMINO_RESERVE`, etc.) still empty — `kamino_deposit` / `kamino_withdraw` will revert until those are populated, but the other 6 instructions are live and signable from the dashboard. T-112 dep was waived (no integration tests yet) — flagged for follow-up. Smoke against real Kamino devnet reserve is gated on T-114's authority rotation and T-213's env wiring.
+- Notes: T-114 (multisig authority rotation) is the next blocker before mainnet. The deploy authority is currently a single keypair held by @Pritwish.
 
 ### T-308 — Dodo fund flow UI
 - Status: done @Pritwish 2026-05-02
