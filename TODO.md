@@ -41,7 +41,7 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 
 ## Team
 
-> **Team channel:** _(TBD — paste link here, e.g. Discord/Slack/Telegram. This is the place referenced by `team-collaboration.md` §6 and §8.)_
+> **Team channel:** Telegram group `klink-dev` — bot [`@klinkdotfun_bot`](https://t.me/klinkdotfun_bot). Invite link is shared off-repo (DM @Jishnu / @Manjeet for access — public invite intentionally not committed). Notification workflow: [`.github/workflows/telegram-notify.yml`](.github/workflows/telegram-notify.yml). This is the place referenced by `team-collaboration.md` §6 and §8.
 
 | Handle | OS | Strengths / preferred area | Timezone |
 |---|---|---|---|
@@ -203,14 +203,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: infra
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
-
-### T-407 — Wire up Telegram bot + verify notifications
-- Status: in-progress @Jishnu 2026-04-30
-- Depends-on: —
-- OS: any
-- Scope: infra
-- Acceptance: bot created via `@BotFather`; `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets set in GitHub repo; smoke test passes (dummy `claim: T-999` PR triggers `[CLAIM]` message, merge triggers `[LOCK]`); attestation row added to `docs/runbooks/telegram-notifications.md` §3; team channel link in `TODO.md` Team section updated to the Telegram group invite.
-- Notes: workflow YAML and runbook are already in the repo — only live bot wiring + secrets remain. This is the "team channel" referenced in `team-collaboration.md` §6 and §8.
 
 ---
 
