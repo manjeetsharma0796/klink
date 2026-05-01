@@ -1,6 +1,7 @@
 import puppeteer, { type Page } from "puppeteer";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { SignJWT } from "jose";
 import { startMockApi } from "./helpers/api-server";
 
 const WEB_PORT = Number(process.env.PORT ?? 3030);
@@ -10,6 +11,7 @@ const SCREENSHOT_DIR = join(import.meta.dir, "_screenshots");
 mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
 const FAKE_PUBKEY = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv";
+const JWT_SECRET = process.env.JWT_SECRET ?? "puppeteer-test-secret-not-for-prod-use";
 
 const PUBLIC_PAGES = [{ path: "/", name: "00-signin" }];
 const DASH_PAGES = [
@@ -21,14 +23,24 @@ const DASH_PAGES = [
   { path: "/dashboard/settings", name: "60-settings" },
 ];
 
+async function mintTestJwt(): Promise<string> {
+  const secret = new TextEncoder().encode(JWT_SECRET);
+  return await new SignJWT({ pubkey: FAKE_PUBKEY })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject("00000000-0000-0000-0000-000000000000")
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(secret);
+}
+
 async function setAuthCookie(page: Page) {
-  // Inject a fake klink session cookie. The dashboard's verifyKlinkJwt() will
-  // fail and redirect — we accept this and snapshot the redirect target. To
-  // actually reach /dashboard, you'd need the real JWT secret + signed token,
-  // which is out of scope for this offline harness.
+  // Mint a real JWT signed with the same secret the Next dev server uses
+  // (`JWT_SECRET` env var, set when launching `bun run dev`). The dashboard
+  // layout's verifyKlinkJwt() succeeds and the dashboard pages render.
+  const token = await mintTestJwt();
   await page.setCookie({
     name: "klink_session",
-    value: "stub.signed.cookie",
+    value: token,
     domain: "localhost",
     httpOnly: true,
     path: "/",
