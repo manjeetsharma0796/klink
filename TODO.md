@@ -90,48 +90,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
-### T-104 — `Session` account + `add_session` instruction
-- Status: pending
-- Depends-on: T-103
-- OS: any
-- Scope: anchor-program
-- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only.
-
-### T-105 — `transfer_usdc` instruction with all reverts
-- Status: pending
-- Depends-on: T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: implements all 5 revert conditions from §2.5 (recipient allowlist, max_per_tx, daily cap with rolling-24h reset, expiry, instruction-bit). Each revert covered by its own test in T-110.
-
-### T-106 — `revoke_session` + `update_session_allowlist`
-- Status: pending
-- Depends-on: T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only.
-
-### T-107 — `set_max_deployed_fraction`
-- Status: pending
-- Depends-on: T-103
-- OS: any
-- Scope: anchor-program
-- Acceptance: owner-only; bounded 0–10000 bp.
-
-### T-108 — `kamino_deposit` CPI
-- Status: pending
-- Depends-on: T-103, T-104
-- OS: any
-- Scope: anchor-program
-- Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner.
-
-### T-109 — `kamino_withdraw` CPI
-- Status: pending
-- Depends-on: T-108
-- OS: any
-- Scope: anchor-program
-- Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress).
-
 ### T-110 — TDD revert suite (spec §6.1.1)
 - Status: in-progress @Manish 2026-04-29
 - Depends-on: T-105, T-106, T-107
@@ -306,13 +264,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 5 — Docs + design
 
-### T-501 — Per-OS dev-environment runbook
-- Status: in-progress @Jishnu 2026-05-02
-- Depends-on: —
-- OS: any (content covers all three)
-- Scope: docs
-- Acceptance: `docs/runbooks/dev-environment.md` with install commands for Solana CLI, Anchor, Rust, Node, pnpm, Postgres, Redis on Windows (incl. WSL2 note), macOS (Homebrew), Linux (apt/dnf). One row per dev attesting their box is configured.
-
 ### T-503 — Demo replay script
 - Status: pending
 - Depends-on: T-309
@@ -333,8 +284,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
-### T-103 — `Vault` account + `init_vault` instruction
-- Status: done @Pritwish 2026-04-28
+### T-501 — Per-OS dev-environment runbook
+- Status: done @Jishnu 2026-05-02
+- Depends-on: —
+- OS: any (content covers all three)
+- Scope: docs
+- Acceptance: `docs/runbooks/dev-environment.md` extended from a stub into a full per-OS install runbook. New §2.4 adds Fedora/RHEL `dnf` commands (closes the apt/dnf coverage gap in the original acceptance). Postgres + Redis install commands added to every per-OS section. New §4 adds local Postgres bootstrap (`CREATE ROLE klink … CREATE DATABASE klink_dev …` + `db:migrate`) so devs can work offline. New §5 walks through clone → `bun install` → env-file fill → typecheck/test/lint → `bun --filter @klink/api dev`. §3 verify list expanded to include `psql` and `redis-cli ping`. §6 attestation table widened with Postgres + Redis columns; rows pre-seeded for @Manjeet/@Manish/@Mouli; @Jishnu's row updated with managed (Neon/Upstash) values + 2026-05-02 date. Note re Bun mandate: T-501 was originally written calling for Node/pnpm install commands — superseded by the team's Bun-only decision (per `team-collaboration.md`); the runbook now mandates `bun` for runtime + package manager + test runner with no Node/pnpm steps.
+
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30
 - Depends-on: —
