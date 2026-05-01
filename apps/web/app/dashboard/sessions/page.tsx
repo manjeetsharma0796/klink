@@ -1,0 +1,77 @@
+"use client";
+
+import Link from "next/link";
+import { useSessions } from "@/_hooks/use-sessions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { Skeleton } from "@/app/_components/ui/skeleton";
+import { Badge } from "@/app/_components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
+import { truncatePubkey, formatTimestamp } from "@/lib/formatters";
+import { BackendPending } from "../_components/backend-pending";
+import { NewSessionModal } from "./new-session-modal";
+import { RevokeConfirm } from "./revoke-confirm";
+
+export default function SessionsPage() {
+  const { sessions, notImplemented, isLoading, mutate } = useSessions();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Sessions</h1>
+        <NewSessionModal onCreated={() => mutate()} />
+      </div>
+
+      {notImplemented && (
+        <BackendPending taskId="T-218" description="GET /v1/sessions — list sessions for the caller's wallet." />
+      )}
+
+      {!notImplemented && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Active and historical sessions</CardTitle></CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : !sessions || sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No sessions yet. Create one to issue an API key.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Pubkey</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>API key</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sessions.map((s) => {
+                    const status = s.revokedAt ? "revoked" : s.expiresAt && Date.parse(s.expiresAt) < Date.now() ? "expired" : "active";
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell>{s.label}</TableCell>
+                        <TableCell className="font-mono text-xs">{truncatePubkey(s.sessionPubkey)}</TableCell>
+                        <TableCell><Badge variant={status === "active" ? "default" : "secondary"}>{status}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs">{s.keyPrefix}…</TableCell>
+                        <TableCell className="text-xs">{formatTimestamp(Date.parse(s.createdAt) / 1000)}</TableCell>
+                        <TableCell className="space-x-2 text-right">
+                          <Link href={`/dashboard/sessions/${s.id}`} className="text-xs font-medium text-primary hover:underline">
+                            Allowlist
+                          </Link>
+                          {status === "active" && (
+                            <RevokeConfirm sessionId={s.id} label={s.label} onRevoked={() => mutate()} />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
