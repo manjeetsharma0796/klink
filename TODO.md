@@ -131,6 +131,20 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-225 — Dashboard double-POST for `/v1/wallet` create flow
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-205, T-224
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/_components/create-wallet-cta.tsx` does a second `POST /v1/wallet` after the on-chain `init_vault` tx confirms, before mutating SWR. The `POST /v1/wallet` build-tx branch never inserts a `wallets` DB row — only the `alreadyExists` self-heal branch does. Without the second POST, `mutate("/v1/wallet")` re-fetches the now-confirmed wallet and gets 404, the CTA stays visible, and the user has to click "Create wallet" twice. Found via live e2e against the real Neon DB + devnet program; symptom matches the user's "UI is broken" report (2026-05-02).
+
+### T-226 — Treasury keypair as fee payer for agent spend/yield
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-210, T-211, T-212, T-213, T-215
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` (3 handlers) and `apps/api/src/routes/yield.ts` (agent-flow handlers) switch `tx.feePayer` from `signer.publicKey` (= session keypair, which is `Keypair.generate()`d server-side and has 0 SOL) to the treasury keypair from `TREASURY_SECRET_KEY`. Both keypairs sign — treasury for the network fee, session for the on-chain `transfer_usdc` / `kamino_*` instruction's `session_signer` constraint. `loadTreasury()` extracted from `apps/api/src/routes/dodo.ts` into a shared module `apps/api/src/crypto/treasury.ts` so spend, yield, and dodo all use the same loader. Owner-flow build-tx variants (T-222 — `/v1/wallet/yield/*`) keep `feePayer = owner` since the user's Phantom signs + pays. Live e2e harness at `apps/api/scripts/e2e-dashboard.ts` (added in this task) drives the full flow against the real api + devnet and verifies the fix. Found via the same e2e session as T-225; every agent spend was failing with `Attempt to debit an account but found no record of a prior credit` because the empty session keypair couldn't pay the 5000-lamport network fee.
+
 ---
 
 ## 3 — Dashboard + SDK
