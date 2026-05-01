@@ -90,6 +90,48 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `solana --version` and `anchor --version` print on every dev box; pinned versions logged in `docs/runbooks/dev-environment.md` (T-501).
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
+### T-104 — `Session` account + `add_session` instruction
+- Status: pending
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only.
+
+### T-105 — `transfer_usdc` instruction with all reverts
+- Status: pending
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: implements all 5 revert conditions from §2.5 (recipient allowlist, max_per_tx, daily cap with rolling-24h reset, expiry, instruction-bit). Each revert covered by its own test in T-110.
+
+### T-106 — `revoke_session` + `update_session_allowlist`
+- Status: pending
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only.
+
+### T-107 — `set_max_deployed_fraction`
+- Status: pending
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: owner-only; bounded 0–10000 bp.
+
+### T-108 — `kamino_deposit` CPI
+- Status: pending
+- Depends-on: T-103, T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner.
+
+### T-109 — `kamino_withdraw` CPI
+- Status: pending
+- Depends-on: T-108
+- OS: any
+- Scope: anchor-program
+- Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress).
+
 ### T-110 — TDD revert suite (spec §6.1.1)
 - Status: in-progress @Manish 2026-04-29
 - Depends-on: T-105, T-106, T-107
@@ -291,6 +333,8 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-103 — `Vault` account + `init_vault` instruction
+- Status: done @Pritwish 2026-04-28
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30
 - Depends-on: —
