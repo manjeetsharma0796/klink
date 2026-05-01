@@ -307,7 +307,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 5 — Docs + design
 
 ### T-501 — Per-OS dev-environment runbook
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: —
 - OS: any (content covers all three)
 - Scope: docs
