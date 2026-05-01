@@ -10,7 +10,7 @@ function sign(rawBody: Buffer, secret: string): string {
 
 describe("verifyDodoSignature", () => {
   it("accepts the canonical hex digest of the raw body", () => {
-    const body = Buffer.from('{"type":"checkout.session.completed"}', "utf8");
+    const body = Buffer.from('{"type":"payment.succeeded"}', "utf8");
     const sig = sign(body, SECRET);
     expect(verifyDodoSignature(body, sig, SECRET)).toBe(true);
   });

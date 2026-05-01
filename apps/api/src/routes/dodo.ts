@@ -215,7 +215,7 @@ export const postDodoCheckoutHandler = makePostDodoCheckoutHandler();
 // ---------------------------------------------------------------------------
 
 export interface DodoWebhookEvent {
-  /** Event type — only "checkout.session.completed" triggers disbursement. */
+  /** Event type — only "payment.succeeded" triggers disbursement. */
   type: string;
   data: {
     /** This is the dodo_session_id used as the idempotency key. */
@@ -321,7 +321,7 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
     // Only process the "paid" terminal state. Other events (open, expired,
     // failed) are acknowledged with 200 so Dodo stops retrying — but we
     // record nothing on-chain.
-    const isPaid = event.type === "checkout.session.completed" || event.data.status === "paid";
+    const isPaid = event.type === "payment.succeeded" || event.data.status === "paid";
     if (!isPaid) {
       res.status(200).json({ status: "ignored", type: event.type });
       return;
