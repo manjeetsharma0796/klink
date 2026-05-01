@@ -54,11 +54,80 @@ async function snapshot(page: Page, name: string) {
 async function main() {
   const headless = !process.env.HEADFUL;
 
+  const WALLET_ID = "00000000-0000-0000-0000-000000000001";
+  const SESSION_ID = "00000000-0000-0000-0000-000000000002";
+
   const apiServer = await startMockApi(API_PORT, [
-    { method: "GET", path: "/v1/wallet", body: { error: "WALLET_NOT_FOUND" }, status: 404 },
-    { method: "GET", path: /\/v1\/sessions(\?|$)/, body: [] },
-    { method: "GET", path: /\/v1\/audit/, body: { entries: [], next_cursor: null } },
-    { method: "GET", path: "/v1/fund/deposit-address", body: { vault_pda: FAKE_PUBKEY, usdc_ata: FAKE_PUBKEY, qr_data_url: "data:image/png;base64,iVBORw0K" } },
+    {
+      method: "GET",
+      path: "/v1/wallet",
+      body: {
+        id: WALLET_ID,
+        vaultPda: FAKE_PUBKEY,
+        usdcAta: FAKE_PUBKEY,
+        maxDeployedFractionBp: 8000,
+        ownerPubkey: FAKE_PUBKEY,
+        createdAt: "2026-05-02T00:00:00Z",
+      },
+    },
+    {
+      method: "GET",
+      path: /\/v1\/sessions(\?|$)/,
+      body: [
+        {
+          id: SESSION_ID,
+          walletId: WALLET_ID,
+          label: "demo-agent",
+          sessionPubkey: FAKE_PUBKEY,
+          expiresAt: null,
+          revokedAt: null,
+          createdAt: "2026-05-02T00:00:00Z",
+          keyPrefix: "klink_de",
+        },
+      ],
+    },
+    {
+      method: "GET",
+      path: /\/v1\/audit/,
+      body: {
+        entries: [
+          {
+            id: 1,
+            walletId: WALLET_ID,
+            sessionId: SESSION_ID,
+            action: "spend_transfer",
+            amount: 50000,
+            recipientOrUrl: FAKE_PUBKEY,
+            decision: "allow",
+            reason: null,
+            txSignature: "5".repeat(88),
+            createdAt: "2026-05-02T00:01:00Z",
+          },
+          {
+            id: 2,
+            walletId: WALLET_ID,
+            sessionId: SESSION_ID,
+            action: "spend_transfer",
+            amount: 200000,
+            recipientOrUrl: "https://api.example.com/x",
+            decision: "deny",
+            reason: "URL_NOT_ALLOWED",
+            txSignature: null,
+            createdAt: "2026-05-02T00:02:00Z",
+          },
+        ],
+        next_cursor: null,
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/fund/deposit-address",
+      body: {
+        vault_pda: FAKE_PUBKEY,
+        usdc_ata: FAKE_PUBKEY,
+        qr_data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      },
+    },
   ]);
 
   const browser = await puppeteer.launch({ headless });

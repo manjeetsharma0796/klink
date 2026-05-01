@@ -12,6 +12,7 @@ import {
 describe("walletSchema", () => {
   test("parses valid wallet", () => {
     const r = walletSchema.parse({
+      id: "00000000-0000-0000-0000-000000000000",
       vaultPda: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
       usdcAta: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
       maxDeployedFractionBp: 8000,
@@ -19,6 +20,54 @@ describe("walletSchema", () => {
       createdAt: "2026-05-02T00:00:00Z",
     });
     expect(r.maxDeployedFractionBp).toBe(8000);
+    expect(r.id).toBe("00000000-0000-0000-0000-000000000000");
+  });
+});
+
+describe("sessionDetailSchema", () => {
+  test("parses with on-chain block populated (bigints as strings)", () => {
+    const r = sessionDetailSchema.parse({
+      id: "00000000-0000-0000-0000-000000000000",
+      walletId: "00000000-0000-0000-0000-000000000001",
+      label: "agent-1",
+      sessionPubkey: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
+      expiresAt: null,
+      revokedAt: null,
+      createdAt: "2026-05-02T00:00:00Z",
+      keyPrefix: "klink_de",
+      onChain: {
+        maxPerTx: "100000",
+        dailyCap: "1000000",
+        dailySpent: "0",
+        dailyWindowStart: 1714579200,
+        expiry: 0,
+        allowedRecipients: ["5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv"],
+        allowedRecipientsCount: 1,
+        allowedInstructions: 7,
+      },
+      onChainError: null,
+      offChainPolicy: null,
+    });
+    expect(r.onChain?.allowedInstructions).toBe(7);
+    expect(r.onChain?.maxPerTx).toBe("100000");
+  });
+
+  test("parses with onChain null (PDA not yet on-chain)", () => {
+    const r = sessionDetailSchema.parse({
+      id: "00000000-0000-0000-0000-000000000000",
+      walletId: "00000000-0000-0000-0000-000000000001",
+      label: "agent-1",
+      sessionPubkey: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
+      expiresAt: null,
+      revokedAt: null,
+      createdAt: "2026-05-02T00:00:00Z",
+      keyPrefix: "klink_de",
+      onChain: null,
+      onChainError: "session pda not yet on chain",
+      offChainPolicy: null,
+    });
+    expect(r.onChain).toBeNull();
+    expect(r.onChainError).toBe("session pda not yet on chain");
   });
 });
 

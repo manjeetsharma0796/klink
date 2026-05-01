@@ -4,6 +4,7 @@ const pubkey = z.string().min(32).max(44);
 const uuid = z.string().uuid();
 
 export const walletSchema = z.object({
+  id: uuid,
   vaultPda: pubkey,
   usdcAta: pubkey,
   maxDeployedFractionBp: z.number().int().min(0).max(10000),
@@ -26,15 +27,25 @@ export type SessionRow = z.infer<typeof sessionRowSchema>;
 
 export const sessionsListSchema = z.array(sessionRowSchema);
 
-export const sessionDetailSchema = sessionRowSchema.extend({
-  vault: pubkey,
-  maxPerTx: z.number().int().nonnegative(),
-  dailyCap: z.number().int().nonnegative(),
-  dailySpent: z.number().int().nonnegative(),
+// Real backend returns u64 fields as decimal strings (JSON can't represent
+// >2^53 safely). On-chain block is null when the session PDA hasn't been
+// created on-chain yet (between POST /v1/session and the owner submitting
+// the build-tx) or when the RPC read failed.
+export const sessionOnChainSchema = z.object({
+  maxPerTx: z.string(),
+  dailyCap: z.string(),
+  dailySpent: z.string(),
   dailyWindowStart: z.number().int(),
   expiry: z.number().int(),
   allowedRecipients: z.array(pubkey),
+  allowedRecipientsCount: z.number().int().min(0),
   allowedInstructions: z.number().int().min(0).max(0xffffffff),
+});
+export type SessionOnChain = z.infer<typeof sessionOnChainSchema>;
+
+export const sessionDetailSchema = sessionRowSchema.extend({
+  onChain: sessionOnChainSchema.nullable(),
+  onChainError: z.string().nullable(),
   offChainPolicy: z
     .object({
       allowedUrls: z.array(z.object({ pattern: z.string(), max_per_call: z.number() })),

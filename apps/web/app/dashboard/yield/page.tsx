@@ -38,7 +38,9 @@ export default function YieldPage() {
       return;
     }
     try {
-      await run(`/v1/yield/${kind}`, "POST", { amount: baseUnits, wallet_id: wallet?.vaultPda });
+      // Owner-flow path lives at /v1/wallet/yield/* (T-222). The /v1/yield/*
+      // endpoints are agent-key-authenticated; the dashboard never holds an API key.
+      await run(`/v1/wallet/yield/${kind}`, "POST", { amount: baseUnits, wallet_id: wallet?.id });
       toast({ title: `${kind} confirmed` });
       onChain.mutate();
     } catch (e) {

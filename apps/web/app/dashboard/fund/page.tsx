@@ -31,7 +31,7 @@ export default function FundPage() {
     if (!wallet) return;
     setBusy(true);
     try {
-      const r = await api.post<unknown>("/v1/fund/dodo-checkout", { amount_usd: usd, wallet_id: wallet.vaultPda });
+      const r = await api.post<unknown>("/v1/fund/dodo-checkout", { amount_usd: usd, wallet_id: wallet.id });
       const parsed = dodoCheckoutResponseSchema.parse(r);
       window.location.assign(parsed.checkout_url);
     } catch (e) {
