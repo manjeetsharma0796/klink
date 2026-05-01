@@ -138,8 +138,53 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-218 — `GET /v1/sessions` (list sessions for caller's wallets)
+- Status: pending
+- Depends-on: T-206
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` extended with `getSessionsHandler`. Dashboard-JWT-authenticated. Lists sessions joined to `wallets.user_id = req.user.id`. Response: `[{ id, walletId, label, sessionPubkey, expiresAt, revokedAt, keyPrefix, createdAt }]` ordered by `createdAt desc`. Optional `?wallet_id=` filter; defaults to all wallets owned by caller. `keyPrefix` joined from `api_keys`. Empty array (not 404) when caller has no sessions.
+- Notes: blocks T-304 (session list UI). Filed by T-303-T-308 UI design (`docs/superpowers/specs/2026-05-02-klink-web-ui-design.md` §8).
 
+### T-219 — `GET /v1/sessions/:id` (read one session + off-chain policy)
+- Status: pending
+- Depends-on: T-206, T-209
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` — single-session read. Ownership check via `sessions → wallets → users.id` (same 404 for not-found and wrong-owner). Returns on-chain projection (vault, sessionPubkey, max_per_tx, daily_cap, daily_spent, daily_window_start, expiry, allowed_recipients, allowed_recipients_count, allowed_instructions) merged with off-chain policy (allowed_urls, time window). On-chain fields read via `Connection.getAccountInfo(sessionPda)` + Borsh decode reusing the layout from `apps/api/src/program/agent-wallet.ts`.
+- Notes: blocks T-305 (allowlist editor UI). Filed by UI design spec §8.
 
+### T-224 — `GET /v1/wallet` (read wallet)
+- Status: pending
+- Depends-on: T-205
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `getWalletHandler`. Dashboard-JWT-authenticated. Returns `{ vaultPda, usdcAta, maxDeployedFractionBp, ownerPubkey, createdAt }` for the wallet owned by `req.user.id`. 404 when no wallet exists yet (signals overview to show the "Create wallet" CTA). Reads from `wallets` table; on-chain `deployed_amount` exposed separately via `GET /v1/yield/position` (already T-213). Single wallet per user in MVP; if user has multiple wallets, returns the most recent.
+- Notes: blocks T-303 (overview page) + T-307 (yield needs max_bp) + T-221. Filed by UI design spec §8. (Originally proposed as T-220 — renamed because T-220 is already taken by "Service catalog seed".)
+
+### T-221 — `POST /v1/wallet/policy` (build set_max_deployed_fraction tx)
+- Status: pending
+- Depends-on: T-107, T-205
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `postWalletPolicyHandler`. Dashboard-JWT-authenticated. Body `{ max_deployed_fraction_bp: int 0..=10000 }`. Builds owner-signed unsigned `set_max_deployed_fraction` tx via the existing Anchor builder pattern (Anchor discriminator `sha256("global:set_max_deployed_fraction")[..8]` + u16 LE bp). Returns `{ txBase64 }`. The web app does the build-tx-then-sign roundtrip via Phantom. Validates ownership: wallet's `user_id` must match `req.user.id`.
+- Notes: blocks T-305 / settings UI. Filed by UI design spec §8.
+
+### T-222 — Owner-flow build-tx variants for `/v1/yield/{deposit,withdraw}`
+- Status: pending
+- Depends-on: T-108, T-109, T-205, T-213
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts` extended with dashboard-JWT-authenticated handlers that build unsigned `kamino_deposit` / `kamino_withdraw` txs for the owner's Phantom to sign + submit. Mirror the build-tx-then-sign pattern from T-205 / T-207: validate wallet ownership via `wallets.user_id = req.user.id`, fetch latest blockhash, set fee payer = owner pubkey, accounts populated with `session = None` (the on-chain instruction's `Option<Account<Session>>` is None when owner signs). Body `{ amount: u64, wallet_id: uuid }`. Returns `{ txBase64, vaultPda, vaultUsdcAta }`. The agent-key paths from T-213 stay untouched — these new handlers are mounted on the same paths but routed via auth (or alternatively new `/v1/wallet/yield/*` paths to keep auth surfaces clean — implementer's call).
+- Notes: design spec §4.3 explicitly says owner can drive yield via dashboard JWT; T-213 shipped only the agent-key half. Filed by UI design spec §8 to unblock T-307 owner UX.
+
+### T-223 — `PATCH /v1/wallet/off-chain-policy` (set URL allowlist + time window)
+- Status: pending
+- Depends-on: T-209
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `patchOffChainPolicyHandler`. Dashboard-JWT-authenticated. Validates wallet ownership via `wallets.user_id = req.user.id`. Body partial: `{ allowed_urls?: [{ pattern, max_per_call }], time_window_start_min?: 0..=1440, time_window_end_min?: 0..=1440, time_window_dow_bitmask?: 0..=127, timezone?: string }`. Server-side wildcard validation per spec §3.3.1 — host wildcards rejected with 400; only path-segment wildcards allowed. Time window validation: `start_min <= end_min`. UPSERT into `off_chain_policies` (PK = `wallet_id`). Idempotent. Returns `200 { walletId, allowedUrls, timeWindowStartMin, timeWindowEndMin, timeWindowDowBitmask, timezone }`.
+- Notes: T-209 has the read/eval path used by /v1/spend/*; this is the missing write half. Filed by UI design spec §8 to unblock T-305 allowlist editor.
 
 ---
 
