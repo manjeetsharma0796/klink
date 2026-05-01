@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-04-28
+last_updated: 2026-04-29
 ---
 
 # TODO
@@ -47,8 +47,9 @@ If you're working alone with no reviewer available, edit `TODO.md` directly on `
 |---|---|---|---|
 | `@Jishnu` | Windows | Server side/integration/maintainance/system/debugging | IST |
 | `@Manjeet` | Windows | Server side/integration/maintainance/system/debugging | IST |
-| `@Pritwish` | Linux | TBD | IST |
+| `@Prithwish` | Linux | TBD | IST |
 | `@Mouli` | TBD | TBD | IST |
+| `@Manish` | macOS | TBD | IST |
 
 > **Action:** Each person fills in their row before claiming a first task.
 
@@ -132,7 +133,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress).
 
 ### T-110 — TDD revert suite (spec §6.1.1)
-- Status: pending
+- Status: in-progress @Manish 2026-04-29
 - Depends-on: T-105, T-106, T-107
 - OS: any
 - Scope: tests
@@ -179,82 +180,53 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-205 — `POST /v1/wallet` build init_vault tx
-- Status: pending
-- Depends-on: T-103, T-203
-- OS: any
-- Scope: api
-- Acceptance: returns base64 unsigned tx for Phantom to sign + submit; includes vault PDA + USDC ATA creation.
-
-### T-206 — `POST /v1/session` (build add_session + mint API key)
-- Status: pending
-- Depends-on: T-104, T-204, T-208
-- OS: any
-- Scope: api
-- Acceptance: generates session keypair (AES-256-GCM stored), builds add_session tx for owner Phantom, returns API key once with `klink_dev_` prefix.
-
-### T-207 — `DELETE /v1/session/:id` + `PATCH /v1/session/:id/allowlist`
-- Status: pending
+### T-218 — `GET /v1/sessions` (list sessions for caller's wallets)
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-206
 - OS: any
 - Scope: api
-- Acceptance: builds revoke_session / update_session_allowlist tx for owner.
+- Acceptance: `apps/api/src/routes/session.ts` extended with `getSessionsHandler`. Dashboard-JWT-authenticated. Lists sessions joined to `wallets.user_id = req.user.id`. Response: `[{ id, walletId, label, sessionPubkey, expiresAt, revokedAt, keyPrefix, createdAt }]` ordered by `createdAt desc`. Optional `?wallet_id=` filter; defaults to all wallets owned by caller. `keyPrefix` joined from `api_keys`. Empty array (not 404) when caller has no sessions.
+- Notes: blocks T-304 (session list UI). Filed by T-303-T-308 UI design (`docs/superpowers/specs/2026-05-02-klink-web-ui-design.md` §8).
 
-### T-210 — `POST /v1/spend/transfer`
-- Status: pending
-- Depends-on: T-105, T-206, T-208, T-209
+### T-219 — `GET /v1/sessions/:id` (read one session + off-chain policy)
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-206, T-209
 - OS: any
 - Scope: api
-- Acceptance: full preamble; sign + submit with session keypair; returns `tx_signature`; audit log writes both allow and deny.
+- Acceptance: `apps/api/src/routes/session.ts` — single-session read. Ownership check via `sessions → wallets → users.id` (same 404 for not-found and wrong-owner). Returns on-chain projection (vault, sessionPubkey, max_per_tx, daily_cap, daily_spent, daily_window_start, expiry, allowed_recipients, allowed_recipients_count, allowed_instructions) merged with off-chain policy (allowed_urls, time window). On-chain fields read via `Connection.getAccountInfo(sessionPda)` + Borsh decode reusing the layout from `apps/api/src/program/agent-wallet.ts`.
+- Notes: blocks T-305 (allowlist editor UI). Filed by UI design spec §8.
 
-### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
-- Status: pending
-- Depends-on: T-210, T-220
-- OS: any
-- Scope: api
-- Acceptance: full §4.2.2 flow; pre-flight against `allowed_recipients`; quoted-amount check; X-Payment-Proof retry.
-
-### T-212 — `POST /v1/spend/sign-payment` (custom x402 sign-only)
-- Status: pending
-- Depends-on: T-210
-- OS: any
-- Scope: api
-- Acceptance: §4.2.3 flow; URL allowlist enforced; agent owns transport.
-
-### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
-- Status: pending
-- Depends-on: T-108, T-109, T-204
-- OS: any
-- Scope: api
-- Acceptance: §4.3 flow; on-chain pre-flight; reads accrued via klend-sdk; partial-liquidity → 409.
-
-### T-214 — `POST /v1/fund/dodo-checkout`
-- Status: pending
-- Depends-on: T-202
-- OS: any
-- Scope: api
-- Acceptance: creates Dodo session; INSERT `dodo_payments(pending)`; returns `checkout_url`.
-
-### T-215 — `POST /v1/webhooks/dodo` + treasury-disburser worker
-- Status: pending
-- Depends-on: T-214
-- OS: any
-- Scope: api + worker
-- Acceptance: HMAC verify; idempotent on `dodo_session_id`; worker submits treasury → vault USDC transfer; replay-attack test.
-
-### T-216 — `GET /v1/audit` paginated
-- Status: pending
-- Depends-on: T-209, T-210
-- OS: any
-- Scope: api
-- Acceptance: cursor pagination; filter by decision (allow/deny); ordered by `created_at desc`.
-
-### T-217 — `GET /v1/fund/deposit-address`
-- Status: pending
+### T-224 — `GET /v1/wallet` (read wallet)
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-205
 - OS: any
 - Scope: api
-- Acceptance: returns vault USDC ATA + QR data-url.
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `getWalletHandler`. Dashboard-JWT-authenticated. Returns `{ vaultPda, usdcAta, maxDeployedFractionBp, ownerPubkey, createdAt }` for the wallet owned by `req.user.id`. 404 when no wallet exists yet (signals overview to show the "Create wallet" CTA). Reads from `wallets` table; on-chain `deployed_amount` exposed separately via `GET /v1/yield/position` (already T-213). Single wallet per user in MVP; if user has multiple wallets, returns the most recent.
+- Notes: blocks T-303 (overview page) + T-307 (yield needs max_bp) + T-221. Filed by UI design spec §8. (Originally proposed as T-220 — renamed because T-220 is already taken by "Service catalog seed".)
+
+### T-221 — `POST /v1/wallet/policy` (build set_max_deployed_fraction tx)
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-107, T-205
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `postWalletPolicyHandler`. Dashboard-JWT-authenticated. Body `{ max_deployed_fraction_bp: int 0..=10000 }`. Builds owner-signed unsigned `set_max_deployed_fraction` tx via the existing Anchor builder pattern (Anchor discriminator `sha256("global:set_max_deployed_fraction")[..8]` + u16 LE bp). Returns `{ txBase64 }`. The web app does the build-tx-then-sign roundtrip via Phantom. Validates ownership: wallet's `user_id` must match `req.user.id`.
+- Notes: blocks T-305 / settings UI. Filed by UI design spec §8.
+
+### T-222 — Owner-flow build-tx variants for `/v1/yield/{deposit,withdraw}`
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-108, T-109, T-205, T-213
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts` extended with dashboard-JWT-authenticated handlers that build unsigned `kamino_deposit` / `kamino_withdraw` txs for the owner's Phantom to sign + submit. Mirror the build-tx-then-sign pattern from T-205 / T-207: validate wallet ownership via `wallets.user_id = req.user.id`, fetch latest blockhash, set fee payer = owner pubkey, accounts populated with `session = None` (the on-chain instruction's `Option<Account<Session>>` is None when owner signs). Body `{ amount: u64, wallet_id: uuid }`. Returns `{ txBase64, vaultPda, vaultUsdcAta }`. The agent-key paths from T-213 stay untouched — these new handlers are mounted on the same paths but routed via auth (or alternatively new `/v1/wallet/yield/*` paths to keep auth surfaces clean — implementer's call).
+- Notes: design spec §4.3 explicitly says owner can drive yield via dashboard JWT; T-213 shipped only the agent-key half. Filed by UI design spec §8 to unblock T-307 owner UX.
+
+### T-223 — `PATCH /v1/wallet/off-chain-policy` (set URL allowlist + time window)
+- Status: in-progress @Jishnu 2026-05-02
+- Depends-on: T-209
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` extended with `patchOffChainPolicyHandler`. Dashboard-JWT-authenticated. Validates wallet ownership via `wallets.user_id = req.user.id`. Body partial: `{ allowed_urls?: [{ pattern, max_per_call }], time_window_start_min?: 0..=1440, time_window_end_min?: 0..=1440, time_window_dow_bitmask?: 0..=127, timezone?: string }`. Server-side wildcard validation per spec §3.3.1 — host wildcards rejected with 400; only path-segment wildcards allowed. Time window validation: `start_min <= end_min`. UPSERT into `off_chain_policies` (PK = `wallet_id`). Idempotent. Returns `200 { walletId, allowedUrls, timeWindowStartMin, timeWindowEndMin, timeWindowDowBitmask, timezone }`.
+- Notes: T-209 has the read/eval path used by /v1/spend/*; this is the missing write half. Filed by UI design spec §8 to unblock T-305 allowlist editor.
 
 ---
 
@@ -299,7 +271,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: web
 
 ### T-309 — TypeScript SDK package (`@klink/sdk`)
-- Status: pending
+- Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-210, T-211, T-212, T-213
 - OS: any
 - Scope: sdk
@@ -323,7 +295,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: pick Fly.io / Railway / Render; staging env deploys on push to `main`.
 
 ### T-407 — Wire up Telegram bot + verify notifications
-- Status: pending
+- Status: in-progress @Jishnu 2026-04-30
 - Depends-on: —
 - OS: any
 - Scope: infra
@@ -363,6 +335,141 @@ _(newest first)_
 
 ### T-103 — `Vault` account + `init_vault` instruction
 - Status: done @Pritwish 2026-04-28
+### T-508 — API surface review (internal vs exposed)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: —
+- OS: any
+- Scope: docs + design
+- Acceptance: `docs/architecture/api-surface.md` lists every `/v1/*` route with proposed visibility (`public` / `dashboard-only` / `agent-only` / `webhook` / `internal`), the auth model, and a one-line description. Manual review pass marks each row as confirmed or flagged for change. Reviewer signs off in the doc's attestation row before mainnet exposure.
+
+### T-215 — `POST /v1/webhooks/dodo` + treasury-disburser worker
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-214
+- OS: any
+- Scope: api + worker
+- Acceptance: `apps/api/src/routes/dodo.ts` — HMAC-SHA256 verify (timing-safe, length-checked) over `req.rawBody` (captured by `express.json({ verify })` in `app.ts` so the bytes Dodo signed survive parsing). Idempotency key = `dodo_session_id`: replays return 200 `{ status: "already_settled" }` after the first success; orphan webhooks return 200 `{ status: "unknown_session" }` so Dodo stops retrying while ops can investigate via the loud server log. Disburser is inline: SPL transfer treasury USDC ATA → vault USDC ATA, signed by `TREASURY_SECRET_KEY` keypair (accepts base58 OR `solana-keygen` JSON array). On success: UPDATE `dodo_payments(status=settled, settled_at, treasury_tx_signature)`, INSERT `treasury_disbursements`, INSERT `audit_log(action=fund_dodo, decision=allow)`. On RPC submit failure: UPDATE `dodo_payments.status=failed`, audit `decision=deny` with truncated error, return 503 so Dodo retries (failed status blocks the next replay from disbursing). 6 unit tests over `verifyDodoSignature` — happy path, body tamper, wrong secret, missing/empty header, wrong-length header (would crash `timingSafeEqual` if length-check were missing), non-hex character (parsed-buffer length check catches it).
+
+### T-214 — `POST /v1/fund/dodo-checkout`
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-202
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/dodo.ts` — dashboard-JWT-authenticated. Body `{ amount_usd: int 1..10000, wallet_id: uuid, success_url?, cancel_url? }`. Wallet ownership check via `wallets.user_id = req.user.id`; same 404 for not-found and wrong-owner so existence isn't leaked. Calls injectable `createSession` (default = `fetch DODO_API_BASE_URL/checkout/sessions` with bearer `DODO_API_KEY`); on Dodo failure returns 502. INSERTs `dodo_payments(status=pending, dodo_session_id, amount_usd in cents, amount_usdc = $usd × 1_000_000)` — the unique `dodo_session_id` constraint is the idempotency key for T-215. Response `{ checkout_url, dodo_session_id }`.
+
+### T-213 — `POST /v1/yield/{deposit,withdraw}` + `GET /v1/yield/position`
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-108, T-109, T-204
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts`. Deposit + withdraw are session-signed; reuse the decrypt-keypair pattern from T-210. Build via new `buildKaminoDepositIx` / `buildKaminoWithdrawIx` (same 12-account shape, distinguished by discriminator). Kamino-specific addresses (reserve, lending market, lending-market authority, reserve liquidity supply, reserve collateral mint) loaded from env (`KAMINO_RESERVE`, etc.) — populated when T-113 lands. Withdraw revert → 409 (per §4.3 partial-liquidity), deposit revert → 402. `GET /v1/yield/position` reads on-chain Vault account, decodes `deployed_amount` at offset 42 via `decodeVaultDeployedAmount`. Accrued yield deferred (klend-sdk follow-up); `accrued: null` in response.
+
+### T-212 — `POST /v1/spend/sign-payment` (custom x402 sign-only)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-210
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` extended. Off-chain policy via T-209's `checkOffChainPolicy({ url, walletId })` — full URL-allowlist + time-of-day path. Decrypt + build + sign + submit, then audit. Returns `{ tx_signature, payment_proof_header }` where `payment_proof_header` is the base58 signature for the agent's `X-Payment-Proof:` retry. Same deny taxonomy as T-210 (URL_NOT_ALLOWED / OUTSIDE_TIME_WINDOW / INSUFFICIENT_LIQUID / ON_CHAIN_REVERT).
+
+### T-211 — `POST /v1/spend/service` (mpp.dev curated proxy)
+- Status: done @Jishnu 2026-04-30
+- Depends-on: T-210, T-220
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` extended. Catalog lookup by slug (T-220's seed); rejects disabled / unknown rows. Probe service via injectable `fetch`; expects 402 + JSON `{ amount, recipient }` requirements. Quoted amount ≤ `max_amount` enforced (else QUOTED_OVER_MAX deny + audit). Liquidity check, decrypt session, build/sign/submit `transfer_usdc`. Retry service with `X-Payment-Proof: <signature>`; forwards service response (status, content-type, body) to agent with `x-tx-signature` header. Retry-after-pay failure logged as `RETRY_FAILED: ...` allow row (money already moved) + 502 to agent.
+
+### T-217 — `GET /v1/fund/deposit-address`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-205
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/fund.ts` — owner-authenticated GET. Validates wallet ownership via `wallets.id` + `users.id` join, returns `{ vault_pda, usdc_ata, qr_data_url }`. QR rendered server-side via `qrcode` lib (256px, error-correction M). 404 for unknown / cross-user wallets.
+
+### T-216 — `GET /v1/audit` paginated
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-209, T-210
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/audit.ts` — cursor-paginated read scoped to caller's wallets via `wallets.user_id = req.user.id`. `cursor` param is the last-seen `id` (bigserial); results in `id desc` so paging is monotonic. `decision` filter (`allow|deny|all`); `limit` capped at 200, default 50. Returns `{ entries, next_cursor }`.
+
+### T-210 — `POST /v1/spend/transfer`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-105, T-206, T-208, T-209
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` — API-key-authenticated direct USDC transfer. Pre-flight: time-of-day via T-209 policy, liquidity via `getTokenAccountBalance`. Decrypts session secret with T-208, reconstructs Keypair, builds new `buildTransferUsdcIx` (T-105 instruction), signs + `sendAndConfirmTransaction`. Audit log written for both `allow` (with tx_signature) and `deny` (`OUTSIDE_TIME_WINDOW`, `INSUFFICIENT_LIQUID`, `ON_CHAIN_REVERT: <message>`). Recipient + cap + expiry remain enforced on-chain (T-105). Discriminator pinned `a49e78b74062f40b`. Connection / liquidity / submit / loadPolicy all dep-injectable for tests.
+
+### T-207 — `DELETE /v1/session/:id` + `PATCH /v1/session/:id/allowlist`
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-206
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` extended with `deleteSessionHandler` + `patchSessionAllowlistHandler`. Both build owner-signed unsigned txs (Phantom signs client-side; backend never holds owner key). Ownership check via `sessions → wallets → users.id` join. PATCH body accepts `{ action: 'Add'|'Remove'|'Set', recipients?, allowed_instructions? }` with `Option<Vec<Pubkey>>` + `Option<u32>` Borsh layout. New `agent-wallet.ts` builders: `buildRevokeSessionIx` (discriminator `565cc678900207c2`), `buildUpdateSessionAllowlistIx` (`80e84d7d0846a9e1`), `ALLOWLIST_ACTION` constant matching rust enum order.
+
+### T-206 — `POST /v1/session` (build add_session + mint API key)
+- Status: done @Jishnu 2026-04-29
+- Depends-on: T-104, T-204, T-208
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/session.ts` posts, owner-authenticated via `requireDashboardJwt` (T-205's middleware). Generates Solana session keypair, encrypts secretKey with AES-256-GCM (T-208), mints `klink_dev_<base64url-32B>` API key with argon2id hash (T-204), inserts `sessions` + `api_keys` rows in one DB transaction. Builds unsigned `add_session` tx via new `apps/api/src/program/agent-wallet.ts` (Anchor discriminator + Borsh args + PDA derivation, no IDL needed). Server-side blockhash fetch via `SOLANA_RPC_URL`. Response: `{ txBase64, sessionId, sessionPubkey, apiKey, keyPrefix, expiresAt, vaultPda, usdcAta }`. 27 unit tests covering discriminator pin (`e55e19c1840d37bc`), PDA derivation, Borsh layout per byte, and account-meta order; all 101 api tests pass.
+### T-109 — `kamino_withdraw` CPI
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-108
+- OS: any
+- Scope: anchor-program
+- Acceptance: pre-flight `amount ≤ vault.deployed_amount`. Decrements `deployed_amount`. Returns Kamino's actual withdrawn amount (may be partial under utilization stress). Implementation: `instructions/kamino_withdraw.rs` mirrors T-108 — same `Option<Account<Session>>` auth split (session bit 2 OR owner), same hardcoded Kamino program ID, opposite asset flow (burn cTokens out of `vault_collateral_ata`, receive USDC into `vault_usdc_ata`). Extends `kamino.rs` with `redeem_reserve_collateral` discriminator `[0xea, 0x75, 0xb5, 0x7d, 0xb9, 0x8e, 0xdc, 0x1d]` (= `sha256("global:redeem_reserve_collateral")[..8]`) and a typed CPI helper. The arg is the **collateral amount** Kamino burns; off-chain backend (T-213) converts USDC target → cToken amount via klend-sdk before signing. The §2.5 pre-flight `amount ≤ vault.deployed_amount` is loose — `amount` is in cTokens, `deployed_amount` is in USDC base units, so the bound is "no more than what was deposited" which suffices for the §5 utilization-stress story (caller cannot ask Kamino to release more than the wallet contributed). To handle Kamino's "may be partial under utilization stress" semantics from §5, the handler snapshots `vault_usdc_ata.amount` before the CPI, calls `reload()` after (Anchor's `Account<TokenAccount>` doesn't auto-refresh post-CPI), computes `actual = post_liquid - pre_liquid`, and **decrements `deployed_amount` by the actual amount**, not the requested. `saturating_sub` against `prior_deployed` is defensive against the (impossible-but) case where Kamino returns more than recorded. New error `AmountExceedsDeployed`. `anchor build` green; IDL exposes all 8 instructions including `kamino_withdraw(amount: u64)` with the 12 accounts. With T-108 + T-109 merged, **T-112 (integration test)** is now unblocked — its dep set was T-105/T-106/T-108/T-109. Tests in T-110 (deposit revert, owned by @Manish) + T-112.
+
+### T-108 — `kamino_deposit` CPI
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-103, T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: hardcodes Kamino program ID. Pre-flight `(deployed + amount) * 10000 / total ≤ max_deployed_fraction_bp`. Updates `vault.deployed_amount`. Signer = session OR owner. Implementation: new `programs/agent_wallet/src/kamino.rs` module pins the program ID `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` (same on mainnet + devnet, verified against the public Kamino-Finance/klend repo) and exposes a typed `deposit_reserve_liquidity` CPI helper. The Anchor instruction discriminator `[0xa9, 0xc9, 0x1e, 0x7e, 0x06, 0xcd, 0x66, 0x44]` is `sha256("global:deposit_reserve_liquidity")[..8]` — re-derivable via `echo -n "global:deposit_reserve_liquidity" | sha256sum | head -c 16`. New `state.rs` constants `KAMINO_DEPOSIT_BIT = 1` and `KAMINO_WITHDRAW_BIT = 2` (T-109) match §2.4. The `KaminoDeposit` accounts struct uses `Option<Account<Session>>` so the **same instruction supports both auth paths**: session signer (with bit 1 set) OR owner — picked at runtime by checking whether `session` was supplied. The Kamino accounts (`reserve`, `lending_market`, `lending_market_authority`, `reserve_liquidity_supply`, `reserve_collateral_mint`) are `UncheckedAccount` because the wallet program doesn't validate them structurally — Kamino's own program does that on the CPI; the §2.6 typed-instruction safety floor is the `address = kamino::PROGRAM_ID` constraint on `kamino_program`, which makes adding a new yield protocol require a wallet-program upgrade gated by the multisig (T-114). Pre-flight uses checked arithmetic in multiplication form `new_deployed * 10000 ≤ max_bp * total` to avoid the integer-division precision loss of the spec's `/ total` formulation; `total = vault_usdc_ata.amount + vault.deployed_amount`. The `amount > liquid` early-fail saves CU and gives a clearer error than letting the SPL Token transfer inside Kamino's CPI bounce. New error variants: `AmountZero`, `InsufficientLiquidity`, `MathOverflow`, `DeployedFractionExceeded`, `WrongKaminoProgram`. State update happens **after** CPI returns Ok — the `vault.deployed_amount` bump is the last write. `vault` is loaded by-value early (owner pubkey, bump, max_bp, prior_deployed) so the Anchor borrow checker is happy across the CPI boundary. `anchor build` green; IDL exposes `kamino_deposit(amount: u64)` with 12 accounts (auth signer, vault writable, session optional, both vault token ATAs writable, 5 Kamino accounts, kamino_program address-pinned, token_program). Devnet reserve address verification (which specific Kamino USDC reserve to point at) is deferred to T-113 smoke test. Tests in T-110 + T-112.
+
+### T-107 — `set_max_deployed_fraction`
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: owner-only; bounded 0–10000 bp. Implementation: `instructions/set_max_deployed_fraction.rs` — owner-signed setter that re-uses `MAX_BP` from T-103's `state.rs` and `FractionOutOfRange` + `NotVaultOwner` from `errors.rs` (no new errors needed). `bp = 0` is allowed and effectively disables further `kamino_deposit`s — useful as an emergency unwind switch without rewriting any session policy. The cap itself is enforced at `kamino_deposit` time (T-108) per §2.5; this instruction only mutates the stored `bp`. `anchor build` green; IDL exposes `set_max_deployed_fraction(bp: u16)` with two accounts (owner signer + vault PDA). With T-105/T-106/T-107 all done, **T-110 (TDD revert suite) is now unblocked**.
+
+### T-106 — `revoke_session` + `update_session_allowlist`
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: revoke closes session account and refunds rent to owner. Update supports `Add | Remove | Set` actions. Owner-only. Implementation: `revoke_session()` is a no-op handler whose work is done by Anchor's `close = owner` constraint on the Session account — lamports flow back to the owner and the discriminator is zeroed so the PDA can't be re-used (a new `add_session` for the same `(vault, session_pubkey)` would re-init from scratch). Owner can call without the backend being online — that's the §1.2 session-key-leak escape hatch. `update_session_allowlist(action, recipients?, instructions_bitmap?)` exposes the spec §2.3 mutation: `recipients` and `instructions_bitmap` are independently optional (passing only the bitmap is a no-op on the allowlist; passing only recipients leaves the bitmap untouched). The `AllowlistAction` enum is `Anchor{Serialize,Deserialize}` and applies to the recipient list only — `Add` appends + skips duplicates already present (errors `TooManyRecipients` when the count would push past `MAX_RECIPIENTS`); `Remove` filters and compacts survivors into a fresh `[Pubkey; 10]` so the unused trailing slots stay `Pubkey::default()` (preserves the invariant that `transfer_usdc`'s allowlist slice can never accidentally match a real address); `Set` replaces wholesale, length checked against `MAX_RECIPIENTS`, empty Vec is allowed and effectively pauses spending. Both instructions are owner-signed with `has_one = owner @ NotVaultOwner` on Vault and `has_one = vault @ SessionVaultMismatch` on Session — without the latter a malicious caller could close another vault's session by signing as their own owner. No new error variants (re-uses `NotVaultOwner`, `SessionVaultMismatch`, `TooManyRecipients`). `anchor build` green; IDL exposes `revoke_session()` (3 accounts) and `update_session_allowlist(action, recipients, instructions_bitmap)` (3 accounts) with the `AllowlistAction` enum. Tests in T-110.
+
+### T-105 — `transfer_usdc` instruction with all reverts
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-104
+- OS: any
+- Scope: anchor-program
+- Acceptance: implements all 5 §2.5 reverts (recipient allowlist, max_per_tx, rolling-24h daily_cap, expiry, instruction-bit) + the implicit session-signer match. Implementation: `instructions/transfer_usdc.rs` — handler walks the reverts in spec §2.5 order, then CPIs to SPL Token with the Vault PDA as transfer authority (`["vault", owner]` + cached `vault.bump` re-seeded into `CpiContext::new_with_signer`). New `state.rs` constants: `SECONDS_PER_DAY = 86_400` (rolling-24h, not calendar) and `TRANSFER_USDC_BIT = 0` (matches §2.4). The rolling-24h logic resets `daily_window_start` and `daily_spent` in-place when `now ≥ window + 86_400`; `checked_add` guards `daily_spent + amount` against u64 overflow (`DailyCapOverflow` error). `recipient` is a runtime arg checked against the populated slice of `session.allowed_recipients` (so the trailing `Pubkey::default()` slots can never match). The `recipient_usdc_ata` account is constrained `owner == recipient` AND `mint == vault_usdc_ata.mint` so an attacker can't pass an allowlisted recipient pubkey while pointing the funds ATA at their own account. `session` carries `has_one = vault @ SessionVaultMismatch` to block pairing a high-cap session with a different vault's ATA. New `AgentWalletError` variants: SessionSignerMismatch, SessionVaultMismatch, InstructionNotAllowed, RecipientNotAllowed, RecipientAtaMismatch, WrongMint, AmountExceedsMaxPerTx, DailyCapExceeded, DailyCapOverflow, SessionExpired. Memo / payment-id is **not** an arg here — backends should add an SPL Memo instruction adjacent to `transfer_usdc` in the same tx (keeps the on-chain handler focused on enforcement). New dep: `anchor-spl = 1.0.0` in `programs/agent_wallet/Cargo.toml` with `idl-build` feature wired up. Anchor 1.0 changed `CpiContext::new_with_signer` to take `program_id: Pubkey` instead of `AccountInfo` — handler passes `token_program.key()`. `anchor build` green; IDL exposes `transfer_usdc(amount: u64, recipient: pubkey)` with the 6 expected accounts. Full revert tests land in T-110.
+
+### T-104 — `Session` account + `add_session` instruction
+- Status: done @Prithwish 2026-04-29
+- Depends-on: T-103
+- OS: any
+- Scope: anchor-program
+- Acceptance: matches §2.2.2 (fixed-10 recipients, `allowed_instructions` bitmap, expiry, daily window). PDA seeds `["session", vault, session_pubkey]`. Owner-only. Implementation: `Session` struct lives in `state.rs` next to `Vault` (430 byte payload + 8 disc, ~$0.50 rent as specced). `MAX_RECIPIENTS = 10` exported as a const so `transfer_usdc` (T-105) can iterate the same fixed slot count. New `AgentWalletError` variants `TooManyRecipients`, `ExpiryInPast`, `NotVaultOwner`. `instructions/add_session.rs` is a separate file mirroring the `init_vault` shape — sponsored payer + owner signer; Vault is loaded via `seeds = ["vault", owner.key()]` with `has_one = owner @ NotVaultOwner` so trying to register a session against someone else's vault reverts. Session PDA seeds are `["session", vault.key(), session_pubkey.as_ref()]` — `session_pubkey` is a plain `Pubkey` arg (not a Signer; the off-chain backend keypair never appears at session-creation time). On-chain init sets `daily_spent = 0`, `daily_window_start = now`, packs the variable-length `Vec<Pubkey>` into the fixed `[Pubkey; 10]` array (extra slots stay `Pubkey::default()` and can never match a real recipient). `expiry == 0` means never; non-zero must be in the future. Duplicate creation reverts via Anchor's `init` constraint. `anchor build` green; IDL at `target/idl/agent_wallet.json` shows `add_session` with all six args, the `Session` account, and the new error variants. Tests in T-110.
+### T-507 — Public docs: drop competitor framing, problem-first hook
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-506
+- OS: any
+- Scope: docs
+- Acceptance: zero mentions of `Locus`, `ERC-4337`, `EVM`, `Ethereum`, `Privy`, `Turnkey`, or any "Klink-vs-X" comparative framing across `gitbook/**` (verified by `grep -ri` returning zero matches). `gitbook/introduction/what-is-klink.md` rewritten with a problem-first hook (the three-true-things invariant) and standalone first-mover positioning — no "we deliberately rejected" framing, no internal-strategy framing, no `CONTEXT.md` link. Three smaller surgical edits: dropped EVM bullet from `concepts/overview.md`, dropped "(like Locus on Base)" parenthetical from `architecture/overview.md`, reframed "Why Solana and not Ethereum?" → "Why Solana?" in `resources/faq.md` with Solana-strengths-only answer. All four touched files have `last_updated: 2026-04-29`.
+- Notes: Public docs only. `CONTEXT.md`, the design spec, and other internal team docs keep their full strategic framing — the comparative analysis still lives in CONTEXT.md §6 for team reference. Public docs now sell what Klink IS, not what it isn't.
+
+### T-205 — `POST /v1/wallet` build init_vault tx
+- Status: done @Manjeet 2026-04-29
+- Depends-on: T-103, T-203
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/wallet.ts` exports `POST /v1/wallet` (wired in `app.ts` behind `requireDashboardJwt`). Body `{ max_deployed_fraction_bp: integer 0..=10000 }` → `{ txBase64, vaultPda, vaultUsdcAta }`. Unsigned tx contains the `init_vault` instruction (manually encoded as the 8-byte Anchor discriminator `4d4f559621d9346a` + u16 LE arg, no `@coral-xyz/anchor` dep) plus `createAssociatedTokenAccountInstruction` for the off-curve vault USDC ATA, both with `feePayer = owner` (self-pay MVP — payer slot can swap to a treasury keypair when T-214 lands without changing on-chain accounts). Phantom signs + submits client-side; backend never holds the owner key (spec §3.2.1). Companion `apps/api/src/auth/jwt.ts` adds `requireDashboardJwt` (HS256 verify against `JWT_SECRET`, populates `req.user`) — reusable for every dashboard-JWT route to come (T-206/207/213/214/216/217). 23 new tests, 75 total green: middleware (missing/non-Bearer/empty/thrown verifier/happy/exact-token-forwarding) + pure tx-builder (PDA seeds, off-curve ATA, feePayer, blockhash, instruction count, discriminator pin, account-meta order) + handler (auth, validation matrix, RPC failure, base64 round-trip via `Transaction.from()`, unsigned signature slot).
+- Notes: New env vars on apps/api — `SOLANA_RPC_URL` (already implied by T-401's Helius pick), `USDC_MINT` (devnet mint, configurable), `KLINK_PROGRAM_ID` (defaults to the `Anchor.toml`-pinned id). Adds `@solana/web3.js@1.98.4` + `@solana/spl-token@0.4.14`. `biome.json` gains `.claude/**` to its ignore list so local Claude Code permission files don't trip lint.
+
+### T-103 — `Vault` account + `init_vault` instruction
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-102
 - OS: any
 - Scope: anchor-program
@@ -391,14 +498,14 @@ _(newest first)_
 - Notes: Lean v1 — agent-developer audience. SDK / API / per-program reference deferred until T-309 / T-2xx land. Two intentional `> **TODO**:` markers per AGENTS.md convention: pin canonical devnet USDC mint after T-113, full quickstart walkthrough lands with T-309.
 
 ### T-102 — Initialize Anchor workspace
-- Status: done @Pritwish 2026-04-28
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-101
 - OS: any
 - Scope: scaffold
 - Acceptance: `programs/agent_wallet/` exists with stub `lib.rs` (`initialize` no-op + `Initialize` empty `#[derive(Accounts)]`); `anchor build` succeeds locally; CI green via T-405. Implementation: scaffold produced via `anchor init agent_wallet --no-git --test-template rust`, pruned to repo conventions (Bun is the only JS/TS runner — dropped the scaffold `package.json` / `tsconfig.json` / `yarn.lock`; kept `migrations/deploy.ts` as the placeholder Anchor expects, and the Rust `tests/` workspace member). Anchor 0.30 was abandoned: it doesn't compile against modern stable Rust because `anchor-syn` 0.30 calls `proc_macro2::Span::source_file()`, which proc-macro2 ≥ 1.0.80 dropped. Pivoted the project pin to **Anchor 1.0** + Solana 3.1.13 + Rust 1.93 stable; build is clean. `target/deploy/agent_wallet-keypair.json` is committed (gitignore exception) so the dev/devnet program ID stays stable across the team — T-114 swaps it for a Squads multisig before mainnet. Pin updates rolled into `docs/runbooks/dev-environment.md` (§1, §2, §3, §4 attestation, §5 gotcha), `docs/runbooks/team-collaboration.md` §4, `docs/architecture/overview.md`, and the T-101 task notes.
 
 ### T-302 — Phantom SIWS sign-in
-- Status: done @Pritwish 2026-04-28
+- Status: done @Prithwish 2026-04-28
 - Depends-on: T-203, T-301
 - OS: any
 - Scope: web
