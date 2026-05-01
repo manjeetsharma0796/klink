@@ -190,44 +190,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 3 — Dashboard + SDK
 
-### T-303 — Wallet creation flow
-- Status: pending
-- Depends-on: T-205, T-302
-- OS: any
-- Scope: web
-- Acceptance: "Create wallet" → fetch build-tx → Phantom signs → submit → dashboard shows zero balance.
-
-### T-304 — Session list + create + revoke
-- Status: pending
-- Depends-on: T-206, T-207, T-303
-- OS: any
-- Scope: web
-
-### T-305 — Allowlist editor (recipients + URLs + time window)
-- Status: pending
-- Depends-on: T-207, T-209, T-304
-- OS: any
-- Scope: web
-
-### T-306 — Audit log viewer
-- Status: pending
-- Depends-on: T-216, T-303
-- OS: any
-- Scope: web
-- Acceptance: filter allow/deny; show denial reasons.
-
-### T-307 — Yield UI
-- Status: pending
-- Depends-on: T-213, T-303
-- OS: any
-- Scope: web
-
-### T-308 — Dodo fund flow UI
-- Status: pending
-- Depends-on: T-214, T-303
-- OS: any
-- Scope: web
-
 ### T-309 — TypeScript SDK package (`@klink/sdk`)
 - Status: in-progress @Manjeet 2026-04-29
 - Depends-on: T-210, T-211, T-212, T-213
@@ -290,6 +252,48 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-308 — Dodo fund flow UI
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-214, T-303
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/fund/page.tsx` — two-card layout. Left: server-rendered QR + USDC ATA + copy button from `GET /v1/fund/deposit-address` (T-217). Right: Dodo card-fiat with $10 / $50 / $100 / $250 preset chips + custom amount; submit calls `POST /v1/fund/dodo-checkout` (T-214) and redirects to the returned `checkout_url`. Toast on error. Filed by UI design spec §3.6.
+
+### T-307 — Yield UI
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-213, T-303
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/yield/page.tsx` — Liquid + Deployed cards (read on-chain via `useOnChainVault` — direct RPC, no backend round-trip), Deposit-to-Kamino + Withdraw-from-Kamino forms. Both writes go through `useBuildAndSignTx` to the dashboard-JWT yield endpoints (T-222, NEW — pending); on 404/405 the page surfaces `<BackendPending taskId="T-222" />` until that backend gap lands. The agent-key path on T-213 stays untouched.
+
+### T-306 — Audit log viewer
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-216, T-303
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/audit/page.tsx` + `apps/web/_hooks/use-audit.ts`. `useSWRInfinite` cursor pagination against `GET /v1/audit?limit=50&cursor=&decision=` (T-216). All / Allow / Deny filter pills; rows show timestamp, action, USDC amount, recipient/URL (truncated), decision badge, denial reason, tx signature link to Solana Explorer (devnet). "Load more" button when `next_cursor != null`. Filter switch resets pagination via SWRInfinite's key function.
+
+### T-305 — Allowlist editor (recipients + URLs + time window)
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-207, T-209, T-304
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/sessions/[id]/page.tsx` plus `recipient-list.tsx`, `instruction-bitmap.tsx`, `url-allowlist.tsx`, `time-window.tsx` + `apps/web/_hooks/use-session.ts`. Four independent save-units, each with its own button: (1) recipients (10-slot fixed array, action: Set/Add/Remove) and (2) instruction bitmap (3 checkboxes mapped to spec §2.4 bits) both go through `useBuildAndSignTx` to `PATCH /v1/session/:id/allowlist` (T-207). (3) URL allowlist and (4) time window save via plain `api.patch` to `PATCH /v1/wallet/off-chain-policy` (T-223, NEW — pending). 404/405 → `<BackendPending />`. Single-session read uses `GET /v1/sessions/:id` (T-219, NEW — pending) — page surfaces `<BackendPending taskId="T-219" />` until that lands.
+
+### T-304 — Session list + create + revoke
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-206, T-207, T-303
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/sessions/page.tsx` + `new-session-modal.tsx` + `api-key-reveal-modal.tsx` + `revoke-confirm.tsx` + `apps/web/_hooks/use-sessions.ts`. List rendered from `GET /v1/sessions` (T-218, NEW — pending; surfaces `<BackendPending taskId="T-218" />` until that lands). `New session` modal: react-hook-form + zod (label, max_per_tx, daily_cap, expiry, ≤10 recipients, 3-bit instruction bitmap), submit → `POST /v1/session` (T-206) via `useBuildAndSignTx`, server response includes `apiKey` shown ONCE in `<ApiKeyRevealModal />` with copy-to-clipboard. Revoke: confirmation dialog → `DELETE /v1/session/:id` (T-207) via Phantom build-tx-then-sign.
+
+### T-303 — Wallet creation flow
+- Status: done @Pritwish 2026-05-02
+- Depends-on: T-205, T-302
+- OS: any
+- Scope: web
+- Acceptance: Overview page at `apps/web/app/dashboard/page.tsx` renders the 3-column grid (Wallet Settings card / USDC balance + QR + Fund-Yield CTAs / Active-Sessions + Recent-Activity rail). When `GET /v1/wallet` (T-224, NEW — pending) returns 404, shows `<CreateWalletCta />` which calls `useBuildAndSignTx("/v1/wallet", "POST", { max_deployed_fraction_bp: 8000 })` — Phantom signs the `init_vault` tx, web3.js submits, SWR revalidates, overview re-renders with the wallet stats. Toast on error. Implementation: `app/dashboard/_components/{stat-card,balance-card,activity-rail,create-wallet-cta}.tsx` + `_hooks/{use-wallet,use-on-chain-vault,use-build-and-sign-tx}.ts`. Until T-224 lands, surfaces `<BackendPending taskId="T-224" />`. The full UI surface (T-303 → T-308 + the nested allowlist editor + settings + sign-in restyle) ships in this batch under the design at `docs/superpowers/specs/2026-05-02-klink-web-ui-design.md` and the plan at `docs/superpowers/plans/2026-05-02-klink-web-ui.md`. Verified via puppeteer e2e harness — 7 distinct screenshots in `apps/web/tests/_screenshots/`.
 
 ### T-508 — API surface review (internal vs exposed)
 - Status: done @Jishnu 2026-04-30
