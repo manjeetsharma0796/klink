@@ -6,16 +6,17 @@ import {
   Transaction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { decryptSessionSecret } from "../crypto/session-secret";
 import { getDb } from "../db/client";
-import { auditLog, sessions } from "../db/schema";
+import { auditLog, sessions, wallets } from "../db/schema";
 import {
   type KaminoReserveAddrs,
   buildKaminoDepositIx,
   buildKaminoWithdrawIx,
   decodeVaultDeployedAmount,
+  serializeUnsignedTx,
 } from "../program/agent-wallet";
 
 /**
@@ -287,3 +288,159 @@ export function makeGetYieldPositionHandler(deps: MakeGetYieldPositionDeps = {})
 }
 
 export const getYieldPositionHandler = makeGetYieldPositionHandler();
+
+// ---------------------------------------------------------------------------
+// T-222 — Owner-flow build-tx variants
+//
+// Mirrors the build-then-Phantom pattern in T-205 / T-207: dashboard JWT,
+// validate ownership, build the unsigned `kamino_deposit` / `kamino_withdraw`
+// tx with `session = None` (the rust instruction's Option<Account<Session>>
+// is None when owner signs), return `{ txBase64 }` for the dashboard to hand
+// off to Phantom. Mounted at /v1/wallet/yield/{deposit,withdraw} so the auth
+// surface stays clean: agent-key paths from T-213 stay on /v1/yield/*.
+// ---------------------------------------------------------------------------
+
+interface OwnerYieldBody {
+  amount: number;
+  /** Optional — defaults to caller's most-recent wallet (single-wallet MVP). */
+  wallet_id?: string;
+}
+
+function parseOwnerYieldBody(
+  raw: unknown,
+):
+  | { ok: true; amount: bigint; walletId: string | undefined }
+  | { ok: false; status: number; body: { error: string } } {
+  if (!raw || typeof raw !== "object") {
+    return { ok: false, status: 400, body: { error: "request body must be JSON object" } };
+  }
+  const b = raw as Record<string, unknown>;
+  if (typeof b.amount !== "number" || !Number.isFinite(b.amount) || b.amount <= 0) {
+    return {
+      ok: false,
+      status: 400,
+      body: { error: "amount must be a positive number (USDC base units)" },
+    };
+  }
+  if (b.wallet_id !== undefined && typeof b.wallet_id !== "string") {
+    return { ok: false, status: 400, body: { error: "wallet_id must be string if provided" } };
+  }
+  return {
+    ok: true,
+    amount: BigInt(Math.trunc(b.amount)),
+    walletId: b.wallet_id as string | undefined,
+  };
+}
+
+export type BlockhashFetcher = () => Promise<string>;
+
+export interface MakeOwnerYieldDeps {
+  blockhash?: BlockhashFetcher;
+  kamino?: () => KaminoReserveAddrs;
+}
+
+function makeOwnerKaminoHandler(variant: "deposit" | "withdraw", deps: MakeOwnerYieldDeps) {
+  const getBlockhash =
+    deps.blockhash ??
+    (async () => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const { blockhash } = await conn.getLatestBlockhash("finalized");
+      return blockhash;
+    });
+  const getKamino = deps.kamino ?? loadKaminoAddrs;
+
+  return async function ownerKaminoHandler(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const userPubkey = req.user?.pubkey;
+    if (!userId || !userPubkey) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+
+    const parsed = parseOwnerYieldBody(req.body);
+    if (!parsed.ok) {
+      res.status(parsed.status).json(parsed.body);
+      return;
+    }
+
+    const db = getDb();
+    const where = parsed.walletId
+      ? and(eq(wallets.userId, userId), eq(wallets.id, parsed.walletId))
+      : eq(wallets.userId, userId);
+    const rows = await db
+      .select({
+        id: wallets.id,
+        vaultPda: wallets.vaultPda,
+        usdcAta: wallets.usdcAta,
+      })
+      .from(wallets)
+      .where(where)
+      .orderBy(desc(wallets.createdAt))
+      .limit(1);
+    const wallet = rows[0];
+    if (!wallet) {
+      res.status(404).json({ error: "wallet not found" });
+      return;
+    }
+
+    let owner: PublicKey;
+    let vault: PublicKey;
+    let vaultUsdcAta: PublicKey;
+    let kamino: KaminoReserveAddrs;
+    try {
+      owner = new PublicKey(userPubkey);
+      vault = new PublicKey(wallet.vaultPda);
+      vaultUsdcAta = new PublicKey(wallet.usdcAta);
+      kamino = getKamino();
+    } catch (err) {
+      console.error(`[POST /v1/wallet/yield/${variant}] address parse failed:`, err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    const vaultCollateralAta = getAssociatedTokenAddressSync(
+      kamino.reserveCollateralMint,
+      vault,
+      true, // allowOwnerOffCurve — vault is a PDA
+    );
+
+    const ixBuilder = variant === "deposit" ? buildKaminoDepositIx : buildKaminoWithdrawIx;
+    const ix = ixBuilder({
+      auth: owner,
+      vault,
+      sessionPubkey: null, // owner-signed path — Option<Session> = None
+      vaultUsdcAta,
+      vaultCollateralAta,
+      kamino,
+      tokenProgramId: TOKEN_PROGRAM_ID,
+      amount: parsed.amount,
+    });
+
+    let recentBlockhash: string;
+    try {
+      recentBlockhash = await getBlockhash();
+    } catch (err) {
+      console.error(`[POST /v1/wallet/yield/${variant}] rpc unavailable:`, err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    const tx = new Transaction({ feePayer: owner, recentBlockhash });
+    tx.add(ix);
+    const txBase64 = serializeUnsignedTx(tx);
+
+    res.json({
+      txBase64,
+      vaultPda: wallet.vaultPda,
+      vaultUsdcAta: wallet.usdcAta,
+    });
+  };
+}
+
+export const makePostOwnerYieldDepositHandler = (deps: MakeOwnerYieldDeps = {}) =>
+  makeOwnerKaminoHandler("deposit", deps);
+export const makePostOwnerYieldWithdrawHandler = (deps: MakeOwnerYieldDeps = {}) =>
+  makeOwnerKaminoHandler("withdraw", deps);
+
+export const postOwnerYieldDepositHandler = makePostOwnerYieldDepositHandler();
+export const postOwnerYieldWithdrawHandler = makePostOwnerYieldWithdrawHandler();

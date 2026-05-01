@@ -401,3 +401,120 @@ export function decodeVaultDeployedAmount(data: Buffer): bigint {
   }
   return data.readBigUInt64LE(VAULT_DEPLOYED_OFFSET);
 }
+
+// ---------------------------------------------------------------------------
+// set_max_deployed_fraction — T-221
+// ---------------------------------------------------------------------------
+
+export interface BuildSetMaxDeployedFractionIxOpts {
+  owner: PublicKey;
+  /** 0..=10_000 (basis points). */
+  bp: number;
+}
+
+export function buildSetMaxDeployedFractionIx(
+  opts: BuildSetMaxDeployedFractionIxOpts,
+): TransactionInstruction {
+  if (!Number.isInteger(opts.bp) || opts.bp < 0 || opts.bp > 10_000) {
+    throw new Error(`set_max_deployed_fraction: bp ${opts.bp} out of 0..=10000`);
+  }
+  const [vault] = deriveVaultPda(opts.owner);
+  const data = Buffer.alloc(8 + 2);
+  instructionDiscriminator("set_max_deployed_fraction").copy(data, 0);
+  data.writeUInt16LE(opts.bp, 8);
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      // Order matches SetMaxDeployedFraction<'info>:
+      // 1. owner (signer, NOT writable — owner-only check)
+      // 2. vault (writable; max_deployed_fraction_bp updated)
+      { pubkey: opts.owner, isSigner: true, isWritable: false },
+      { pubkey: vault, isSigner: false, isWritable: true },
+    ],
+    data,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Session account decoder — T-219
+//
+// Source: programs/agent_wallet/src/state.rs `Session`. Layout AFTER Anchor's
+// 8B discriminator: 32 vault + 32 session_pubkey + 8 max_per_tx +
+// 8 daily_cap + 8 daily_spent + 8 daily_window_start + 8 expiry +
+// 32*10 allowed_recipients + 1 allowed_recipients_count + 4 allowed_instructions
+// + 1 bump = 430 bytes (438 total with discriminator).
+// ---------------------------------------------------------------------------
+
+export interface DecodedSession {
+  vault: PublicKey;
+  sessionPubkey: PublicKey;
+  maxPerTx: bigint;
+  dailyCap: bigint;
+  dailySpent: bigint;
+  /** Unix seconds (i64). */
+  dailyWindowStart: bigint;
+  /** Unix seconds (i64); `0n` = never expires. */
+  expiry: bigint;
+  /** Length === `allowedRecipientsCount`; trailing default-pubkey slots stripped. */
+  allowedRecipients: PublicKey[];
+  allowedRecipientsCount: number;
+  /** u32 bitmap; bit 0 = transfer_usdc, bit 1 = kamino_deposit, bit 2 = kamino_withdraw. */
+  allowedInstructions: number;
+  bump: number;
+}
+
+const SESSION_PAYLOAD_SIZE = 32 + 32 + 8 + 8 + 8 + 8 + 8 + 32 * MAX_ALLOWED_RECIPIENTS + 1 + 4 + 1;
+
+export function decodeSessionAccount(data: Buffer): DecodedSession {
+  // Anchor account = 8B discriminator + payload.
+  if (data.length < 8 + SESSION_PAYLOAD_SIZE) {
+    throw new Error(
+      `session account too short: ${data.length} bytes, expected ${8 + SESSION_PAYLOAD_SIZE}`,
+    );
+  }
+  let offset = 8; // skip discriminator
+  const vault = new PublicKey(data.subarray(offset, offset + 32));
+  offset += 32;
+  const sessionPubkey = new PublicKey(data.subarray(offset, offset + 32));
+  offset += 32;
+  const maxPerTx = data.readBigUInt64LE(offset);
+  offset += 8;
+  const dailyCap = data.readBigUInt64LE(offset);
+  offset += 8;
+  const dailySpent = data.readBigUInt64LE(offset);
+  offset += 8;
+  const dailyWindowStart = data.readBigInt64LE(offset);
+  offset += 8;
+  const expiry = data.readBigInt64LE(offset);
+  offset += 8;
+  const recipientSlots: PublicKey[] = [];
+  for (let i = 0; i < MAX_ALLOWED_RECIPIENTS; i++) {
+    recipientSlots.push(new PublicKey(data.subarray(offset, offset + 32)));
+    offset += 32;
+  }
+  const allowedRecipientsCount = data.readUInt8(offset);
+  offset += 1;
+  const allowedInstructions = data.readUInt32LE(offset);
+  offset += 4;
+  const bump = data.readUInt8(offset);
+
+  if (allowedRecipientsCount > MAX_ALLOWED_RECIPIENTS) {
+    throw new Error(
+      `session.allowed_recipients_count ${allowedRecipientsCount} > MAX=${MAX_ALLOWED_RECIPIENTS}`,
+    );
+  }
+
+  return {
+    vault,
+    sessionPubkey,
+    maxPerTx,
+    dailyCap,
+    dailySpent,
+    dailyWindowStart,
+    expiry,
+    allowedRecipients: recipientSlots.slice(0, allowedRecipientsCount),
+    allowedRecipientsCount,
+    allowedInstructions,
+    bump,
+  };
+}
