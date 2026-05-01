@@ -3,9 +3,9 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import { useCallback, useState } from "react";
-import { api, ApiError } from "../lib/api-client";
+import { ApiError, api } from "../lib/api-client";
 import { getRpcConnection } from "../lib/on-chain";
-import { buildTxResponseSchema, type BuildTxResponse } from "../lib/schemas";
+import { type BuildTxResponse, buildTxResponseSchema } from "../lib/schemas";
 
 export type BuildAndSignError =
   | { kind: "BUILD"; message: string; cause?: unknown }
@@ -21,7 +21,9 @@ export interface SubmitResult {
 
 export function useBuildAndSignTx() {
   const { signTransaction, connected } = useWallet();
-  const [phase, setPhase] = useState<"idle" | "building" | "signing" | "submitting" | "confirming" | "done" | "error">("idle");
+  const [phase, setPhase] = useState<
+    "idle" | "building" | "signing" | "submitting" | "confirming" | "done" | "error"
+  >("idle");
   const [error, setError] = useState<BuildAndSignError | null>(null);
 
   const run = useCallback(
@@ -33,31 +35,50 @@ export function useBuildAndSignTx() {
       setError(null);
       if (!connected || !signTransaction) {
         const e: BuildAndSignError = { kind: "NOT_CONNECTED", message: "wallet not connected" };
-        setError(e); setPhase("error");
+        setError(e);
+        setPhase("error");
         throw new Error(e.message);
       }
 
       let resp: BuildTxResponse;
       try {
         setPhase("building");
-        const raw = method === "POST" ? await api.post<unknown>(endpoint, body)
-          : method === "PATCH" ? await api.patch<unknown>(endpoint, body)
-          : await api.del<unknown>(endpoint);
-        resp = buildTxResponseSchema.passthrough().parse(raw) as BuildTxResponse;
+        const raw =
+          method === "POST"
+            ? await api.post<unknown>(endpoint, body)
+            : method === "PATCH"
+              ? await api.patch<unknown>(endpoint, body)
+              : await api.del<unknown>(endpoint);
+        resp = buildTxResponseSchema.parse(raw) as BuildTxResponse;
       } catch (e) {
-        const err: BuildAndSignError = { kind: "BUILD", message: e instanceof ApiError ? e.code : String(e), cause: e };
-        setError(err); setPhase("error");
+        const err: BuildAndSignError = {
+          kind: "BUILD",
+          message: e instanceof ApiError ? e.code : String(e),
+          cause: e,
+        };
+        setError(err);
+        setPhase("error");
         throw e;
+      }
+
+      // Self-heal short-circuit: backend found the on-chain side already
+      // done (e.g. vault PDA exists from a previous session) and only
+      // backfilled the DB. Nothing for Phantom to sign.
+      if (resp.alreadyExists) {
+        setPhase("done");
+        return { signature: "", buildResponse: resp as BuildTxResponse & Record<string, unknown> };
       }
 
       let signed: Transaction;
       try {
         setPhase("signing");
-        const tx = Transaction.from(Buffer.from(resp.txBase64, "base64"));
+        // Schema's refine guarantees txBase64 is present when alreadyExists is not true.
+        const tx = Transaction.from(Buffer.from(resp.txBase64 as string, "base64"));
         signed = await signTransaction(tx);
       } catch (e) {
         const err: BuildAndSignError = { kind: "PHANTOM", message: String(e), cause: e };
-        setError(err); setPhase("error");
+        setError(err);
+        setPhase("error");
         throw e;
       }
 
@@ -79,7 +100,8 @@ export function useBuildAndSignTx() {
           e instanceof Error && e.message === "confirm timeout"
             ? { kind: "TIMEOUT", message: "tx not confirmed in 30s" }
             : { kind: "SUBMIT", message: String(e), cause: e };
-        setError(err); setPhase("error");
+        setError(err);
+        setPhase("error");
         throw e;
       }
 
@@ -88,7 +110,10 @@ export function useBuildAndSignTx() {
     [connected, signTransaction],
   );
 
-  const reset = useCallback(() => { setPhase("idle"); setError(null); }, []);
+  const reset = useCallback(() => {
+    setPhase("idle");
+    setError(null);
+  }, []);
 
   return { run, reset, phase, error };
 }

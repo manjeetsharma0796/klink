@@ -15,19 +15,63 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { getDb } from "../db/client";
-import { offChainPolicies, wallets } from "../db/schema";
+import { offChainPolicies, users, wallets } from "../db/schema";
 import { buildSetMaxDeployedFractionIx, serializeUnsignedTx } from "../program/agent-wallet";
 
 /**
- * `POST /v1/wallet` — Build the unsigned `init_vault` transaction so the
- * human's Phantom can sign + submit. Spec §3.2.1 build-tx-then-sign pattern:
- * the backend never holds the owner's key.
+ * Resolve `users.id` for the authenticated Phantom pubkey. The JWT carries an
+ * id from whichever DB minted it — after a DB rotation, that id may not exist
+ * in the new DB. Looking up by `phantom_pubkey` (UNIQUE indexed) gives the
+ * canonical id for the current DB and survives rotations cleanly.
+ *
+ * `autoCreate`: when true (self-heal path), upsert a `users` row if missing
+ * so a follow-up `wallets` INSERT doesn't fail the user_id FK.
+ */
+async function resolveUserIdFromPubkey(
+  db: ReturnType<typeof getDb>,
+  phantomPubkey: string,
+  opts: { autoCreate: boolean },
+): Promise<string | null> {
+  const found = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.phantomPubkey, phantomPubkey))
+    .limit(1);
+  if (found[0]) return found[0].id;
+  if (!opts.autoCreate) return null;
+  const inserted = await db
+    .insert(users)
+    .values({ phantomPubkey })
+    .onConflictDoNothing({ target: users.phantomPubkey })
+    .returning({ id: users.id });
+  if (inserted[0]) return inserted[0].id;
+  // Race: another request inserted between SELECT and INSERT. Re-select.
+  const reselect = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.phantomPubkey, phantomPubkey))
+    .limit(1);
+  return reselect[0]?.id ?? null;
+}
+
+/**
+ * `POST /v1/wallet` — If the owner's Vault PDA already exists on-chain,
+ * backfill the `wallets` row (if missing) and return the existing addresses.
+ * Otherwise build an unsigned `init_vault` transaction for the human's
+ * Phantom to sign + submit. Spec §3.2.1 build-tx-then-sign pattern: the
+ * backend never holds the owner's key.
  *
  * Self-pay model in MVP: feePayer = owner (Phantom). The backend doesn't
  * sponsor rent yet — once a treasury keypair is wired (T-214 / T-215),
  * the payer slot can switch to backend without changing the on-chain
  * `init_vault` accounts (they're already separate `payer` and `owner`
  * signers per `programs/agent_wallet/src/instructions/init_vault.rs`).
+ *
+ * The self-heal branch exists because the source-of-truth for
+ * "does this user have a wallet?" used to be Postgres alone; if the DB is
+ * rotated between vault creation and the next dashboard load, the row
+ * disappears but the on-chain account survives, and a naive build-tx call
+ * would produce an `init_vault` tx that fails with `AccountAlreadyInUse`.
  */
 
 const MAX_BP = 10_000;
@@ -43,6 +87,57 @@ export function anchorDiscriminator(name: string): Buffer {
 }
 
 const INIT_VAULT_DISCRIMINATOR = anchorDiscriminator("init_vault");
+
+/**
+ * Anchor account discriminator for the `Vault` struct: first 8 bytes of
+ * `sha256("account:Vault")`. Used to verify that the on-chain account at
+ * the vault PDA address really is a klink Vault before backfilling the DB.
+ */
+export const VAULT_ACCOUNT_DISCRIMINATOR = Buffer.from(
+  createHash("sha256").update("account:Vault").digest(),
+).subarray(0, 8);
+
+/**
+ * Borsh layout of the on-chain `Vault` struct, from
+ * `programs/agent_wallet/src/state.rs`:
+ *   8  account discriminator
+ *   32 owner pubkey
+ *   2  max_deployed_fraction_bp (u16 LE)
+ *   8  deployed_amount (u64 LE)
+ *   1  bump
+ */
+const VAULT_DATA_LEN = 8 + 32 + 2 + 8 + 1;
+
+export type VaultDecoded =
+  | {
+      ok: true;
+      owner: PublicKey;
+      maxDeployedFractionBp: number;
+      deployedAmount: bigint;
+      bump: number;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Decode the raw bytes of a Vault account. Returns a tagged union so callers
+ * can distinguish a foreign account at the PDA from a real Vault without
+ * throwing.
+ */
+export function decodeVault(data: Buffer): VaultDecoded {
+  if (data.length !== VAULT_DATA_LEN) {
+    return { ok: false, reason: `unexpected data length ${data.length}, want ${VAULT_DATA_LEN}` };
+  }
+  if (!data.subarray(0, 8).equals(VAULT_ACCOUNT_DISCRIMINATOR)) {
+    return { ok: false, reason: "discriminator mismatch (not a klink Vault)" };
+  }
+  return {
+    ok: true,
+    owner: new PublicKey(data.subarray(8, 40)),
+    maxDeployedFractionBp: data.readUInt16LE(40),
+    deployedAmount: data.readBigUInt64LE(42),
+    bump: data[50] as number,
+  };
+}
 
 export interface BuildWalletTxArgs {
   owner: PublicKey;
@@ -118,11 +213,16 @@ function envOrThrow(name: string): string {
 export type BlockhashFetcher = () => Promise<string>;
 export type ProgramIdResolver = () => PublicKey;
 export type UsdcMintResolver = () => PublicKey;
+export type AccountInfoFetcher = (
+  pk: PublicKey,
+) => Promise<{ owner: PublicKey; data: Buffer } | null>;
 
 export interface MakePostWalletDeps {
   blockhash?: BlockhashFetcher;
   programId?: ProgramIdResolver;
   usdcMint?: UsdcMintResolver;
+  /** Test seam: override how the on-chain vault account is fetched. */
+  accountInfo?: AccountInfoFetcher;
 }
 
 export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
@@ -136,6 +236,14 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
   const getProgramId =
     deps.programId ?? (() => new PublicKey(process.env.KLINK_PROGRAM_ID ?? DEFAULT_PROGRAM_ID));
   const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
+  const fetchAccountInfo: AccountInfoFetcher =
+    deps.accountInfo ??
+    (async (pk: PublicKey) => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const info = await conn.getAccountInfo(pk, "confirmed");
+      if (!info) return null;
+      return { owner: info.owner, data: Buffer.from(info.data) };
+    });
 
   return async function postWallet(req: Request, res: Response) {
     const userPubkey = req.user?.pubkey;
@@ -158,6 +266,114 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
       return;
     }
 
+    let programId: PublicKey;
+    let usdcMint: PublicKey;
+    try {
+      programId = getProgramId();
+      usdcMint = getUsdcMint();
+    } catch (err) {
+      console.error("[POST /v1/wallet] config error:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    const [vaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), owner.toBuffer()],
+      programId,
+    );
+    // `allowOwnerOffCurve = true` because the vault PDA is off-curve.
+    const vaultUsdcAta = getAssociatedTokenAddressSync(usdcMint, vaultPda, true);
+
+    let onChain: { owner: PublicKey; data: Buffer } | null;
+    try {
+      onChain = await fetchAccountInfo(vaultPda);
+    } catch (err) {
+      console.error("[POST /v1/wallet] getAccountInfo failed:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    if (onChain) {
+      // Vault PDA is already initialized on-chain. The build-tx path would
+      // hand the dashboard a doomed `init_vault` tx (System CPI returns
+      // AccountAlreadyInUse). Validate this is really our Vault and backfill
+      // the wallets row if it's missing, so the next GET /v1/wallet reads
+      // the correct addresses.
+      if (!onChain.owner.equals(programId)) {
+        console.error(
+          "[POST /v1/wallet] vault PDA owned by foreign program:",
+          onChain.owner.toBase58(),
+        );
+        res.status(409).json({ error: "vault PDA exists but is owned by a different program" });
+        return;
+      }
+      const decoded = decodeVault(onChain.data);
+      if (!decoded.ok) {
+        console.error("[POST /v1/wallet] vault decode failed:", decoded.reason);
+        res.status(409).json({ error: "vault PDA exists but is not a klink Vault account" });
+        return;
+      }
+      // PDA seeds bind the address to `owner`, so a mismatch here would
+      // imply the program emitted a wrong owner field — treat as corrupt.
+      if (!decoded.owner.equals(owner)) {
+        console.error(
+          "[POST /v1/wallet] vault.owner mismatch:",
+          decoded.owner.toBase58(),
+          "vs request owner",
+          owner.toBase58(),
+        );
+        res.status(409).json({ error: "vault owner mismatch" });
+        return;
+      }
+
+      const db = getDb();
+      // The JWT's user id may be stale (DB rotation after the JWT was minted).
+      // Resolve from pubkey and create the users row if needed so the wallets
+      // INSERT below doesn't fail on the user_id FK.
+      const resolvedUserId = await resolveUserIdFromPubkey(db, userPubkey, { autoCreate: true });
+      if (!resolvedUserId) {
+        console.error("[POST /v1/wallet] failed to resolve user id for pubkey", userPubkey);
+        res.status(500).json({ error: "failed to resolve user" });
+        return;
+      }
+      // `vault_pda` is UNIQUE, so concurrent self-heal calls for the same
+      // owner are safe: the second insert is dropped, and the re-select
+      // returns whichever row landed.
+      await db
+        .insert(wallets)
+        .values({
+          userId: resolvedUserId,
+          vaultPda: vaultPda.toBase58(),
+          usdcAta: vaultUsdcAta.toBase58(),
+          maxDeployedFractionBp: decoded.maxDeployedFractionBp,
+        })
+        .onConflictDoNothing({ target: wallets.vaultPda });
+
+      const existing = await db
+        .select({
+          id: wallets.id,
+          vaultPda: wallets.vaultPda,
+          usdcAta: wallets.usdcAta,
+          maxDeployedFractionBp: wallets.maxDeployedFractionBp,
+          createdAt: wallets.createdAt,
+        })
+        .from(wallets)
+        .where(eq(wallets.vaultPda, vaultPda.toBase58()))
+        .limit(1);
+      const row = existing[0];
+
+      res.json({
+        alreadyExists: true,
+        walletId: row?.id ?? null,
+        vaultPda: vaultPda.toBase58(),
+        vaultUsdcAta: vaultUsdcAta.toBase58(),
+        maxDeployedFractionBp: decoded.maxDeployedFractionBp,
+        createdAt: row?.createdAt ?? null,
+      });
+      return;
+    }
+
+    // No on-chain vault — build the unsigned init_vault tx for Phantom.
     let recentBlockhash: string;
     try {
       recentBlockhash = await getBlockhash();
@@ -171,8 +387,8 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
       built = buildInitVaultTx({
         owner,
         maxDeployedFractionBp: raw,
-        programId: getProgramId(),
-        usdcMint: getUsdcMint(),
+        programId,
+        usdcMint,
         recentBlockhash,
       });
     } catch (err) {
@@ -189,6 +405,7 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
       .toString("base64");
 
     res.json({
+      alreadyExists: false,
       txBase64,
       vaultPda: built.vaultPda.toBase58(),
       vaultUsdcAta: built.vaultUsdcAta.toBase58(),
@@ -207,13 +424,20 @@ export const postWalletHandler = makePostWalletHandler();
 // ---------------------------------------------------------------------------
 
 export async function getWalletHandler(req: Request, res: Response): Promise<void> {
-  const userId = req.user?.id;
   const userPubkey = req.user?.pubkey;
-  if (!userId || !userPubkey) {
+  if (!userPubkey) {
     res.status(401).json({ error: "auth required" });
     return;
   }
   const db = getDb();
+  // Resolve users.id from pubkey rather than trusting the JWT's `sub` —
+  // survives DB rotations where the JWT carries an id that no longer exists.
+  const resolvedUserId = await resolveUserIdFromPubkey(db, userPubkey, { autoCreate: false });
+  if (!resolvedUserId) {
+    console.log(`[GET /v1/wallet] no users row for pubkey=${userPubkey} → 404`);
+    res.status(404).json({ error: "wallet not found" });
+    return;
+  }
   const rows = await db
     .select({
       id: wallets.id,
@@ -223,14 +447,25 @@ export async function getWalletHandler(req: Request, res: Response): Promise<voi
       createdAt: wallets.createdAt,
     })
     .from(wallets)
-    .where(eq(wallets.userId, userId))
+    .where(eq(wallets.userId, resolvedUserId))
     .orderBy(desc(wallets.createdAt))
     .limit(1);
   const row = rows[0];
   if (!row) {
+    console.log(`[GET /v1/wallet] no wallet row for resolvedUserId=${resolvedUserId}`);
     res.status(404).json({ error: "wallet not found" });
     return;
   }
+  // Snapshot the field shapes so we can spot a Date-vs-string mismatch or a
+  // null where the dashboard schema expects a string.
+  console.log("[GET /v1/wallet] row types:", {
+    id: typeof row.id,
+    vaultPda: typeof row.vaultPda,
+    usdcAta: typeof row.usdcAta,
+    maxDeployedFractionBp: typeof row.maxDeployedFractionBp,
+    createdAt: row.createdAt instanceof Date ? "Date" : typeof row.createdAt,
+    createdAtPreview: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+  });
   res.json({
     id: row.id,
     vaultPda: row.vaultPda,

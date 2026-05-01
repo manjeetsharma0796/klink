@@ -43,6 +43,39 @@ export function createApp(): Express {
     }),
   );
 
+  // Debug request/response logger. Disabled by setting KLINK_DEBUG_HTTP=0.
+  if (process.env.KLINK_DEBUG_HTTP !== "0") {
+    app.use((req, res, next) => {
+      const t0 = Date.now();
+      const reqId = Math.random().toString(36).slice(2, 8);
+      const bodyPreview =
+        req.body && typeof req.body === "object" ? Object.keys(req.body).join(",") : "";
+      console.log(
+        `[http ${reqId}] → ${req.method} ${req.originalUrl}` +
+          (bodyPreview ? ` body{${bodyPreview}}` : ""),
+      );
+
+      // Patch res.json so we can preview the response shape being sent.
+      const origJson = res.json.bind(res);
+      res.json = ((body: unknown) => {
+        const shape =
+          body && typeof body === "object" ? Object.keys(body as Record<string, unknown>) : [];
+        const errStr =
+          (body as { error?: unknown })?.error !== undefined
+            ? ` error=${JSON.stringify((body as { error: unknown }).error)}`
+            : "";
+        const user = (req as { user?: { pubkey?: string; id?: string } }).user;
+        const userTag = user?.pubkey ? ` user=${user.pubkey.slice(0, 8)}…` : "";
+        console.log(
+          `[http ${reqId}] ← ${res.statusCode} ${Date.now() - t0}ms` +
+            ` keys=[${shape.join(",")}]${errStr}${userTag}`,
+        );
+        return origJson(body);
+      }) as typeof res.json;
+      next();
+    });
+  }
+
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });

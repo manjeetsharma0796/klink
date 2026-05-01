@@ -4,7 +4,7 @@ import { buildTxResponseSchema } from "../../lib/schemas";
 
 describe("useBuildAndSignTx schema usage", () => {
   test("buildTxResponseSchema accepts passthrough fields", () => {
-    const r = buildTxResponseSchema.passthrough().parse({
+    const r = buildTxResponseSchema.parse({
       txBase64: "AAA",
       sessionId: "00000000-0000-0000-0000-000000000000",
       sessionPubkey: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
