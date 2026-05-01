@@ -131,7 +131,7 @@ The first dev to complete §2 fills in this row, which closes T-407.
 
 | Dev | Date | Bot username | Group chat_id (last 4 digits, mask the rest) | Notes |
 |---|---|---|---|---|
-| _(pending)_ | YYYY-MM-DD | `@klink_ci_bot` | `...XXXX` | _e.g. used Option A for chat_id; supergroup migration auto-happened on add of 5th member_ |
+| @Jishnu | 2026-04-30 | `@klinkdotfun_bot` | `...····` _(masked — value lives in GitHub Secret `TELEGRAM_CHAT_ID`)_ | Smoke test verified live: `[BOARD] Session leaderboard` posts on every push to `main`, `[REVIEW]`/`[DONE]` tags fire on impl PRs (cf. PRs #51, #53). Bot is non-admin; privacy mode default (irrelevant — bot only sends, never reads). |
 
 ## 4. Troubleshooting
 
