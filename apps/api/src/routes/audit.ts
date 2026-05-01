@@ -104,18 +104,16 @@ export async function getAuditHandler(req: Request, res: Response): Promise<void
   const entries = hasMore ? rows.slice(0, q.limit) : rows;
   const nextCursor = hasMore ? (entries[entries.length - 1]?.id ?? null) : null;
 
+  // Drizzle already returns camelCase column aliases; the dashboard's
+  // `auditEntrySchema` (apps/web/lib/schemas.ts) expects camelCase too. Don't
+  // re-map to snake_case here — every prior version did, which silently broke
+  // the audit page (zod parse failed, data went null, "No audit entries"
+  // rendered forever). `createdAt` is the only field that needs a JSON-safe
+  // cast since Drizzle hands back a Date object on `timestamp` columns.
   res.json({
     entries: entries.map((e) => ({
-      id: e.id,
-      wallet_id: e.walletId,
-      session_id: e.sessionId,
-      action: e.action,
-      amount: e.amount,
-      recipient_or_url: e.recipientOrUrl,
-      decision: e.decision,
-      reason: e.reason,
-      tx_signature: e.txSignature,
-      created_at: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+      ...e,
+      createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
     })),
     next_cursor: nextCursor,
   });
