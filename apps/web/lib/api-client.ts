@@ -1,5 +1,3 @@
-import { API_BASE_URL } from "./constants";
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -16,8 +14,13 @@ export interface ApiClientOpts {
   body?: unknown;
 }
 
+// Dashboard fetches go through the same-origin Next.js proxy at /api/v1/*
+// (apps/web/app/api/v1/[...path]/route.ts), which reads the httpOnly
+// klink_session cookie server-side and forwards as Authorization: Bearer.
+// This sidesteps cross-origin CORS and the backend's header-only auth in
+// one shot. Plain absolute URLs (http://...) still bypass the rewrite.
 async function call<T>(method: string, path: string, opts: ApiClientOpts = {}): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  const url = path.startsWith("http") ? path : `/api${path}`;
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers["content-type"] = "application/json";
 
@@ -25,7 +28,7 @@ async function call<T>(method: string, path: string, opts: ApiClientOpts = {}): 
     method,
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    credentials: "include", // sends siws cookie set by /api/auth/siws
+    credentials: "include",
     signal: opts.signal,
   });
 
