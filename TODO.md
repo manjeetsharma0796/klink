@@ -139,7 +139,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 (All OS-agnostic. Anyone can pick.)
 
 ### T-218 — `GET /v1/sessions` (list sessions for caller's wallets)
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-206
 - OS: any
 - Scope: api
@@ -147,7 +147,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: blocks T-304 (session list UI). Filed by T-303-T-308 UI design (`docs/superpowers/specs/2026-05-02-klink-web-ui-design.md` §8).
 
 ### T-219 — `GET /v1/sessions/:id` (read one session + off-chain policy)
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-206, T-209
 - OS: any
 - Scope: api
@@ -155,7 +155,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: blocks T-305 (allowlist editor UI). Filed by UI design spec §8.
 
 ### T-224 — `GET /v1/wallet` (read wallet)
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-205
 - OS: any
 - Scope: api
@@ -163,7 +163,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: blocks T-303 (overview page) + T-307 (yield needs max_bp) + T-221. Filed by UI design spec §8. (Originally proposed as T-220 — renamed because T-220 is already taken by "Service catalog seed".)
 
 ### T-221 — `POST /v1/wallet/policy` (build set_max_deployed_fraction tx)
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-107, T-205
 - OS: any
 - Scope: api
@@ -171,7 +171,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: blocks T-305 / settings UI. Filed by UI design spec §8.
 
 ### T-222 — Owner-flow build-tx variants for `/v1/yield/{deposit,withdraw}`
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-108, T-109, T-205, T-213
 - OS: any
 - Scope: api
@@ -179,7 +179,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: design spec §4.3 explicitly says owner can drive yield via dashboard JWT; T-213 shipped only the agent-key half. Filed by UI design spec §8 to unblock T-307 owner UX.
 
 ### T-223 — `PATCH /v1/wallet/off-chain-policy` (set URL allowlist + time window)
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-02
 - Depends-on: T-209
 - OS: any
 - Scope: api
