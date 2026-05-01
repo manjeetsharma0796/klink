@@ -7,8 +7,10 @@ import {
 import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import type { Request, Response } from "express";
 import {
+  VAULT_ACCOUNT_DISCRIMINATOR,
   anchorDiscriminator,
   buildInitVaultTx,
+  decodeVault,
   makePostWalletHandler,
 } from "../../src/routes/wallet";
 
@@ -194,11 +196,13 @@ describe("buildInitVaultTx", () => {
 });
 
 describe("POST /v1/wallet handler", () => {
+  // No on-chain vault → handler builds the init_vault tx (existing behavior).
   function makeHandler() {
     return makePostWalletHandler({
       blockhash: async () => FAKE_BLOCKHASH,
       programId: () => PROGRAM_ID,
       usdcMint: () => USDC_MINT,
+      accountInfo: async () => null,
     });
   }
 
@@ -242,6 +246,7 @@ describe("POST /v1/wallet handler", () => {
       },
       programId: () => PROGRAM_ID,
       usdcMint: () => USDC_MINT,
+      accountInfo: async () => null,
     });
     const { res, captured } = makeRes();
     await handler(makeReq({ pubkey: VALID_OWNER, body: { max_deployed_fraction_bp: 8000 } }), res);
@@ -249,16 +254,33 @@ describe("POST /v1/wallet handler", () => {
     expect(captured.body).toEqual({ error: "rpc unavailable" });
   });
 
-  it("happy path: returns base64 tx + vaultPda + vaultUsdcAta", async () => {
+  it("returns 503 when the account-info fetch throws", async () => {
+    const handler = makePostWalletHandler({
+      blockhash: async () => FAKE_BLOCKHASH,
+      programId: () => PROGRAM_ID,
+      usdcMint: () => USDC_MINT,
+      accountInfo: async () => {
+        throw new Error("rpc 502");
+      },
+    });
+    const { res, captured } = makeRes();
+    await handler(makeReq({ pubkey: VALID_OWNER, body: { max_deployed_fraction_bp: 8000 } }), res);
+    expect(captured.status).toBe(503);
+    expect(captured.body).toEqual({ error: "rpc unavailable" });
+  });
+
+  it("happy path: no on-chain vault → returns alreadyExists=false + base64 tx + vaultPda + vaultUsdcAta", async () => {
     const handler = makeHandler();
     const { res, captured } = makeRes();
     await handler(makeReq({ pubkey: VALID_OWNER, body: { max_deployed_fraction_bp: 8000 } }), res);
     expect(captured.status).toBeNull(); // res.json was called, no explicit status
     const body = captured.body as {
+      alreadyExists: boolean;
       txBase64: string;
       vaultPda: string;
       vaultUsdcAta: string;
     };
+    expect(body.alreadyExists).toBe(false);
     expect(typeof body.txBase64).toBe("string");
     expect(body.txBase64.length).toBeGreaterThan(0);
 
@@ -290,5 +312,96 @@ describe("POST /v1/wallet handler", () => {
     const ownerSig = tx.signatures.find((s) => s.publicKey.toBase58() === VALID_OWNER);
     expect(ownerSig).toBeDefined();
     expect(ownerSig?.signature).toBeNull();
+  });
+
+  it("self-heal: returns 409 when an account exists at the vault PDA but is owned by a different program", async () => {
+    const foreign = Keypair.generate().publicKey;
+    const handler = makePostWalletHandler({
+      blockhash: async () => FAKE_BLOCKHASH,
+      programId: () => PROGRAM_ID,
+      usdcMint: () => USDC_MINT,
+      accountInfo: async () => ({
+        owner: foreign,
+        // 51 bytes so it would otherwise pass length check; owner-program
+        // check must reject it before decode.
+        data: Buffer.alloc(51),
+      }),
+    });
+    const { res, captured } = makeRes();
+    await handler(makeReq({ pubkey: VALID_OWNER, body: { max_deployed_fraction_bp: 0 } }), res);
+    expect(captured.status).toBe(409);
+    expect((captured.body as { error: string }).error).toContain("different program");
+  });
+
+  it("self-heal: returns 409 when the account at the PDA has the wrong discriminator", async () => {
+    const handler = makePostWalletHandler({
+      blockhash: async () => FAKE_BLOCKHASH,
+      programId: () => PROGRAM_ID,
+      usdcMint: () => USDC_MINT,
+      accountInfo: async () => ({
+        owner: PROGRAM_ID,
+        // Right length, but the leading 8 bytes are not the Vault discriminator.
+        data: Buffer.alloc(51),
+      }),
+    });
+    const { res, captured } = makeRes();
+    await handler(makeReq({ pubkey: VALID_OWNER, body: { max_deployed_fraction_bp: 0 } }), res);
+    expect(captured.status).toBe(409);
+    expect((captured.body as { error: string }).error).toContain("not a klink Vault");
+  });
+});
+
+describe("VAULT_ACCOUNT_DISCRIMINATOR", () => {
+  it("matches the well-known sha256('account:Vault')[0..8] value pinned to on-chain bytes", () => {
+    // Locks the discriminator to the value observed on devnet for an
+    // already-initialized Vault account at PDA `5wgQuiL2ZoyTMHDJz3fNbsJ8EZAzHBAjBpU42Z1jYjXV`.
+    // If Anchor ever changes its account-discriminator naming, this test
+    // catches it before production self-heal logic silently misclassifies.
+    expect(VAULT_ACCOUNT_DISCRIMINATOR.length).toBe(8);
+    expect(VAULT_ACCOUNT_DISCRIMINATOR.toString("hex")).toBe("d308e82b02987577");
+  });
+});
+
+describe("decodeVault", () => {
+  function makeVaultBytes(
+    opts: {
+      disc?: Buffer;
+      owner?: PublicKey;
+      maxBp?: number;
+      deployed?: bigint;
+      bump?: number;
+    } = {},
+  ) {
+    const buf = Buffer.alloc(51);
+    (opts.disc ?? VAULT_ACCOUNT_DISCRIMINATOR).copy(buf, 0);
+    (opts.owner ?? Keypair.generate().publicKey).toBuffer().copy(buf, 8);
+    buf.writeUInt16LE(opts.maxBp ?? 8000, 40);
+    buf.writeBigUInt64LE(opts.deployed ?? 0n, 42);
+    buf[50] = opts.bump ?? 251;
+    return buf;
+  }
+
+  it("rejects buffers of unexpected length", () => {
+    const r = decodeVault(Buffer.alloc(50));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toContain("data length");
+  });
+
+  it("rejects buffers with a foreign discriminator", () => {
+    const r = decodeVault(makeVaultBytes({ disc: Buffer.alloc(8) }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toContain("discriminator");
+  });
+
+  it("decodes a well-formed Vault buffer", () => {
+    const owner = Keypair.generate().publicKey;
+    const r = decodeVault(makeVaultBytes({ owner, maxBp: 1234, deployed: 9_876_543n, bump: 42 }));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.owner.equals(owner)).toBe(true);
+      expect(r.maxDeployedFractionBp).toBe(1234);
+      expect(r.deployedAmount).toBe(9_876_543n);
+      expect(r.bump).toBe(42);
+    }
   });
 });

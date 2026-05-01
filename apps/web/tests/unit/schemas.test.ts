@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
-  walletSchema,
-  sessionsListSchema,
-  sessionDetailSchema,
-  buildTxResponseSchema,
-  postSessionResponseSchema,
-  fundDepositAddressSchema,
   auditPageSchema,
+  buildTxResponseSchema,
+  fundDepositAddressSchema,
+  postSessionResponseSchema,
+  sessionDetailSchema,
+  sessionsListSchema,
+  walletSchema,
 } from "../../lib/schemas";
 
 describe("walletSchema", () => {
@@ -72,9 +72,20 @@ describe("sessionDetailSchema", () => {
 });
 
 describe("buildTxResponseSchema", () => {
-  test("requires txBase64", () => {
+  test("requires txBase64 when alreadyExists is not true", () => {
     expect(() => buildTxResponseSchema.parse({})).toThrow();
     expect(buildTxResponseSchema.parse({ txBase64: "AAA" }).txBase64).toBe("AAA");
+  });
+  test("permits the self-heal shape (alreadyExists=true, no txBase64)", () => {
+    const r = buildTxResponseSchema.parse({
+      alreadyExists: true,
+      vaultPda: "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
+    });
+    expect(r.alreadyExists).toBe(true);
+    expect(r.txBase64).toBeUndefined();
+  });
+  test("rejects alreadyExists=false without txBase64", () => {
+    expect(() => buildTxResponseSchema.parse({ alreadyExists: false })).toThrow();
   });
 });
 

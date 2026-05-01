@@ -58,11 +58,24 @@ export const sessionDetailSchema = sessionRowSchema.extend({
 });
 export type SessionDetail = z.infer<typeof sessionDetailSchema>;
 
-export const buildTxResponseSchema = z.object({
-  txBase64: z.string(),
-  vaultPda: pubkey.optional(),
-  vaultUsdcAta: pubkey.optional(),
-});
+export const buildTxResponseSchema = z
+  .object({
+    /**
+     * `true` when the backend short-circuited (e.g. POST /v1/wallet found
+     * the vault PDA already initialized on-chain and just backfilled the
+     * DB row). When true, `txBase64` is absent — the caller has nothing
+     * to sign because the on-chain side is already done.
+     */
+    alreadyExists: z.boolean().optional(),
+    txBase64: z.string().optional(),
+    vaultPda: pubkey.optional(),
+    vaultUsdcAta: pubkey.optional(),
+  })
+  .passthrough()
+  .refine((v) => v.alreadyExists === true || typeof v.txBase64 === "string", {
+    message: "txBase64 required unless alreadyExists is true",
+    path: ["txBase64"],
+  });
 export type BuildTxResponse = z.infer<typeof buildTxResponseSchema>;
 
 export const postSessionResponseSchema = z.object({
