@@ -12,6 +12,10 @@
  * Invariants:
  *   1. No duplicate `### T-XXX` headings anywhere in the file.
  *   2. Every `### T-XXX` block has exactly one `- Status:` line.
+ *   3. No occurrences of the misspelled `@Pritwish` (the canonical handle is
+ *      `@Prithwish` — the `h` after `t` is load-bearing). The typo has been
+ *      reintroduced twice via merges; failing CI is the only way to make
+ *      "use the right spelling" stick.
  *
  * Usage:
  *   bun scripts/lint-todo.ts [path]    # default: TODO.md
@@ -45,6 +49,22 @@ function lint(text: string): string[] {
     if (n !== 1) {
       errors.push(`${tid}: ${n} \`- Status:\` lines (expected 1)`);
     }
+  }
+
+  // Forbidden-handle check. `@Pritwish` is a recurring misspelling — the
+  // canonical handle is `@Prithwish` (note the `th`). Negative lookahead
+  // makes sure `@Prithwish` itself doesn't trip this.
+  const typoRe = /@Pritwish(?!h)/g;
+  const typoLines: number[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (typoRe.test(lines[i] ?? "")) typoLines.push(i + 1);
+    typoRe.lastIndex = 0;
+  }
+  if (typoLines.length > 0) {
+    errors.push(
+      `misspelled handle '@Pritwish' on line(s) ${typoLines.join(", ")} — use '@Prithwish'`,
+    );
   }
 
   return errors;

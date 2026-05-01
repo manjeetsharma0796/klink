@@ -22,7 +22,7 @@ This doc covers:
 
 ### Anchor program (T-1xx)
 - **All 8 instructions live on Solana devnet.** Program ID `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv`, deployed `2026-05-02` from build commit `8e9eb05`. Full provenance in [`docs/runbooks/devnet-deploys.md`](docs/runbooks/devnet-deploys.md).
-- **Deploy authority is a single keypair** (`6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ`, held by @Pritwish). **Must rotate to a 2-of-N Squads multisig before any mainnet traffic** — that's T-114 (still pending).
+- **Deploy authority is a single keypair** (`6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ`, held by @Prithwish). **Must rotate to a 2-of-N Squads multisig before any mainnet traffic** — that's T-114 (still pending).
 - **Kamino devnet reserve env not wired.** `KAMINO_RESERVE` etc. in `apps/api/.env` are still empty, so `kamino_deposit` and `kamino_withdraw` will revert with `WrongKaminoProgram`. The other 6 instructions (init_vault, set_max_deployed_fraction, add_session, update_session_allowlist, revoke_session, transfer_usdc) all work end-to-end from the dashboard.
 - **No integration tests run before deploy.** T-112 (anchor-test on local validator) was skipped because of time. The smoke is the dashboard's signed-by-Phantom roundtrip. Add proper coverage as a follow-up.
 - T-110 (TDD revert suite) is in-progress on @Manish. T-111 (fuzz) still blocked on T-110.
