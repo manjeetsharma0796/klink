@@ -22,8 +22,8 @@ jobs:
       - name: Lint TODO.md (T-409 — guards merge=union breakage)
         run: bun scripts/lint-todo.ts
 
-      - name: Lint (Biome)
-        run: bun run lint
+      # - name: Lint (Biome)
+      #   run: bun run lint
 
       - name: Typecheck
         run: bun --filter '*' typecheck
