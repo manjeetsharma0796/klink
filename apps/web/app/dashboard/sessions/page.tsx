@@ -54,7 +54,9 @@ export default function SessionsPage() {
                         <TableCell>{s.label}</TableCell>
                         <TableCell className="font-mono text-xs">{truncatePubkey(s.sessionPubkey)}</TableCell>
                         <TableCell><Badge variant={status === "active" ? "default" : "secondary"}>{status}</Badge></TableCell>
-                        <TableCell className="font-mono text-xs">{s.keyPrefix}…</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {s.keyPrefix ? `${s.keyPrefix}…` : "—"}
+                        </TableCell>
                         <TableCell className="text-xs">{formatTimestamp(Date.parse(s.createdAt) / 1000)}</TableCell>
                         <TableCell className="space-x-2 text-right">
                           <Link href={`/dashboard/sessions/${s.id}`} className="text-xs font-medium text-primary hover:underline">
