@@ -68,6 +68,13 @@ export default function DashboardPage() {
               label: "Vault PDA",
               value: w.wallet?.vaultPda ?? null,
               mono: true,
+              copy: true,
+            },
+            {
+              label: "USDC address",
+              value: w.wallet?.usdcAta ?? null,
+              mono: true,
+              copy: true,
             },
           ]}
         />
