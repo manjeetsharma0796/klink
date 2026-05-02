@@ -125,6 +125,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: security
 - Acceptance: at least one of Neodyme / OtterSec / Sec3 / known peer reviewer signs off; findings tracked as T-1xx follow-ups; mainnet deploy gated on this.
 
+### T-116 — `owner_transfer_usdc` instruction (escape hatch)
+- Status: pending
+- Depends-on: T-103, T-105
+- OS: any
+- Scope: anchor-program
+- Acceptance: new instruction at `programs/agent_wallet/src/instructions/owner_transfer_usdc.rs` that lets the vault owner move USDC from `vault_usdc_ata` to any `recipient_usdc_ata` they specify, signed by Phantom (no session, no recipient allowlist, no cap). Account layout: `owner` (signer), `vault` (PDA, `has_one = owner @ NotVaultOwner`), `vault_usdc_ata`, `recipient_usdc_ata`, `token_program`. CPI to SPL Token transfer using vault PDA seeds `["vault", owner]` for the signer. The current `transfer_usdc` instruction is hard-bound to `session_signer: Signer<'info>` (programs/agent_wallet/src/instructions/transfer_usdc.rs:24-28), so without this new instruction the owner CANNOT move USDC out of the vault even if the backend disappears — breaks the spec §5 "emergency drain" / "wallet itself still functional via direct Phantom interaction" promise (design spec §5:534). Today the only escape paths that work standalone are `revoke_session` (T-106), `set_max_deployed_fraction` (T-107), and `kamino_withdraw` (T-109) — those move funds from Kamino back to the vault but cannot extract them off the vault. With this instruction shipped, the owner can recover everything via Phantom + a generic Solana CLI even if klink shuts down. Tests in T-110's revert suite: owner-signs-success, non-owner-signs-fails, vault.owner mismatch fails. Backend / dashboard wiring (POST `/v1/wallet/transfer` build-tx + UI) tracked separately as a T-2xx follow-up once this lands.
+- Notes: surfaced 2026-05-02 by an audit of the non-custodial claim. **Fixes a real gap, not just a polish task.** Touch surface is small (~50 LOC of rust), but on-chain so it needs `anchor build` + redeploy via the current single-keypair authority (still T-114 territory for the multisig migration).
+
 ---
 
 ## 2 — Backend
@@ -175,6 +183,48 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-232 — Revoke-session self-heal for DB-only / already-closed sessions
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-207, T-225
+- OS: any
+- Scope: api + web
+- Acceptance: `apps/api/src/routes/session.ts` `deleteSessionHandler` now checks the on-chain Session PDA before building a `revoke_session` tx. Two self-heal cases yield the same null `getAccountInfo` result: (a) DB-only ghost — Phantom never signed the original `add_session` tx so the PDA was never initialized, (b) already-closed — a previous revoke succeeded but the dashboard didn't follow up to update the DB. In both cases the handler now soft-revokes the DB rows in a transaction (`sessions.revokedAt`, every active `api_keys.revokedAt`, `audit_log.session_revoke_soft`) and returns `{ alreadyExists: true, ... }` so the existing `useBuildAndSignTx` short-circuit fires without prompting Phantom. On the happy path, after Phantom signs + submits the on-chain `revoke_session` tx, `apps/web RevokeConfirm` now calls DELETE a second time to trigger the soft-revoke (mirrors the wallet self-heal pattern from T-225). Side-effect cleanup: `getSessionsHandler` + `getSessionHandler` joins to `apiKeys` flipped from INNER to LEFT — INNER hid revoked sessions entirely (no active api_keys → no row → vanished from dashboard); LEFT keeps them visible with `keyPrefix=null`, schema relaxed to `keyPrefix: z.string().nullable()`, sessions table renders "—". Verified live on the user's "gg" session (DB-only ghost): DELETE returned `alreadyExists=true`, soft-revoke landed, GET /v1/sessions now shows `{ revokedAt: <iso>, keyPrefix: null }` with the "revoked" badge. Surfaced 2026-05-02 during manual UI testing — without this fix the user couldn't revoke a session that hit the on-chain race during creation.
+
+### T-231 — Wallet Settings vault PDA overflow + copy
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-224
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/_components/stat-card.tsx` `StatCard` gained an optional `copy` prop. When set, the row's value is auto-truncated via `truncatePubkey` (`Xrtv…cf41`) and a Copy button appears next to it that copies the FULL value to the clipboard, with a 1.5s "Copied" feedback state. Used on the Vault PDA row + a new "USDC address" row in the Wallet Settings card on the Overview page (`apps/web/app/dashboard/page.tsx`). Before this fix the 44-char base58 vault PDA was overflowing the card width with no truncation and no way to copy. Surfaced 2026-05-02 via screenshot.
+
+### T-230 — Rotate API key endpoint + UI
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-204, T-206
+- OS: any
+- Scope: api + web
+- Acceptance: new `POST /v1/session/:id/rotate-key` (`apps/api/src/routes/session.ts` `postRotateSessionKeyHandler`) — owner-auth via dashboard JWT, ownership via the sessions → wallets → users.id triple-join, 409 if session already revoked. Single DB transaction: revoke all active `api_keys` for this session (`UPDATE WHERE session_id=? AND revoked_at IS NULL`), insert a fresh row with new `keyPrefix` + argon2id-hashed token, append `session_rotate_key` audit row. Concurrent rotations stay correct (final state may have two new active keys but no leftover old ones). On-chain Session PDA is untouched — no Phantom signature, no SOL fees, no on-chain audit footprint. Returns plaintext `apiKey` ONCE — same contract as `POST /v1/session`. UI: new `RotateKeyButton` (`apps/web/app/dashboard/sessions/rotate-key-button.tsx`) calls the endpoint behind a `window.confirm` and pipes the response into the same `<ApiKeyRevealModal>` the create flow uses. Wired into the sessions table next to the existing Revoke button on active rows. Side-effect bug fix: `getSessionsHandler` + `getSessionHandler` now filter the `api_keys` join to `revoked_at IS NULL` — without it the join would multiply rows after rotation and the dashboard would surface a stale prefix. Verified end-to-end against the live api: pre-rotate prefix → POST /v1/session/:id/rotate-key response prefix → GET /v1/sessions prefix → GET /v1/sessions/:id prefix all match. Closes the "regenerate / copy key" UX request from 2026-05-02 — copy of an existing key after first reveal remains by-design impossible (only argon2id hash stored), but the user can rotate to mint a fresh key any time.
+
+### T-229 — Strip dev console.log render-storm noise
+- Status: done @Jishnu 2026-05-02
+- Depends-on: —
+- OS: any
+- Scope: web
+- Acceptance: `useWalletData`, `DashboardPage`, and `api-client.ts` were each calling `console.log` on every render / fetch. Combined with SWR revalidate-on-focus + React StrictMode double-invoke + multiple consumers of the same hook, dev sessions accumulated 300+ identical `[klink:useWalletData]` log lines per click — pure noise that masked real signal. Removed all three. `api-client.ts` retains the `console.warn` on error responses so failed mutations aren't swallowed; success responses now stay silent. Surfaced 2026-05-02 by the user's pasted devtools log.
+
+### T-228 — NewSessionModal missing `wallet_id` in POST body
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-206
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/sessions/new-session-modal.tsx` was POSTing to `/v1/session` without `wallet_id` → backend returned 400 `wallet_id required` (apps/api/src/routes/session.ts:65) before building the tx. Surfaced as "unable to create sessions" in manual UI testing on 2026-05-02. Pulls wallet from `useWalletData()` (cached SWR — no extra fetch), bails with a toast if no wallet exists yet, and now passes `wallet_id: wallet.id` in the POST body. The schema check has been strict from day one; the modal just never wired the value.
+
+### T-227 — Dashboard wallet_id query param + live sessions count + fund-page error message
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-217, T-218, T-224
+- OS: any
+- Scope: web
+- Acceptance: three small UI bugs found during manual test on 2026-05-02. (1) `GET /v1/fund/deposit-address` was called without `wallet_id` from both `apps/web/app/dashboard/page.tsx` and `apps/web/app/dashboard/fund/page.tsx` → backend returned 400 → no QR rendered on the Overview balance card or the Fund page. The handler at `apps/api/src/routes/fund.ts:22` requires it. Now both pages pass `?wallet_id=${w.wallet.id}` to the SWR key. (2) Fund page rendered "No wallet yet — create one from Overview" when the fund call failed for an existing wallet (because of bug 1). Now three branches: no wallet → create CTA, wallet+loading → skeleton, wallet+success → QR, wallet+failure → "Couldn't load deposit address — check api logs." (3) Wallet Settings card hardcoded "Active Sessions" as the em-dash placeholder. Now reads live count from `useSessions()` filtered to un-revoked rows (matches the right-side ActivityRail card which was already correct).
 
 ### T-226 — Treasury keypair as fee payer for agent spend/yield
 - Status: done @Jishnu 2026-05-02
