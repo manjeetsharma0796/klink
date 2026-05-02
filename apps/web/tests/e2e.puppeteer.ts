@@ -128,6 +128,23 @@ async function main() {
         qr_data_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
       },
     },
+    // T-235 — POST /v1/wallet/transfer build-tx mock. The dashboard's
+    // emergency-drain card calls this when the owner clicks "Drain to recipient".
+    // We just need a syntactically valid txBase64 for the schema parse to pass;
+    // the mock browser flow stops at the Phantom signTransaction step.
+    {
+      method: "POST",
+      path: "/v1/wallet/transfer",
+      body: {
+        txBase64: "AQAAAAAAAAAA",
+        walletId: WALLET_ID,
+        vaultPda: FAKE_PUBKEY,
+        vaultUsdcAta: FAKE_PUBKEY,
+        recipient: FAKE_PUBKEY,
+        recipientUsdcAta: FAKE_PUBKEY,
+        amount: "1000000",
+      },
+    },
   ]);
 
   const browser = await puppeteer.launch({ headless });
@@ -149,6 +166,22 @@ async function main() {
       if (!res) throw new Error(`${p.path} → no response`);
       // Either renders the dashboard (rare with stub cookie) or redirects to /. Both are OK.
       await snapshot(page, p.name);
+
+      // T-235 settings-page assertion: the Danger zone — emergency drain
+      // card (T-116 escape hatch) must render. If the dashboard redirects
+      // to "/" we won't reach it, so allow either: card present, or final
+      // URL is the public sign-in page.
+      if (p.path === "/dashboard/settings") {
+        const html = await page.content();
+        const onSignIn = page.url().endsWith("/");
+        const hasDangerZone =
+          html.includes("Danger zone") || html.includes("emergency drain") || html.includes("Drain to recipient");
+        if (!onSignIn && !hasDangerZone) {
+          throw new Error(
+            "settings page rendered but the T-235 Danger zone card is missing — check apps/web/app/dashboard/settings/page.tsx",
+          );
+        }
+      }
     }
 
     const hard = errors.filter((e) => !/walletNot|adapter|warning|Failed to fetch|Failed to load resource/i.test(e));

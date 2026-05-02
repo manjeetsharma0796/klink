@@ -885,12 +885,12 @@ interface WalletTransferBody {
   wallet_id?: string;
 }
 
-function parseWalletTransferBody(
+export function parseWalletTransferBody(
   raw: unknown,
 ):
   | { ok: true; amount: bigint; recipient: PublicKey; walletId: string | undefined }
   | PolicyValidationError {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, status: 400, body: { error: "request body must be JSON object" } };
   }
   const b = raw as Record<string, unknown>;
