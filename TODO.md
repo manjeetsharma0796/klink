@@ -152,7 +152,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 3 — Dashboard + SDK
 
 ### T-310 — SDK quickstart README
-- Status: pending
+- Status: in-progress @Manjeet 2026-05-02
 - Depends-on: T-309
 - OS: any
 - Scope: docs
