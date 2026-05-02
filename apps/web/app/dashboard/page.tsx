@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { useWalletData } from "@/_hooks/use-wallet";
+import { useSessions } from "@/_hooks/use-sessions";
 import { useOnChainVault } from "@/_hooks/use-on-chain-vault";
 import { fundDepositAddressSchema } from "@/lib/schemas";
 import { StatCard } from "./_components/stat-card";
@@ -13,7 +14,12 @@ import { BackendPending } from "./_components/backend-pending";
 export default function DashboardPage() {
   const w = useWalletData();
   const onChain = useOnChainVault(w.wallet?.ownerPubkey ?? null);
-  const fund = useSWR<unknown>(w.wallet ? "/v1/fund/deposit-address" : null);
+  const sessions = useSessions();
+  // GET /v1/fund/deposit-address requires wallet_id — see apps/api/src/routes/fund.ts.
+  // Without it the backend returns 400 and the QR card stays empty.
+  const fund = useSWR<unknown>(
+    w.wallet ? `/v1/fund/deposit-address?wallet_id=${w.wallet.id}` : null,
+  );
   const fundParsed = fund.data ? fundDepositAddressSchema.safeParse(fund.data) : null;
   if (typeof window !== "undefined") {
     console.log("[klink:DashboardPage] state", {
@@ -71,7 +77,15 @@ export default function DashboardPage() {
               href: "/dashboard/settings",
               cta: "Configure",
             },
-            { label: "Active Sessions", value: "—", href: "/dashboard/sessions", cta: "Manage" },
+            {
+              label: "Active Sessions",
+              // Live count from GET /v1/sessions — only un-revoked rows.
+              value: sessions.sessions
+                ? String(sessions.sessions.filter((s) => !s.revokedAt).length)
+                : null,
+              href: "/dashboard/sessions",
+              cta: "Manage",
+            },
             {
               label: "Vault PDA",
               value: w.wallet?.vaultPda ?? null,

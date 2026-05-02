@@ -14,7 +14,11 @@ import { useToast } from "@/app/_components/ui/use-toast";
 
 export default function FundPage() {
   const { wallet } = useWalletData();
-  const fund = useSWR<unknown>("/v1/fund/deposit-address");
+  // GET /v1/fund/deposit-address requires wallet_id — see apps/api/src/routes/fund.ts.
+  // Skip the fetch entirely when no wallet exists yet so we don't 400 on every load.
+  const fund = useSWR<unknown>(
+    wallet ? `/v1/fund/deposit-address?wallet_id=${wallet.id}` : null,
+  );
   const fundParsed = fund.data ? fundDepositAddressSchema.safeParse(fund.data) : null;
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,16 +52,32 @@ export default function FundPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Direct deposit (free)</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {fund.isLoading ? <Skeleton className="h-40 w-40" /> :
-              fundParsed?.success ? (
-                <>
-                  <img src={fundParsed.data.qr_data_url} alt="Vault USDC ATA QR" className="h-40 w-40 rounded-md border" />
-                  <p className="font-mono text-xs">{fundParsed.data.usdc_ata}</p>
-                  <Button variant="secondary" size="sm" onClick={copyAta}>Copy address</Button>
-                  <p className="text-xs text-muted-foreground">Send USDC on Solana to this address. Confirms in ~400ms.</p>
-                </>
-              ) : <p className="text-sm text-muted-foreground">No wallet yet — create one from Overview.</p>
-            }
+            {!wallet ? (
+              <p className="text-sm text-muted-foreground">
+                No wallet yet — create one from Overview.
+              </p>
+            ) : fund.isLoading ? (
+              <Skeleton className="h-40 w-40" />
+            ) : fundParsed?.success ? (
+              <>
+                <img
+                  src={fundParsed.data.qr_data_url}
+                  alt="Vault USDC ATA QR"
+                  className="h-40 w-40 rounded-md border"
+                />
+                <p className="font-mono text-xs">{fundParsed.data.usdc_ata}</p>
+                <Button variant="secondary" size="sm" onClick={copyAta}>
+                  Copy address
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Send USDC on Solana to this address. Confirms in ~400ms.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Couldn't load deposit address — check api logs.
+              </p>
+            )}
           </CardContent>
         </Card>
 
