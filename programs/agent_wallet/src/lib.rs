@@ -45,6 +45,10 @@ pub mod agent_wallet {
         instructions::transfer_usdc::transfer_usdc(ctx, amount, recipient)
     }
 
+    pub fn owner_transfer_usdc(ctx: Context<OwnerTransferUsdc>, amount: u64) -> Result<()> {
+        instructions::owner_transfer_usdc::owner_transfer_usdc(ctx, amount)
+    }
+
     pub fn revoke_session(ctx: Context<RevokeSession>) -> Result<()> {
         instructions::revoke_session::revoke_session(ctx)
     }

@@ -126,7 +126,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: at least one of Neodyme / OtterSec / Sec3 / known peer reviewer signs off; findings tracked as T-1xx follow-ups; mainnet deploy gated on this.
 
 ### T-116 — `owner_transfer_usdc` instruction (escape hatch)
-- Status: pending
+- Status: done @Prithwish 2026-05-02
 - Depends-on: T-103, T-105
 - OS: any
 - Scope: anchor-program

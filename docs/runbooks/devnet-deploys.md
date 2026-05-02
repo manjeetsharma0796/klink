@@ -1,7 +1,7 @@
 ---
 title: Devnet program deployments
 purpose: Append-only log of every `agent_wallet` deploy to Solana devnet — program id, slot, authority, deployer, build commit
-last_updated: 2026-05-02
+last_updated: 2026-05-02 (T-116 pending redeploy)
 ---
 
 # Devnet deploys
@@ -25,6 +25,21 @@ upgrades + audits can be traced back to a specific build.
 ```
 
 ## Log
+
+### Pending — `owner_transfer_usdc` (T-116) — code merged, redeploy outstanding
+
+- **Build commit**: head of `main` at the time you redeploy (run `anchor build` against a clean checkout — the Cargo.lock that anchor build always re-touches must be ignored, see HANDOVER §6)
+- **What this adds**: 1 new instruction `owner_transfer_usdc(amount)` — owner-signed escape hatch that moves USDC out of `vault_usdc_ata` to any recipient ATA. Bypasses session policy entirely; only authorization is `has_one = owner` on the Vault PDA.
+- **Why it matters**: makes the non-custodial promise real. Without this, the only on-chain path to extract USDC is `transfer_usdc`, which requires a session signer — i.e. only via klink's backend. With it, the owner can drain via Phantom + raw Solana CLI even if klink is offline.
+- **Procedure**:
+  ```bash
+  # The current single-keypair authority is 6fELFcuc…drjZ — needs that keypair on disk at ~/.config/solana/id.json (or pass --provider.wallet <path>).
+  # Devnet upgrade authority must hold ≥ 2 SOL for the upgrade tx (no extra rent — same ProgramData account is realloc'd).
+  anchor build
+  anchor deploy --provider.cluster devnet
+  # On success: append a new "### YYYY-MM-DD-N" row below this one with the resulting slot + tx sig.
+  ```
+- **Until redeployed**: backend / dashboard wiring for POST `/v1/wallet/transfer` (the T-2xx follow-up) will revert at the on-chain layer with `Error: 0x65` (instruction not found) because the deployed binary is one revision behind. Do that backend wiring AFTER this redeploy, not before.
 
 ### 2026-05-02-1 — Initial devnet deploy (T-113)
 
