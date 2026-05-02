@@ -24,9 +24,6 @@ async function call<T>(method: string, path: string, opts: ApiClientOpts = {}): 
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers["content-type"] = "application/json";
 
-  const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
-  console.log(`[klink:fetch] → ${method} ${url}`, opts.body ? { body: opts.body } : "");
-
   const res = await fetch(url, {
     method,
     headers,
@@ -34,10 +31,6 @@ async function call<T>(method: string, path: string, opts: ApiClientOpts = {}): 
     credentials: "include",
     signal: opts.signal,
   });
-
-  const ms = Math.round(
-    (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0,
-  );
 
   if (!res.ok) {
     let detail: unknown;
@@ -47,16 +40,14 @@ async function call<T>(method: string, path: string, opts: ApiClientOpts = {}): 
       detail = await res.text();
     }
     const code = (detail as { error?: string })?.error ?? `HTTP_${res.status}`;
-    console.warn(`[klink:fetch] ← ${method} ${url} ${res.status} (${ms}ms) error=${code}`, detail);
+    // Surface server errors so failed mutations aren't swallowed; success
+    // responses stay quiet to avoid the dev-tools render-storm seen during
+    // SWR revalidation cycles.
+    console.warn(`[klink:fetch] ← ${method} ${url} ${res.status} error=${code}`, detail);
     throw new ApiError(res.status, code, code, detail);
   }
-  if (res.status === 204) {
-    console.log(`[klink:fetch] ← ${method} ${url} 204 (${ms}ms)`);
-    return undefined as T;
-  }
-  const data = (await res.json()) as T;
-  console.log(`[klink:fetch] ← ${method} ${url} ${res.status} (${ms}ms)`, data);
-  return data;
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
 
 export const api = {

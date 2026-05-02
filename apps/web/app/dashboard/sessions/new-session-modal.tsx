@@ -9,6 +9,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
 import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
+import { useWalletData } from "@/_hooks/use-wallet";
 import { postSessionResponseSchema } from "@/lib/schemas";
 import { INSTRUCTION_BITS, MAX_RECIPIENTS } from "@/lib/constants";
 import { useToast } from "@/app/_components/ui/use-toast";
@@ -35,6 +36,7 @@ export function NewSessionModal({ onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [revealKey, setRevealKey] = useState<string | null>(null);
   const { run, phase } = useBuildAndSignTx();
+  const { wallet } = useWalletData();
   const { toast } = useToast();
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
@@ -47,6 +49,14 @@ export function NewSessionModal({ onCreated }: Props) {
   });
 
   async function onSubmit(values: FormValues) {
+    if (!wallet) {
+      toast({
+        title: "No wallet",
+        description: "Create a wallet from Overview first.",
+        variant: "destructive",
+      });
+      return;
+    }
     const recipients = values.recipients.trim().split(/\s+/).filter(Boolean);
     let bitmap = 0;
     if (values.allowTransfer) bitmap |= 1 << INSTRUCTION_BITS.TRANSFER_USDC;
@@ -54,7 +64,10 @@ export function NewSessionModal({ onCreated }: Props) {
     if (values.allowKaminoWithdraw) bitmap |= 1 << INSTRUCTION_BITS.KAMINO_WITHDRAW;
 
     try {
+      // wallet_id is required by the backend (apps/api/src/routes/session.ts:65)
+      // — without it the POST returns 400 before building the tx.
       const result = await run("/v1/session", "POST", {
+        wallet_id: wallet.id,
         label: values.label,
         max_per_tx: values.maxPerTx,
         daily_cap: values.dailyCap,

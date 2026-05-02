@@ -21,28 +21,6 @@ export default function DashboardPage() {
     w.wallet ? `/v1/fund/deposit-address?wallet_id=${w.wallet.id}` : null,
   );
   const fundParsed = fund.data ? fundDepositAddressSchema.safeParse(fund.data) : null;
-  if (typeof window !== "undefined") {
-    console.log("[klink:DashboardPage] state", {
-      walletLoading: w.isLoading,
-      walletNotFound: w.notFound,
-      walletError: w.error,
-      walletPda: w.wallet?.vaultPda,
-      ownerPubkey: w.wallet?.ownerPubkey,
-      onChain: {
-        isLoading: onChain.isLoading,
-        error: onChain.error,
-        hasData: onChain.data !== undefined,
-        liquid: onChain.data?.liquid?.toString(),
-        deployed: onChain.data?.deployed?.toString(),
-      },
-      fund: {
-        isLoading: fund.isLoading,
-        error: fund.error,
-        parseOk: fundParsed?.success ?? null,
-        parseIssues: fundParsed && !fundParsed.success ? fundParsed.error.issues : null,
-      },
-    });
-  }
 
   if (w.notFound) {
     return (
