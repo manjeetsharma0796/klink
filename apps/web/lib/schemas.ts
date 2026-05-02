@@ -20,7 +20,10 @@ export const sessionRowSchema = z.object({
   sessionPubkey: pubkey,
   expiresAt: z.string().nullable(),
   revokedAt: z.string().nullable(),
-  keyPrefix: z.string(),
+  // null when the session has no active api_keys (every key has been
+  // revoked — typically a session that's been revoked itself). The dashboard
+  // shows "—" in that case.
+  keyPrefix: z.string().nullable(),
   createdAt: z.string(),
 });
 export type SessionRow = z.infer<typeof sessionRowSchema>;

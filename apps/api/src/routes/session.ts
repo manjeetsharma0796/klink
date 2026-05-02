@@ -13,6 +13,7 @@ import {
   buildUpdateSessionAllowlistIx,
   decodeSessionAccount,
   deriveSessionPda,
+  deriveVaultPda,
   serializeUnsignedTx,
 } from "../program/agent-wallet";
 
@@ -265,22 +266,25 @@ export const postSessionHandler = makePostSessionHandler();
 // used by POST /v1/wallet (T-205) and POST /v1/session (T-206).
 // ---------------------------------------------------------------------------
 
+export type AccountInfoFetcher = (pk: PublicKey) => Promise<{ data: Buffer } | null>;
+
 export interface MakeSessionMutationDeps {
   blockhash?: BlockhashFetcher;
+  /** Test seam for the on-chain Session PDA existence check (T-232). */
+  accountInfo?: AccountInfoFetcher;
 }
 
 async function loadOwnedSession(
   db: ReturnType<typeof getDb>,
   userId: string,
   sessionId: string,
-): Promise<{ sessionPubkey: string; ownerPubkey: string } | null> {
+): Promise<{ sessionPubkey: string; walletId: string } | null> {
   // Join sessions → wallets → users to confirm the caller owns this session.
   // The user-scoping is what makes the route safe to expose by URL id.
   const rows = await db
     .select({
       sessionPubkey: sessions.sessionPubkey,
       walletId: sessions.walletId,
-      walletUserId: wallets.userId,
     })
     .from(sessions)
     .innerJoin(wallets, eq(sessions.walletId, wallets.id))
@@ -288,9 +292,39 @@ async function loadOwnedSession(
     .limit(1);
   const row = rows[0];
   if (!row) return null;
-  // We don't actually need the wallet's ownerPubkey from DB — JWT pubkey is
-  // authoritative. Returning sessionPubkey is enough.
-  return { sessionPubkey: row.sessionPubkey, ownerPubkey: "" };
+  return { sessionPubkey: row.sessionPubkey, walletId: row.walletId };
+}
+
+/**
+ * Soft-revoke a session in the DB. Used by the DELETE self-heal (T-232) when
+ * the on-chain Session PDA either never existed (DB-only ghost — Phantom
+ * never signed the add_session tx) or was already closed by a successful
+ * revoke_session tx the dashboard didn't follow up on. Marks `sessions.revokedAt`
+ * and every still-active `api_keys.revokedAt` so the dashboard reflects
+ * reality and the API key stops authenticating immediately.
+ */
+async function softRevokeSession(
+  db: ReturnType<typeof getDb>,
+  sessionId: string,
+  walletId: string,
+): Promise<void> {
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx
+      .update(sessions)
+      .set({ revokedAt: now })
+      .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)));
+    await tx
+      .update(apiKeys)
+      .set({ revokedAt: now })
+      .where(and(eq(apiKeys.sessionId, sessionId), isNull(apiKeys.revokedAt)));
+    await tx.insert(auditLog).values({
+      walletId,
+      sessionId,
+      action: "session_revoke_soft",
+      decision: "allow",
+    });
+  });
 }
 
 export function makeDeleteSessionHandler(deps: MakeSessionMutationDeps = {}) {
@@ -300,6 +334,14 @@ export function makeDeleteSessionHandler(deps: MakeSessionMutationDeps = {}) {
       const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
       const { blockhash } = await conn.getLatestBlockhash("finalized");
       return blockhash;
+    });
+  const fetchAccountInfo: AccountInfoFetcher =
+    deps.accountInfo ??
+    (async (pk: PublicKey) => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const info = await conn.getAccountInfo(pk, "confirmed");
+      if (!info) return null;
+      return { data: Buffer.from(info.data) };
     });
 
   return async function deleteSession(req: Request, res: Response) {
@@ -327,6 +369,46 @@ export function makeDeleteSessionHandler(deps: MakeSessionMutationDeps = {}) {
     const row = await loadOwnedSession(db, userId, sessionId);
     if (!row) {
       res.status(404).json({ error: "session not found" });
+      return;
+    }
+
+    // T-232: check the on-chain Session PDA before building a revoke tx. Two
+    // self-heal cases yield the same null `getAccountInfo` result:
+    //   - DB-only ghost: Phantom never signed the add_session tx, so the PDA
+    //     was never initialized. Building revoke_session anyway would revert
+    //     with AccountNotInitialized (3012) and the user would be stuck.
+    //   - Already-closed: a previous revoke_session tx already closed the
+    //     PDA and the dashboard never called DELETE again to update the DB.
+    // Soft-revoke the DB rows in both cases.
+    let sessionPda: PublicKey;
+    try {
+      const [vault] = deriveVaultPda(owner);
+      [sessionPda] = deriveSessionPda(vault, new PublicKey(row.sessionPubkey));
+    } catch (err) {
+      console.error("[DELETE /v1/session/:id] pda derive failed:", err);
+      res.status(500).json({ error: "pda derive failed" });
+      return;
+    }
+
+    let onChain: { data: Buffer } | null;
+    try {
+      onChain = await fetchAccountInfo(sessionPda);
+    } catch (err) {
+      console.error("[DELETE /v1/session/:id] getAccountInfo failed:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    if (!onChain) {
+      // DB-only ghost OR already-closed. Either way the on-chain side has
+      // nothing to do; soft-revoke and return alreadyExists so the dashboard
+      // hook short-circuits without prompting Phantom.
+      await softRevokeSession(db, sessionId, row.walletId);
+      res.json({
+        alreadyExists: true,
+        sessionId,
+        sessionPubkey: row.sessionPubkey,
+      });
       return;
     }
 
@@ -521,12 +603,12 @@ export async function getSessionsHandler(req: Request, res: Response): Promise<v
       keyPrefix: apiKeys.keyPrefix,
     })
     .from(sessions)
-    // Inner join filtered to the un-revoked api_keys row. Rotations
-    // (T-230) keep multiple rows per session — only the active one
-    // should surface to the dashboard. Without the IS NULL filter the
-    // join would multiply rows and the dashboard would show a stale
-    // prefix.
-    .innerJoin(
+    // LEFT JOIN filtered to un-revoked api_keys: rotations (T-230) keep
+    // multiple rows per session — only the active one should surface as
+    // `keyPrefix`. LEFT (not INNER) so revoked sessions with zero active
+    // api_keys still appear in the list with keyPrefix=null — the dashboard
+    // shows the "revoked" badge and a `—` for the key column.
+    .leftJoin(
       apiKeys,
       and(eq(apiKeys.sessionId, sessions.id), isNull(apiKeys.revokedAt)),
     )
@@ -582,8 +664,10 @@ export function makeGetSessionHandler(deps: MakeGetSessionDeps = {}) {
       })
       .from(sessions)
       .innerJoin(wallets, eq(sessions.walletId, wallets.id))
-      // Filter to active api_keys — rotation (T-230) keeps revoked rows around.
-      .innerJoin(
+      // LEFT JOIN to active api_keys: rotation (T-230) keeps revoked rows
+      // around; revoked sessions have no active api_keys at all but should
+      // still be readable for the detail view (status="revoked").
+      .leftJoin(
         apiKeys,
         and(eq(apiKeys.sessionId, sessions.id), isNull(apiKeys.revokedAt)),
       )
