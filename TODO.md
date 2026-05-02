@@ -139,6 +139,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-234 — mpp.dev proxy review + service catalog deployment
+- Status: pending
+- Depends-on: T-211, T-220
+- OS: any
+- Scope: api + ops
+- Acceptance: end-to-end review and turn-up of the curated `/v1/spend/service` proxy. T-211's handler (`postSpendServiceHandler` in `apps/api/src/routes/spend.ts`) and T-220's seed (`apps/api/src/db/seed.ts`) are both shipped, but **the live `service_catalog` table on Neon currently has 0 rows** (the seed was never executed against the deployed DB) and the seed itself uses `11111111…` system-program placeholders for `paymentRecipientPubkey` with `enabled=false`. So every call to `/v1/spend/service` 404s on slug-not-found right now. Three steps to make it actually pay through to a curated upstream: (1) run `bun --filter @klink/api run db:seed` against Neon — idempotent through `onConflictDoNothing` on slug; (2) coordinate with mpp.dev / pay-with-locus to get real recipient pubkeys for each of the 4 seeded slugs (`anthropic-claude`, `openai-chatgpt`, `exa-search`, `firecrawl`) and `UPDATE service_catalog SET payment_recipient_pubkey=?, enabled=true WHERE slug=?` for each verified row; (3) smoke-test each enabled slug against its real upstream URL (`https://<svc>.mpp.paywithlocus.com/<path>`) to confirm the upstream returns the expected 402 + JSON `{ amount, recipient }` payload shape that the handler's `PaymentRequirements` interface expects (`spend.ts:541-548`) — drift here would surface as `502 service requirements missing amount or recipient` from the proxy. Also surface (1) and (2) as a small admin script `apps/api/scripts/catalog-update.ts` so future row updates don't need raw SQL through the Neon console.
+- Notes: surfaced 2026-05-02 — direct DB query confirmed `service_catalog` is empty in production. Step (1) is a 5-second op; step (2) is blocked on the external mpp.dev / pay-with-locus team for pubkey publication (or, if we run our own proxy backends, on Manjeet/whoever stands those up); step (3) is a one-liner curl per slug. Document the smoke-test results inline in this task block before flipping `enabled=true`.
+
 ---
 
 ## 3 — Dashboard + SDK
