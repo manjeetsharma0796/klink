@@ -300,6 +300,50 @@ export function buildTransferUsdcIx(opts: BuildTransferUsdcIxOpts): TransactionI
 }
 
 // ---------------------------------------------------------------------------
+// owner_transfer_usdc — T-116 escape hatch
+// ---------------------------------------------------------------------------
+
+export interface BuildOwnerTransferUsdcIxOpts {
+  /** Vault owner — signs the tx. */
+  owner: PublicKey;
+  /** Vault PDA. From DB `wallets.vault_pda`. */
+  vault: PublicKey;
+  /** Vault's USDC ATA. From DB `wallets.usdc_ata`. */
+  vaultUsdcAta: PublicKey;
+  /** Destination USDC ATA — owner picks. No on-chain allowlist by design. */
+  recipientUsdcAta: PublicKey;
+  /** USDC base units. */
+  amount: bigint;
+  /** SPL Token program id. From @solana/spl-token. */
+  tokenProgramId: PublicKey;
+}
+
+export function buildOwnerTransferUsdcIx(opts: BuildOwnerTransferUsdcIxOpts): TransactionInstruction {
+  const data = Buffer.alloc(8 + 8);
+  instructionDiscriminator("owner_transfer_usdc").copy(data, 0);
+  data.writeBigUInt64LE(opts.amount, 8);
+
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      // Order matches OwnerTransferUsdc<'info> in
+      // programs/agent_wallet/src/instructions/owner_transfer_usdc.rs:
+      // 1. owner (signer, NOT writable — has_one = owner gate on vault)
+      // 2. vault (read-only)
+      // 3. vault_usdc_ata (writable; CPI source)
+      // 4. recipient_usdc_ata (writable; CPI destination)
+      // 5. token_program
+      { pubkey: opts.owner, isSigner: true, isWritable: false },
+      { pubkey: opts.vault, isSigner: false, isWritable: false },
+      { pubkey: opts.vaultUsdcAta, isSigner: false, isWritable: true },
+      { pubkey: opts.recipientUsdcAta, isSigner: false, isWritable: true },
+      { pubkey: opts.tokenProgramId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // kamino_deposit / kamino_withdraw — T-213
 //
 // Source of truth: programs/agent_wallet/src/instructions/kamino_deposit.rs

@@ -16,7 +16,11 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { getDb } from "../db/client";
 import { offChainPolicies, users, wallets } from "../db/schema";
-import { buildSetMaxDeployedFractionIx, serializeUnsignedTx } from "../program/agent-wallet";
+import {
+  buildOwnerTransferUsdcIx,
+  buildSetMaxDeployedFractionIx,
+  serializeUnsignedTx,
+} from "../program/agent-wallet";
 
 /**
  * Resolve `users.id` for the authenticated Phantom pubkey. The JWT carries an
@@ -852,3 +856,184 @@ export async function patchOffChainPolicyHandler(req: Request, res: Response): P
     timezone: merged.timezone,
   });
 }
+
+// ---------------------------------------------------------------------------
+// T-235 — POST /v1/wallet/transfer (owner escape-hatch)
+//
+// Builds an unsigned `owner_transfer_usdc` tx for the dashboard's emergency
+// drain flow. The on-chain instruction (T-116) is owner-only and bypasses
+// every session policy gate — the only authorization is `has_one = owner`
+// on the Vault PDA. This route mirrors that posture: dashboard JWT only,
+// validates wallet ownership, builds the tx with `feePayer = owner`,
+// returns `{ txBase64 }` for Phantom to sign + submit.
+//
+// Recipient ATA: created idempotently inside the tx so the owner can drain
+// to any pubkey (even one without a USDC ATA) in a single Phantom prompt.
+// The `createAssociatedTokenAccountIdempotentInstruction` is a no-op when
+// the ATA already exists, so we don't need a pre-flight existence check.
+//
+// Until the devnet binary is redeployed (T-116 runbook in
+// docs/runbooks/devnet-deploys.md), calls will revert with the
+// `instruction not found` error from the program loader. That's expected
+// and documented; backend code merges first, redeploy second.
+// ---------------------------------------------------------------------------
+
+interface WalletTransferBody {
+  amount: number;
+  recipient: string;
+  /** Optional — defaults to caller's most-recent wallet (single-wallet MVP). */
+  wallet_id?: string;
+}
+
+function parseWalletTransferBody(
+  raw: unknown,
+):
+  | { ok: true; amount: bigint; recipient: PublicKey; walletId: string | undefined }
+  | PolicyValidationError {
+  if (!raw || typeof raw !== "object") {
+    return { ok: false, status: 400, body: { error: "request body must be JSON object" } };
+  }
+  const b = raw as Record<string, unknown>;
+  if (typeof b.amount !== "number" || !Number.isFinite(b.amount) || b.amount <= 0) {
+    return {
+      ok: false,
+      status: 400,
+      body: { error: "amount must be a positive number (USDC base units)" },
+    };
+  }
+  if (typeof b.recipient !== "string" || !b.recipient) {
+    return { ok: false, status: 400, body: { error: "recipient must be non-empty string" } };
+  }
+  let recipient: PublicKey;
+  try {
+    recipient = new PublicKey(b.recipient);
+  } catch {
+    return { ok: false, status: 400, body: { error: "recipient is not a valid base58 pubkey" } };
+  }
+  if (b.wallet_id !== undefined && typeof b.wallet_id !== "string") {
+    return { ok: false, status: 400, body: { error: "wallet_id must be string if provided" } };
+  }
+  return {
+    ok: true,
+    amount: BigInt(Math.trunc(b.amount)),
+    recipient,
+    walletId: b.wallet_id as string | undefined,
+  };
+}
+
+export interface MakePostWalletTransferDeps {
+  blockhash?: BlockhashFetcher;
+  usdcMint?: UsdcMintResolver;
+}
+
+export function makePostWalletTransferHandler(deps: MakePostWalletTransferDeps = {}) {
+  const getBlockhash =
+    deps.blockhash ??
+    (async () => {
+      const conn = new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed");
+      const { blockhash } = await conn.getLatestBlockhash("finalized");
+      return blockhash;
+    });
+  const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
+
+  return async function postWalletTransfer(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const userPubkey = req.user?.pubkey;
+    if (!userId || !userPubkey) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+
+    const parsed = parseWalletTransferBody(req.body);
+    if (!parsed.ok) {
+      res.status(parsed.status).json(parsed.body);
+      return;
+    }
+
+    let owner: PublicKey;
+    let usdcMint: PublicKey;
+    try {
+      owner = new PublicKey(userPubkey);
+      usdcMint = getUsdcMint();
+    } catch (err) {
+      console.error("[POST /v1/wallet/transfer] config error:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    const db = getDb();
+    const where = parsed.walletId
+      ? and(eq(wallets.userId, userId), eq(wallets.id, parsed.walletId))
+      : eq(wallets.userId, userId);
+    const rows = await db
+      .select({ id: wallets.id, vaultPda: wallets.vaultPda, usdcAta: wallets.usdcAta })
+      .from(wallets)
+      .where(where)
+      .orderBy(desc(wallets.createdAt))
+      .limit(1);
+    const wallet = rows[0];
+    if (!wallet) {
+      res.status(404).json({ error: "wallet not found" });
+      return;
+    }
+
+    let vault: PublicKey;
+    let vaultUsdcAta: PublicKey;
+    try {
+      vault = new PublicKey(wallet.vaultPda);
+      vaultUsdcAta = new PublicKey(wallet.usdcAta);
+    } catch (err) {
+      console.error("[POST /v1/wallet/transfer] address parse failed:", err);
+      res.status(500).json({ error: "stored wallet addresses invalid" });
+      return;
+    }
+
+    // Recipient ATA — receiver is a regular wallet (not a PDA), so
+    // allowOwnerOffCurve = false. If the owner ever passes a PDA as the
+    // recipient that's a self-foot-shoot worth surfacing as an error.
+    const recipientUsdcAta = getAssociatedTokenAddressSync(usdcMint, parsed.recipient);
+
+    let recentBlockhash: string;
+    try {
+      recentBlockhash = await getBlockhash();
+    } catch (err) {
+      console.error("[POST /v1/wallet/transfer] rpc unavailable:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+
+    // Idempotent ATA creation — no-op when the ATA already exists, but
+    // keeps the drain working even when the recipient has never held USDC.
+    const createAtaIx = createAssociatedTokenAccountIdempotentInstruction(
+      owner, // payer
+      recipientUsdcAta,
+      parsed.recipient,
+      usdcMint,
+    );
+
+    const transferIx = buildOwnerTransferUsdcIx({
+      owner,
+      vault,
+      vaultUsdcAta,
+      recipientUsdcAta,
+      amount: parsed.amount,
+      tokenProgramId: TOKEN_PROGRAM_ID,
+    });
+
+    const tx = new Transaction({ feePayer: owner, recentBlockhash });
+    tx.add(createAtaIx, transferIx);
+    const txBase64 = serializeUnsignedTx(tx);
+
+    res.json({
+      txBase64,
+      walletId: wallet.id,
+      vaultPda: wallet.vaultPda,
+      vaultUsdcAta: wallet.usdcAta,
+      recipient: parsed.recipient.toBase58(),
+      recipientUsdcAta: recipientUsdcAta.toBase58(),
+      amount: parsed.amount.toString(),
+    });
+  };
+}
+
+export const postWalletTransferHandler = makePostWalletTransferHandler();

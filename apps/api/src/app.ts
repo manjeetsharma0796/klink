@@ -23,6 +23,7 @@ import {
   patchOffChainPolicyHandler,
   postWalletHandler,
   postWalletPolicyHandler,
+  postWalletTransferHandler,
 } from "./routes/wallet";
 import {
   getYieldPositionHandler,
@@ -91,6 +92,9 @@ export function createApp(): Express {
   app.get("/v1/wallet", requireDashboardJwt, getWalletHandler);
   app.post("/v1/wallet/policy", requireDashboardJwt, postWalletPolicyHandler);
   app.patch("/v1/wallet/off-chain-policy", requireDashboardJwt, patchOffChainPolicyHandler);
+  // T-235 — owner escape-hatch (T-116 backend wiring): build owner_transfer_usdc
+  // tx so the owner can drain USDC out of the vault without a session.
+  app.post("/v1/wallet/transfer", requireDashboardJwt, postWalletTransferHandler);
 
   // Session (T-206 + T-207): build add_session / revoke_session /
   // update_session_allowlist txs. Owner-authenticated.
