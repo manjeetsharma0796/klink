@@ -1,7 +1,7 @@
 ---
 title: Devnet program deployments
 purpose: Append-only log of every `agent_wallet` deploy to Solana devnet — program id, slot, authority, deployer, build commit
-last_updated: 2026-05-02 (T-116 pending redeploy)
+last_updated: 2026-05-02 (T-116 redeploy landed)
 ---
 
 # Devnet deploys
@@ -26,20 +26,20 @@ upgrades + audits can be traced back to a specific build.
 
 ## Log
 
-### Pending — `owner_transfer_usdc` (T-116) — code merged, redeploy outstanding
+### 2026-05-02-2 — `owner_transfer_usdc` upgrade (T-116)
 
-- **Build commit**: head of `main` at the time you redeploy (run `anchor build` against a clean checkout — the Cargo.lock that anchor build always re-touches must be ignored, see HANDOVER §6)
-- **What this adds**: 1 new instruction `owner_transfer_usdc(amount)` — owner-signed escape hatch that moves USDC out of `vault_usdc_ata` to any recipient ATA. Bypasses session policy entirely; only authorization is `has_one = owner` on the Vault PDA.
-- **Why it matters**: makes the non-custodial promise real. Without this, the only on-chain path to extract USDC is `transfer_usdc`, which requires a session signer — i.e. only via klink's backend. With it, the owner can drain via Phantom + raw Solana CLI even if klink is offline.
-- **Procedure**:
-  ```bash
-  # The current single-keypair authority is 6fELFcuc…drjZ — needs that keypair on disk at ~/.config/solana/id.json (or pass --provider.wallet <path>).
-  # Devnet upgrade authority must hold ≥ 2 SOL for the upgrade tx (no extra rent — same ProgramData account is realloc'd).
-  anchor build
-  anchor deploy --provider.cluster devnet
-  # On success: append a new "### YYYY-MM-DD-N" row below this one with the resulting slot + tx sig.
-  ```
-- **Until redeployed**: backend / dashboard wiring for POST `/v1/wallet/transfer` (the T-2xx follow-up) will revert at the on-chain layer with `Error: 0x65` (instruction not found) because the deployed binary is one revision behind. Do that backend wiring AFTER this redeploy, not before.
+- **Program ID**: `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv` (unchanged; in-place upgrade)
+- **ProgramData**: `4MjoSCZnixSe167V5yMXtbLTKFEcVJPwQyyNHtDkSmTY` (unchanged; reused after extend)
+- **Authority**: `6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ` (unchanged; T-114 multisig rotation still pending)
+- **Deployer**: `6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ`
+- **Slot**: 459602714
+- **Data length**: 289 332 bytes (grew from 276 832 — `solana program extend` by 12 500 bytes was required because the new `.so` is 288 208 bytes vs. 276 832 bytes original)
+- **Build commit**: `131ddb0` (`T-116/T-235: tests for the owner escape-hatch path`)
+- **Upgrade tx**: `33xsTF1VBScDajnikASKPKjYC3GdoT2PiA7KkNkytw2SM49GUY3YzHaaFoHzdDGLpVigGKbkttYa7GdQqV7famMF`
+- **All 9 instructions** now: `init_vault`, `set_max_deployed_fraction`, `add_session`, `update_session_allowlist`, `revoke_session`, `transfer_usdc`, `kamino_deposit`, `kamino_withdraw`, **`owner_transfer_usdc`** ← new
+- **Cluster**: `https://api.devnet.solana.com`
+- **Cost**: ≈ 0.087 SOL of extra rent (ProgramData balance: 1.928 → 2.015 SOL after extend), ≈ 2.0 SOL spent total from upgrade authority over extend + upgrade
+- **Notes**: First time we hit the "ProgramData account not large enough" error on this program. The fix is `solana program extend <PID> <bytes> -u devnet --keypair <auth>` — that prepends rent to ProgramData and lets the upgrade tx succeed. New ceiling for the data slot is 289 332 bytes; future upgrades adding < ~5 KiB will fit without another extend. T-116 escape hatch is live, but T-114 (Squads multisig rotation) still hasn't run, so this binary still trusts a single-keypair authority — do not promote to mainnet.
 
 ### 2026-05-02-1 — Initial devnet deploy (T-113)
 
