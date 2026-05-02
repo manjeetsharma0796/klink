@@ -11,6 +11,7 @@
 
 * [Prerequisites](getting-started/prerequisites.md)
 * [Quickstart](getting-started/quickstart.md)
+* [Agent skill (skill.md)](skill.md)
 
 ## Concepts
 

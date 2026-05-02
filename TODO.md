@@ -153,6 +153,8 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 4 — Infrastructure / DevOps
 
+
+
 ### T-403 — Backend deploy target
 - Status: in-progress @Manjeet 2026-05-02
 - Depends-on: T-201
@@ -183,6 +185,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-311 — Agent-onboarding SKILL.md for klink ecosystem
+- Status: done @Jishnu 2026-05-02
+- Depends-on: —
+- OS: any
+- Scope: docs
+- Acceptance: `gitbook/skill.md` written in the Anthropic skill format with frontmatter (`name: klink`, `description`, `purpose`, `last_updated`). Mirrors the pay-with-locus pattern (their skill is referenced via `skillFileUrl` in the registration response — see `https://beta-api.paywithlocus.com/api/skills/skill.md`). Covers everything an AI agent needs to self-onboard given just an API key: the can/cannot bounds (on-chain enforced), `Authorization: Bearer` header + a zero-side-effect sanity-check curl against `/v1/yield/position`, every agent-callable endpoint with curl examples + sample responses (`/v1/yield/position`, `/v1/spend/transfer`, `/v1/spend/sign-payment`, `/v1/spend/service`, `/v1/yield/{deposit,withdraw}`), the full HTTP error taxonomy (401/402/403/502/503 with the exact `error` strings the backend returns + what to do for each), recovery patterns (don't tight-loop on auth/policy errors — surface to human), funding boundary (humans deposit, agents can't), threat-model summary (key is hot-revocable, audit is append-only, no escape hatch through the agent surface), and beta caveats (Kamino reserve env not fully wired, mainnet gated on T-114). Wired into `gitbook/SUMMARY.md` under "Getting Started" so it ships with the public docs site at `klink-docs.gitbook.io/skill.md` (or wherever the gitbook deploys). Filed 2026-05-02 by user request after manual UI testing — humans had to hand-roll instructions for every new agent; this gives agents a single fetchable resource to bootstrap from. Follow-up nice-to-have: serve the same content from the api at `GET /skill.md` so an agent given only the api URL can self-discover it (Locus pattern). Not in scope here.
 
 ### T-232 — Revoke-session self-heal for DB-only / already-closed sessions
 - Status: done @Jishnu 2026-05-02
