@@ -10,6 +10,7 @@ import { truncatePubkey, formatTimestamp } from "@/lib/formatters";
 import { BackendPending } from "../_components/backend-pending";
 import { NewSessionModal } from "./new-session-modal";
 import { RevokeConfirm } from "./revoke-confirm";
+import { RotateKeyButton } from "./rotate-key-button";
 
 export default function SessionsPage() {
   const { sessions, notImplemented, isLoading, mutate } = useSessions();
@@ -60,7 +61,14 @@ export default function SessionsPage() {
                             Allowlist
                           </Link>
                           {status === "active" && (
-                            <RevokeConfirm sessionId={s.id} label={s.label} onRevoked={() => mutate()} />
+                            <>
+                              <RotateKeyButton
+                                sessionId={s.id}
+                                label={s.label}
+                                onRotated={() => mutate()}
+                              />
+                              <RevokeConfirm sessionId={s.id} label={s.label} onRevoked={() => mutate()} />
+                            </>
                           )}
                         </TableCell>
                       </TableRow>

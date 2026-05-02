@@ -10,6 +10,7 @@ import {
   getSessionHandler,
   getSessionsHandler,
   patchSessionAllowlistHandler,
+  postRotateSessionKeyHandler,
   postSessionHandler,
 } from "./routes/session";
 import {
@@ -96,6 +97,9 @@ export function createApp(): Express {
   app.post("/v1/session", requireDashboardJwt, postSessionHandler);
   app.delete("/v1/session/:id", requireDashboardJwt, deleteSessionHandler);
   app.patch("/v1/session/:id/allowlist", requireDashboardJwt, patchSessionAllowlistHandler);
+  // T-230: rotate the bearer for an existing session without touching the
+  // on-chain PDA. Old keys are revoked atomically; new plaintext returned once.
+  app.post("/v1/session/:id/rotate-key", requireDashboardJwt, postRotateSessionKeyHandler);
   // Session reads (T-218 list + T-219 single+on-chain).
   app.get("/v1/sessions", requireDashboardJwt, getSessionsHandler);
   app.get("/v1/sessions/:id", requireDashboardJwt, getSessionHandler);

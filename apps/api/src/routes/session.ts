@@ -1,10 +1,10 @@
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { generateApiKey, hashApiKey } from "../auth/api-key";
 import { encryptSessionSecret } from "../crypto/session-secret";
 import { getDb } from "../db/client";
-import { apiKeys, offChainPolicies, sessions, wallets } from "../db/schema";
+import { apiKeys, auditLog, offChainPolicies, sessions, wallets } from "../db/schema";
 import {
   type AllowlistAction,
   MAX_ALLOWED_RECIPIENTS,
@@ -521,10 +521,15 @@ export async function getSessionsHandler(req: Request, res: Response): Promise<v
       keyPrefix: apiKeys.keyPrefix,
     })
     .from(sessions)
-    // Inner join: a session without an API key shouldn't exist (T-206 inserts
-    // both in one tx) — surfacing it as missing in the dashboard would be
-    // misleading. The session/api_key pair is the unit.
-    .innerJoin(apiKeys, eq(apiKeys.sessionId, sessions.id))
+    // Inner join filtered to the un-revoked api_keys row. Rotations
+    // (T-230) keep multiple rows per session — only the active one
+    // should surface to the dashboard. Without the IS NULL filter the
+    // join would multiply rows and the dashboard would show a stale
+    // prefix.
+    .innerJoin(
+      apiKeys,
+      and(eq(apiKeys.sessionId, sessions.id), isNull(apiKeys.revokedAt)),
+    )
     .where(inArray(sessions.walletId, walletIds))
     .orderBy(desc(sessions.createdAt));
 
@@ -577,7 +582,11 @@ export function makeGetSessionHandler(deps: MakeGetSessionDeps = {}) {
       })
       .from(sessions)
       .innerJoin(wallets, eq(sessions.walletId, wallets.id))
-      .innerJoin(apiKeys, eq(apiKeys.sessionId, sessions.id))
+      // Filter to active api_keys — rotation (T-230) keeps revoked rows around.
+      .innerJoin(
+        apiKeys,
+        and(eq(apiKeys.sessionId, sessions.id), isNull(apiKeys.revokedAt)),
+      )
       .where(and(eq(sessions.id, sessionId), eq(wallets.userId, userId)))
       .limit(1);
     const row = rows[0];
@@ -672,3 +681,89 @@ export function makeGetSessionHandler(deps: MakeGetSessionDeps = {}) {
 }
 
 export const getSessionHandler = makeGetSessionHandler();
+
+// ---------------------------------------------------------------------------
+// T-230 — POST /v1/session/:id/rotate-key
+//
+// Mint a fresh bearer for an existing session. The on-chain `Session` PDA is
+// untouched (no on-chain tx needed) — only the http-layer api_keys row
+// rotates. All previously-active api_keys for this session are marked
+// revokedAt=now() so any leaked old token returns 401 immediately. Owner
+// must be authenticated via dashboard JWT and own the session via the
+// sessions → wallets → users.id triple-join.
+//
+// Returns the plaintext apiKey ONCE — same contract as POST /v1/session.
+// The dashboard pipes the response into the same ApiKeyRevealModal so the
+// user copies it before the modal closes.
+// ---------------------------------------------------------------------------
+
+export async function postRotateSessionKeyHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: "auth required" });
+    return;
+  }
+  const sessionId = req.params.id;
+  if (typeof sessionId !== "string" || !sessionId) {
+    res.status(400).json({ error: "session id required in path" });
+    return;
+  }
+
+  const db = getDb();
+
+  // Ownership + revocation check via the same triple-join used by
+  // DELETE/PATCH on /v1/session/:id.
+  const rows = await db
+    .select({
+      id: sessions.id,
+      walletId: sessions.walletId,
+      revokedAt: sessions.revokedAt,
+    })
+    .from(sessions)
+    .innerJoin(wallets, eq(sessions.walletId, wallets.id))
+    .where(and(eq(sessions.id, sessionId), eq(wallets.userId, userId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    res.status(404).json({ error: "session not found" });
+    return;
+  }
+  if (row.revokedAt) {
+    // Rotating a revoked session would mint a working key for an on-chain
+    // session that's been closed — confusing failure mode. Force the user
+    // to create a new session instead.
+    res.status(409).json({ error: "session is revoked — create a new session" });
+    return;
+  }
+
+  const { token: apiKey, prefix: keyPrefix } = generateApiKey();
+  const hashedToken = await hashApiKey(apiKey);
+
+  // Single transaction: revoke any active keys for this session, then
+  // insert the new one. If a second rotation lands concurrently both
+  // wrappers run their own revoke+insert pair — final state has two new
+  // active keys (race) but no lingering old ones; both new keys keep
+  // working until the next rotation.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(apiKeys)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(apiKeys.sessionId, sessionId), isNull(apiKeys.revokedAt)));
+    await tx.insert(apiKeys).values({
+      sessionId,
+      keyPrefix,
+      hashedToken,
+    });
+    await tx.insert(auditLog).values({
+      walletId: row.walletId,
+      sessionId,
+      action: "session_rotate_key",
+      decision: "allow",
+    });
+  });
+
+  res.json({ apiKey, keyPrefix });
+}
