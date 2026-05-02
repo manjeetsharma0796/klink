@@ -9,6 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { decryptSessionSecret } from "../crypto/session-secret";
+import { loadTreasury as defaultLoadTreasury } from "../crypto/treasury";
 import { getDb } from "../db/client";
 import { auditLog, sessions } from "../db/schema";
 import { type LoadPolicy, defaultLoadPolicy, withinTimeWindow } from "../policy/off-chain";
@@ -88,6 +89,8 @@ export interface MakePostSpendTransferDeps {
   /** Test seam: replace the network-bound submit with a fake. */
   submit?: (conn: Connection, tx: Transaction, signers: Keypair[]) => Promise<string>;
   usdcMint?: () => PublicKey;
+  /** Test seam: override treasury keypair load (T-226 fee payer). */
+  loadTreasury?: () => Keypair;
 }
 
 export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {}) {
@@ -97,6 +100,7 @@ export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {
   const loadPolicy = deps.loadPolicy ?? defaultLoadPolicy;
   const doSubmit = deps.submit ?? sendAndConfirmTransaction;
   const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
+  const getTreasury = deps.loadTreasury ?? defaultLoadTreasury;
 
   return async function postSpendTransfer(req: Request, res: Response) {
     const session = req.session;
@@ -202,7 +206,18 @@ export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {
       return;
     }
 
-    // 4. Build instruction.
+    // 4. Build instruction. Treasury keypair pays the network fee (T-226);
+    //    session keypair signs only the on-chain `transfer_usdc` authority
+    //    check. Session keypairs are minted with 0 SOL by Keypair.generate()
+    //    in postSessionHandler, so they cannot pay fees themselves.
+    let treasury: Keypair;
+    try {
+      treasury = getTreasury();
+    } catch (err) {
+      console.error("[POST /v1/spend/transfer] treasury load failed:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
     const recipientUsdcAta = getAssociatedTokenAddressSync(getUsdcMint(), recipient);
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
@@ -214,17 +229,18 @@ export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {
       tokenProgramId: TOKEN_PROGRAM_ID,
       sessionPubkey,
     });
-    const tx = new Transaction({ feePayer: signer.publicKey });
+    const tx = new Transaction({ feePayer: treasury.publicKey });
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
 
-    // 5. Sign + submit. The on-chain validator (T-105) catches recipient,
-    //    cap, expiry, and revoked-session conditions. We surface those as
-    //    deny-audit on submit failure.
+    // 5. Sign + submit. Both keypairs sign — treasury for the Solana fee,
+    //    session for the program-level authority. The on-chain validator
+    //    (T-105) catches recipient, cap, expiry, and revoked-session
+    //    conditions. We surface those as deny-audit on submit failure.
     let signature: string;
     try {
-      signature = await doSubmit(conn, tx, [signer]);
+      signature = await doSubmit(conn, tx, [treasury, signer]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
       await db.insert(auditLog).values({
@@ -313,6 +329,7 @@ export function makePostSpendSignPaymentHandler(deps: MakePostSpendSignPaymentDe
   const loadPolicy = deps.loadPolicy ?? defaultLoadPolicy;
   const doSubmit = deps.submit ?? sendAndConfirmTransaction;
   const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
+  const getTreasury = deps.loadTreasury ?? defaultLoadTreasury;
 
   return async function postSpendSignPayment(req: Request, res: Response) {
     const session = req.session;
@@ -413,6 +430,14 @@ export function makePostSpendSignPaymentHandler(deps: MakePostSpendSignPaymentDe
       return;
     }
     const signer = Keypair.fromSecretKey(decryptSessionSecret(encryptedRow.secret, masterKey));
+    let treasury: Keypair;
+    try {
+      treasury = getTreasury();
+    } catch (err) {
+      console.error("[POST /v1/spend/sign-payment] treasury load failed:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
     const recipientUsdcAta = getAssociatedTokenAddressSync(getUsdcMint(), recipient);
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
@@ -424,14 +449,15 @@ export function makePostSpendSignPaymentHandler(deps: MakePostSpendSignPaymentDe
       tokenProgramId: TOKEN_PROGRAM_ID,
       sessionPubkey,
     });
-    const tx = new Transaction({ feePayer: signer.publicKey });
+    // T-226: treasury pays the fee, session signs the instruction.
+    const tx = new Transaction({ feePayer: treasury.publicKey });
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
 
     let signature: string;
     try {
-      signature = await doSubmit(conn, tx, [signer]);
+      signature = await doSubmit(conn, tx, [treasury, signer]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
       await db.insert(auditLog).values({
@@ -534,6 +560,7 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
   const doSubmit = deps.submit ?? sendAndConfirmTransaction;
   const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
   const doFetch = deps.fetchFn ?? fetch;
+  const getTreasury = deps.loadTreasury ?? defaultLoadTreasury;
 
   return async function postSpendService(req: Request, res: Response) {
     const session = req.session;
@@ -693,6 +720,14 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
       return;
     }
     const signer = Keypair.fromSecretKey(decryptSessionSecret(encryptedRow.secret, masterKey));
+    let treasury: Keypair;
+    try {
+      treasury = getTreasury();
+    } catch (err) {
+      console.error("[POST /v1/spend/service] treasury load failed:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
     const recipientUsdcAta = getAssociatedTokenAddressSync(getUsdcMint(), recipient);
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
@@ -704,14 +739,15 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
       tokenProgramId: TOKEN_PROGRAM_ID,
       sessionPubkey,
     });
-    const tx = new Transaction({ feePayer: signer.publicKey });
+    // T-226: treasury pays the fee, session signs the instruction.
+    const tx = new Transaction({ feePayer: treasury.publicKey });
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
 
     let signature: string;
     try {
-      signature = await doSubmit(conn, tx, [signer]);
+      signature = await doSubmit(conn, tx, [treasury, signer]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
       await db.insert(auditLog).values({

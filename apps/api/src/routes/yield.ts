@@ -9,6 +9,7 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { decryptSessionSecret } from "../crypto/session-secret";
+import { loadTreasury as defaultLoadTreasury } from "../crypto/treasury";
 import { getDb } from "../db/client";
 import { auditLog, sessions, wallets } from "../db/schema";
 import {
@@ -87,6 +88,8 @@ export interface MakeYieldDeps {
   connection?: ConnectionFactory;
   submit?: SubmitFn;
   kamino?: () => KaminoReserveAddrs;
+  /** Test seam: override treasury keypair load (T-226 fee payer). */
+  loadTreasury?: () => Keypair;
 }
 
 async function decryptSessionFromDb(
@@ -109,6 +112,7 @@ function makeKaminoMutationHandler(variant: "deposit" | "withdraw", deps: MakeYi
     deps.connection ?? (() => new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed"));
   const doSubmit = deps.submit ?? sendAndConfirmTransaction;
   const getKamino = deps.kamino ?? loadKaminoAddrs;
+  const getTreasury = deps.loadTreasury ?? defaultLoadTreasury;
   const action = variant === "deposit" ? "kamino_deposit" : "kamino_withdraw";
 
   return async function postKaminoMutation(req: Request, res: Response) {
@@ -175,7 +179,18 @@ function makeKaminoMutationHandler(variant: "deposit" | "withdraw", deps: MakeYi
       amount,
     });
 
-    const tx = new Transaction({ feePayer: signer.publicKey });
+    let treasury: Keypair;
+    try {
+      treasury = getTreasury();
+    } catch (err) {
+      console.error(`[POST /v1/yield/${variant}] treasury load failed:`, err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    // T-226: treasury pays the network fee, session signs the on-chain
+    // `kamino_*` instruction's auth check. Session keypairs have 0 SOL.
+    const tx = new Transaction({ feePayer: treasury.publicKey });
     tx.add(ix);
     try {
       const { blockhash } = await conn.getLatestBlockhash("finalized");
@@ -188,7 +203,7 @@ function makeKaminoMutationHandler(variant: "deposit" | "withdraw", deps: MakeYi
 
     let signature: string;
     try {
-      signature = await doSubmit(conn, tx, [signer]);
+      signature = await doSubmit(conn, tx, [treasury, signer]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
       // For withdraw, partial-liquidity from Kamino surfaces here as a

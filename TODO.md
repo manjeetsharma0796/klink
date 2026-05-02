@@ -131,20 +131,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
-### T-225 — Dashboard double-POST for `/v1/wallet` create flow
-- Status: in-progress @Jishnu 2026-05-02
-- Depends-on: T-205, T-224
-- OS: any
-- Scope: web
-- Acceptance: `apps/web/app/dashboard/_components/create-wallet-cta.tsx` does a second `POST /v1/wallet` after the on-chain `init_vault` tx confirms, before mutating SWR. The `POST /v1/wallet` build-tx branch never inserts a `wallets` DB row — only the `alreadyExists` self-heal branch does. Without the second POST, `mutate("/v1/wallet")` re-fetches the now-confirmed wallet and gets 404, the CTA stays visible, and the user has to click "Create wallet" twice. Found via live e2e against the real Neon DB + devnet program; symptom matches the user's "UI is broken" report (2026-05-02).
-
-### T-226 — Treasury keypair as fee payer for agent spend/yield
-- Status: in-progress @Jishnu 2026-05-02
-- Depends-on: T-210, T-211, T-212, T-213, T-215
-- OS: any
-- Scope: api
-- Acceptance: `apps/api/src/routes/spend.ts` (3 handlers) and `apps/api/src/routes/yield.ts` (agent-flow handlers) switch `tx.feePayer` from `signer.publicKey` (= session keypair, which is `Keypair.generate()`d server-side and has 0 SOL) to the treasury keypair from `TREASURY_SECRET_KEY`. Both keypairs sign — treasury for the network fee, session for the on-chain `transfer_usdc` / `kamino_*` instruction's `session_signer` constraint. `loadTreasury()` extracted from `apps/api/src/routes/dodo.ts` into a shared module `apps/api/src/crypto/treasury.ts` so spend, yield, and dodo all use the same loader. Owner-flow build-tx variants (T-222 — `/v1/wallet/yield/*`) keep `feePayer = owner` since the user's Phantom signs + pays. Live e2e harness at `apps/api/scripts/e2e-dashboard.ts` (added in this task) drives the full flow against the real api + devnet and verifies the fix. Found via the same e2e session as T-225; every agent spend was failing with `Attempt to debit an account but found no record of a prior credit` because the empty session keypair couldn't pay the 5000-lamport network fee.
-
 ---
 
 ## 3 — Dashboard + SDK
@@ -189,6 +175,22 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-226 — Treasury keypair as fee payer for agent spend/yield
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-210, T-211, T-212, T-213, T-215
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/spend.ts` (all 3 handlers — transfer / sign-payment / service) and `apps/api/src/routes/yield.ts` (agent-flow `kamino_deposit` / `kamino_withdraw`) switched `tx.feePayer` from `signer.publicKey` (= session keypair, `Keypair.generate()`d server-side with 0 SOL) to the treasury keypair from `TREASURY_SECRET_KEY`. Both keypairs sign — treasury for the network fee, session for the on-chain `transfer_usdc` / `kamino_*` instruction's `session_signer` authority check. New shared loader `apps/api/src/crypto/treasury.ts` (`loadTreasury()` + `loadTreasuryAta()` accepting either base58 or solana-keygen JSON form), reused by `dodo.ts` to remove the duplicate inline definition. Owner-flow yield variants at `/v1/wallet/yield/*` (T-222) keep `feePayer = owner` since Phantom signs + pays. Live e2e harness at `apps/api/scripts/e2e-dashboard.ts` (new in this task) drives the full dashboard flow against the real api + Neon DB + devnet program and verifies the fix end-to-end — final spend transfer confirms with `decision=allow`. 156 unit tests stay green; biome clean on changed files. Bug found via the e2e session of 2026-05-02: every agent spend was failing simulation with `Attempt to debit an account but found no record of a prior credit` because the empty session keypair couldn't cover the 5000-lamport fee. Latent in the codebase since T-210 — never caught because no integration tests run against a real validator (T-112 was skipped).
+
+### T-225 — Dashboard double-POST for `/v1/wallet` create flow
+- Status: done @Jishnu 2026-05-02
+- Depends-on: T-205, T-224
+- OS: any
+- Scope: web
+- Acceptance: `apps/web/app/dashboard/_components/create-wallet-cta.tsx` now POSTs `/v1/wallet` a second time after the on-chain `init_vault` tx confirms (before `mutate("/v1/wallet")`). The `POST /v1/wallet` build-tx branch only returns the unsigned tx — it does NOT insert a `wallets` DB row. Only the `alreadyExists` self-heal branch (HANDOVER §4) inserts the row, and it triggers when the on-chain vault is already initialized. So: first POST builds the tx, owner submits via Phantom, on-chain init confirms; second POST hits the alreadyExists branch and backfills the DB. Without the second POST, `mutate` re-fetches GET `/v1/wallet`, the row still doesn't exist, the CTA stays visible, and the user has to click "Create wallet" twice. Verified via the e2e harness from T-226: §3 returns `alreadyExists` on the second call, §4 GET returns 200. Symptom matches the "UI is broken" report from 2026-05-02. The hooks layer (`useBuildAndSignTx`) stays generic — the second POST is in the CTA only, since other build-tx endpoints (session create, allowlist patch, etc.) insert their DB rows in the build-tx step and don't need a second call.
+
+
 
 ### T-113 — Devnet deployment + smoke test
 - Status: done @Prithwish 2026-05-02
