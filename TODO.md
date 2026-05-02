@@ -152,10 +152,11 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 3 — Dashboard + SDK
 
 ### T-310 — SDK quickstart README
-- Status: in-progress @Manjeet 2026-05-02
+- Status: done @Manjeet 2026-05-02
 - Depends-on: T-309
 - OS: any
 - Scope: docs
+- Acceptance: `packages/sdk/README.md` — install (workspace-internal + vendor option), 5-line quickstart against the live Render endpoint, per-method usage block for all 6 endpoints (`spendTransfer`, `spendSignPayment`, `spendService`, `yieldDeposit`, `yieldWithdraw`, `yieldPosition`) with realistic args + sample responses, error-handling section keyed off `KlinkApiError.status` + `KlinkDenyReason`, testing section showing the injectable `FetchLike` pattern (no global fetch mocking needed), and references back to the design spec, api-surface doc, `gitbook/skill.md`, and `HANDOVER.md`. Type shapes in examples cross-checked against `packages/sdk/src/types.ts`. T-234 caveat about empty `service_catalog` called out inline so agents reading the doc don't hit a silent 404.
 
 ---
 
