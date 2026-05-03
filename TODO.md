@@ -147,7 +147,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked.
 
 ### T-238 — Add `liquid` field to `GET /v1/yield/position`
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-04
 - Depends-on: T-213
 - OS: any
 - Scope: api
@@ -183,7 +183,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 4 — Infrastructure / DevOps
 
-
+### T-412 — Wire `klinkdotfun.live` domain to dashboard + api
+- Status: pending
+- Depends-on: T-301, T-403
+- OS: any
+- Scope: infra
+- Acceptance: domain `klinkdotfun.live` (already purchased — registrar handover with the team member taking this) configured to point at the prod dashboard and api. Two subdomains expected: (a) **apex / `www`** → Vercel/Render dashboard hosting (currently the dashboard prod URL is unset; skill.md placeholder is `klink.dev` which the team doesn't own). (b) **`api.klinkdotfun.live`** → Render service `klink-api.onrender.com`. Update DNS A/ALIAS/CNAME records, add domain in Render dashboard, get TLS issued (Render auto-provisions Let's Encrypt). After cutover: bulk-update skill.md prod URLs (`klink-api.onrender.com` → `api.klinkdotfun.live`, `klink.dev` → `klinkdotfun.live` or `www.klinkdotfun.live`) — the byte-equal sync test in `apps/web/tests/unit/skill-sync.test.ts` will keep gitbook + dashboard copies aligned. Update `gitbook/SUMMARY.md` references, `HANDOVER.md` §2 references, and `apps/api/.env.example` `SOLANA_RPC_URL` comments if any reference the placeholder URLs. Smoke: SIWS sign-in works on the new domain (cookie domain config, `JWT_SECRET` unchanged), `/skill.md` serves at `klinkdotfun.live/skill.md` (or `api.klinkdotfun.live/skill.md` once T-312 lands), live e2e harness still passes against the new api URL.
+- Notes: filed 2026-05-04 by user — domain purchase already done. Whoever takes this just needs registrar credentials + Render dashboard access. `JWT_SECRET` cookie domain may need a `Domain=klinkdotfun.live` setting on the auth cookie; otherwise SIWS may not stick when dashboard moves origin.
 
 ### T-403 — Backend deploy target
 - Status: done @Manjeet 2026-05-02
