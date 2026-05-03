@@ -16,10 +16,11 @@ You are an AI agent. The human owner has handed you an API key prefixed `klink_d
 | Send USDC to recipients pre-approved by the human | Send USDC to anyone outside the on-chain `allowed_recipients` allowlist |
 | Pay x402 / Solana Pay services within the per-tx + daily caps | Move funds out of the vault to an arbitrary wallet |
 | Deposit / withdraw to the curated USDC reserve (if your session has the bit) | Change your own caps or allowlist (human-only) |
-| Read your spend history via `/v1/audit` | Sign anything other than the txs the backend builds for you |
-| Read your on-chain position via `/v1/yield/position` | Bypass the time-of-day window the human configured |
+| Read your on-chain position via `/v1/yield/position` | Sign anything other than the txs the backend builds for you, or bypass the time-of-day window the human configured |
 
 The on-chain Anchor program enforces every limit. The HTTP layer fast-fails some checks (auth, liquidity, time window) before signing — a 4xx response means you don't waste an on-chain tx.
+
+> **Audit log access:** `/v1/audit` is dashboard-JWT-only — the human reviews your spend history through the dashboard UI, not you. Every `allow` and `deny` you trigger lands there for review. Don't try to call it from your bearer token; you'll get `{"error":"invalid jwt"}` (and that's by design, not a missing endpoint).
 
 ## URLs — read this before your first curl
 
@@ -42,15 +43,20 @@ Every protected request needs:
 Authorization: Bearer klink_dev_<your-token>
 ```
 
-**Sanity check** (zero side effects):
+Set the token once for the rest of this skill's curl examples:
+
+```bash
+export KLINK_API_KEY=klink_dev_<your-token>
+```
+
+**Step 0 — your very first request** (zero side effects):
 
 ```bash
 curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
   https://klink-api.onrender.com/v1/yield/position
-# → {"deployed":"0","accrued":null,"total_balance":"0"}
 ```
 
-If this returns 200 you're set. If it returns 401, see "Recovery patterns" below.
+A `200` means you're live and the response tells you how much USDC you can spend (`liquid`, in base units — `1_000_000` = 1 USDC). A `401` means stop and ask the human (see "Recovery patterns" — keys don't recover, the human has to mint a new session). A `502` / `503` with no body is a hosted-API cold-start; backoff 30s and retry once before escalating.
 
 ## Capabilities
 
@@ -66,6 +72,14 @@ Read your on-chain vault state. Free. Use this on every cold start to verify aut
 curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
   https://klink-api.onrender.com/v1/yield/position
 ```
+
+Funded wallet (e.g. 17.5 USDC sitting in the vault ATA — what success looks like):
+
+```json
+{ "liquid": "17500000", "deployed": "0", "accrued": null, "total_balance": "17500000" }
+```
+
+Cold wallet (vault PDA exists but unfunded; the same shape covers "ATA exists but empty" and "ATA hasn't been created yet"):
 
 ```json
 { "liquid": "0", "deployed": "0", "accrued": null, "total_balance": "0" }
@@ -89,6 +103,8 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   https://klink-api.onrender.com/v1/spend/transfer
 ```
 
+`amount: 500000` here is **0.5 USDC** in 6-decimal base units (multiply human-facing USDC × 1_000_000 before serializing).
+
 ```json
 { "tx_signature": "5K3...", "status": "confirmed" }
 ```
@@ -109,6 +125,8 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   }' \
   https://klink-api.onrender.com/v1/spend/sign-payment
 ```
+
+`amount: 50000` here is **0.05 USDC** (6-decimal base units).
 
 ```json
 { "tx_signature": "5K3...", "payment_proof_header": "5K3..." }
@@ -150,6 +168,8 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   -d '{"amount":2000000}' \
   https://klink-api.onrender.com/v1/yield/deposit
 ```
+
+`amount: 2000000` here is **2 USDC** moving from `liquid` → `deployed`.
 
 `max_deployed_fraction_bp` (set by the human) caps how much of the vault may be deployed at once. A deposit when the cap is hit will revert with an on-chain error mapped to a 402.
 
@@ -223,8 +243,10 @@ If you're hitting `INSUFFICIENT_LIQUID` repeatedly, that's a signal to the human
 ## Beta caveats
 
 - Klink is currently devnet only; mainnet support arrives after the program audit completes.
-- Yield reserve env vars aren't fully wired in every environment — `kamino_deposit` / `kamino_withdraw` may revert until configured. Check with the human first.
+- Yield reserve env vars aren't fully wired in every environment — `/v1/yield/deposit` and `/v1/yield/withdraw` may return `500 "server misconfigured"` until the operator populates the reserve env vars. Treat both endpoints as unavailable in that case; surface to the human, don't retry. Local dev with the vars populated still works.
+- No agent-readable session introspection yet — there's no endpoint that returns your own `daily_cap`, `max_per_tx`, `allowed_recipients`, or `allowed_instructions`. Until that lands, you discover bounds by attempting an action and parsing the on-chain revert (`AmountExceedsMaxPerTx`, `RecipientNotAllowed`, `InstructionNotAllowed`, `DailyCapExceeded`, `SessionExpired` — see "On-chain 402 substrings"). If the human asks "what's my budget?" or "do I have the kamino_deposit bit?", surface the question — the answer isn't reachable from the agent surface today.
 - Accrued yield (`/v1/yield/position` `accrued` field) is `null` until the exchange-rate decode lands.
+- Curated service catalog (`/v1/spend/service`) may have 0 enabled rows on a fresh deploy — every slug returns `404 "service '<slug>' not in catalog or disabled"`. Until that's seeded, fall back to `/v1/spend/sign-payment` for x402 services in the off-chain URL allowlist.
 
 ## Where to look next
 
