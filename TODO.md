@@ -139,6 +139,20 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-238 — Add `liquid` field to `GET /v1/yield/position`
+- Status: pending
+- Depends-on: T-213
+- OS: any
+- Scope: api
+- Acceptance: extend `apps/api/src/routes/yield.ts` `getYieldPositionHandler` to also fetch the vault USDC ATA balance via `Connection.getTokenAccountBalance(vaultUsdcAta)` and include it as `liquid: "<base-units-string>"` alongside `deployed`, `accrued`, `total_balance`. Today the agent has no way to see liquid USDC except by attempting a spend and parsing `INSUFFICIENT_LIQUID.liquid` from a 402 — surfaced 2026-05-04 by the T-237 skill.md validation as a likely cause of @Manjeet's agent failure. Update `total_balance` to `liquid + deployed` (currently it's `deployed.toString()`) so the field matches its name. Bump skill.md to document the new field. Test in `apps/api/tests/routes/yield-position.test.ts` (new) covering: liquid present, liquid 0, RPC failure on balance fetch (still return position with `liquid: null`).
+
+### T-239 — Agent-readable session metadata endpoint (`GET /v1/session/me`)
+- Status: pending
+- Depends-on: T-204, T-206
+- OS: any
+- Scope: api
+- Acceptance: new `GET /v1/session/me` returning the calling api-key's session config — `max_per_tx`, `daily_cap`, `daily_spent`, `daily_window_start`, `expiry`, `allowed_recipients`, `allowed_instructions` (decoded from the on-chain Session PDA via existing `decodeSessionAccount`). Mirrors what the dashboard sees at `GET /v1/sessions/:id` but scoped to the caller's own session via `req.session.id` from the api-key middleware. Today an agent hit `403`/on-chain-revert errors with no way to introspect its own bounds; T-237 validation flagged this as a real friction point ("agent can only react to failures, can't plan"). Update skill.md to document. Test against the live endpoint via `apps/api/scripts/e2e-dashboard.ts` extension.
+
 ### T-234 — mpp.dev proxy review + service catalog deployment
 - Status: pending
 - Depends-on: T-211, T-220
@@ -195,6 +209,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-237 — Validate skill.md against fresh agent contexts
+- Status: done @Jishnu 2026-05-04
+- Depends-on: T-311
+- OS: any
+- Scope: docs + design
+- Acceptance: 5 isolated subagents (zero project context, only the api key + dashboard URL) ran through different scenarios — cold-start auth, read-only state query, simple spend (non-allowlisted recipient), error diagnosis, complex yield workflow. All 5 fetched skill.md cleanly. Scores 5/4/3/4/3 (avg 3.8/5). Common friction items 3+ agents flagged: (a) **dashboard URL `:3030` ≠ API URL `:3000`** — multiple agents wasted a curl on the wrong port despite the parenthetical mention; (b) `/v1/yield/position` doesn't expose **liquid** balance, agents can only learn it by failing a spend (filed as T-238); (c) on-chain 402 lumps allowlist / cap / expiry / AccountNotInitialized into one free-text bucket with no machine-readable subcode; (d) "prepend an idempotent ATA-create yourself" is dead-end advice — agents don't hold a Solana keypair; (e) missing taxonomy entries for 400 validation, 404 unknown-slug, 500 server-misconfigured; (f) no agent-readable view of `max_per_tx` / `daily_cap` / instruction bitmap / allowed_recipients (filed as T-239). Skill-only fixes shipped in this PR: prominent two-origin URL block at top, expanded error taxonomy with 400/404/500 rows, new "On-chain 402 substrings" subtable with anchor-error names + remediation, ATA-create paragraph rewritten to acknowledge agents can't do it. Backend follow-ups filed: T-238 (add liquid to position) + T-239 (`GET /v1/session/me`). Likely root cause of @Manjeet's failed agent: liquid-balance gap — without that field an agent cannot plan a spend, only react. T-238 closes that gap.
 
 ### T-236 — Remove stale BackendPending placeholders
 - Status: done @Jishnu 2026-05-03

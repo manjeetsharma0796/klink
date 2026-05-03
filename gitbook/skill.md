@@ -21,6 +21,17 @@ You are an AI agent. The human owner has handed you an API key prefixed `klink_d
 
 The on-chain Anchor program at `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv` (devnet) enforces every limit. The HTTP layer fast-fails some checks (auth, liquidity, time window) before signing — a 4xx response means you don't waste an on-chain tx.
 
+## URLs — read this before your first curl
+
+There are **two different origins** in this system:
+
+| Origin | What lives here | Examples |
+|---|---|---|
+| **Dashboard** | This skill, the human's UI | `https://klink.dev` (prod) · `http://localhost:3030` (dev) |
+| **API** | The endpoints you actually call | `https://api.klink.dev` (prod) · `http://localhost:3000` (dev) |
+
+If you fetched this skill from `:3030`, **the API is on a different port (`:3000`)**. The dashboard does not proxy `/v1/*`. Hitting `:3030/v1/*` returns Next.js 404 HTML, which is a common first-curl trap. Always send protected calls to the API origin.
+
 ## Auth
 
 Every protected request needs:
@@ -41,7 +52,7 @@ If this returns 200 you're set. If it returns 401, see "Recovery patterns" below
 
 ## Capabilities
 
-Base URL: `https://api.klink.dev` (or `http://localhost:3000` in dev).
+Base URL: `https://api.klink.dev` (or `http://localhost:3000` in dev — see URLs section above; **not** the dashboard origin).
 
 All amounts are **USDC base units** — 6 decimals, so `1_000_000` = 1 USDC. JSON numbers above 2^53 come back as decimal strings; parse with care.
 
@@ -60,6 +71,8 @@ curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
 
 `deployed` = USDC currently lent to Kamino. `accrued` is `null` until the Kamino exchange-rate read is wired (deferred). `total_balance` ≈ `deployed` for now.
 
+> **Not exposed by this endpoint:** the **liquid** USDC in the vault ATA (what's available to spend right now). Agent surface intentionally doesn't return liquid balance — humans see it in the dashboard. Practical consequence: the only way you learn liquid balance is **attempt a spend and parse `INSUFFICIENT_LIQUID.liquid` from a 402** (see error taxonomy). Tracked as a follow-up; until then plan for the failure path.
+
 ### `POST /v1/spend/transfer` — direct USDC transfer
 
 Use when you have a known recipient and just need to move USDC. Recipient must already be in the session's on-chain `allowed_recipients`; otherwise the on-chain program rejects.
@@ -75,7 +88,7 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
 { "tx_signature": "5K3...", "status": "confirmed" }
 ```
 
-The recipient's USDC ATA must already exist on chain. If it doesn't, prepend an idempotent ATA-create yourself before calling — klink does not auto-create recipient ATAs.
+The recipient's USDC ATA must already exist on chain. If it doesn't, the on-chain program rejects with `0xbc4 / AccountNotInitialized` (mapped to a 402 here). **You as an agent cannot create the ATA yourself** — you don't hold a Solana keypair to sign + pay rent. When you hit this, surface to the human; they (or the recipient) need to create the ATA before you retry.
 
 ### `POST /v1/spend/sign-payment` — x402 sign-only
 
@@ -139,17 +152,36 @@ The HTTP status + the response `error` field are the contract.
 
 | Status | Body | Meaning | What to do |
 |---|---|---|---|
+| `400` | `"<field> ..."` (e.g. `"amount must be a positive number (USDC base units)"`) | Request validation failed before any backend logic ran | Fix the body shape. `error` is human-readable but not a stable code — read it as English. |
 | `401` | `"missing bearer token"`, `"invalid token format"` | Auth header malformed | Fix the header. Token must start with `klink_dev_` / `klink_prod_`. |
 | `401` | `"invalid api key"` | Token doesn't match any session, OR hash mismatch | Tell the human to mint a new session. Don't retry — keys don't recover. |
 | `401` | `"api key revoked"` | The human rotated the key | Tell the human; they need to send you the new one. |
 | `401` | `"session revoked"` | The whole session was revoked on chain | Stop. Create-session is human-only. |
-| `402` | `"INSUFFICIENT_LIQUID"` + `liquid` / `amount` / `deficit` (USDC base units) | Vault USDC ATA balance < amount | Either reduce amount, or call `POST /v1/yield/withdraw` first to free deployed funds. The response tells you exactly how much you're short. |
-| `402` | `"on-chain submission failed"` + `detail` | Solana revert. Common: recipient not in allowlist, daily cap hit, session expired, `0xbc4 AccountNotInitialized` | Inspect `detail`. If recipient not allowlisted: tell the human to add it. If daily cap: wait for the rolling-24h reset. If expired: human creates a new session. |
+| `402` | `"INSUFFICIENT_LIQUID"` + `liquid` / `amount` / `deficit` (USDC base units) | Vault USDC ATA balance < amount | Either reduce amount, or call `POST /v1/yield/withdraw` first to free deployed funds. The response tells you exactly how much you're short — also use it to **learn current liquid balance** since `/v1/yield/position` doesn't expose it. |
+| `402` | `"on-chain submission failed"` + `detail` (free text from the program) | Solana revert. The `detail` string carries the actual error; today there is no machine-readable subcode. Substring-match these patterns: | See "On-chain 402 substrings" below. |
 | `402` | `"QUOTED_OVER_MAX"` + `quoted` / `max_amount` | Service wants more than you authorised | Don't retry with the same `max_amount`. Either ask the human to raise it, or pick a cheaper service. |
 | `403` | `"OUTSIDE_TIME_WINDOW"` | Current time is outside the human's allowed hours-of-day window | Wait until the window opens; don't retry tightly. Window is in the wallet's configured timezone. |
 | `403` | `"URL_NOT_ALLOWED"` | URL isn't in the off-chain allowlist | Tell the human to add the URL pattern. Wildcards are path-segment-only — host is always literal. |
+| `404` | `"service '<slug>' not in catalog or disabled"` | `/v1/spend/service` slug doesn't exist or is gated off | Don't retry that slug. Ask the human which slugs are enabled, or pick a different one. |
+| `404` | `"<resource> not found"` (other endpoints) | The thing you referenced doesn't exist for this caller | Surface to human. |
+| `500` | `"server misconfigured"` | Backend env is missing something required (e.g. `KAMINO_RESERVE` for yield calls, `SESSION_SECRET_MASTER_KEY`) | **Do not retry.** This is an ops issue, not a transient. Surface to human with the endpoint you tried — the api log will show which env var is missing. |
 | `502` | `"service probe failed"` | The upstream x402 service didn't respond | Standard upstream-down behaviour. Backoff and retry. |
 | `503` | `"rpc unavailable"` | Solana RPC is having a moment | Backoff and retry — usually transient (~30s). |
+
+### On-chain 402 substrings
+
+The `detail` field on a 402 `"on-chain submission failed"` is a free-text Solana error log. Substring patterns you'll see in practice:
+
+| Substring in `detail` | Anchor error | Meaning | What to do |
+|---|---|---|---|
+| `0xbc4` or `AccountNotInitialized` | 3012 | A required on-chain account (usually `recipient_usdc_ata` or `session`) doesn't exist. For recipient ATA: it's never been used to receive this token. For session: the `add_session` tx was never confirmed on-chain. | Surface to human. Recipient ATA needs creation; or session needs re-creation if the PDA isn't initialized. |
+| `RecipientNotAllowed` | (custom) | Recipient not in the on-chain allowlist | Tell the human to add this recipient via the dashboard. |
+| `AmountExceedsMaxPerTx` | (custom) | Single tx exceeds `max_per_tx` cap | Reduce the amount, or human raises the cap. |
+| `DailyCapExceeded` | (custom) | Rolling-24h cap hit | Wait until the window resets (the response doesn't tell you when — surface to human). |
+| `SessionExpired` | (custom) | `expiry` timestamp passed | Human creates a new session. |
+| `InstructionNotAllowed` | (custom) | The session bitmap doesn't grant this instruction | Human updates the session's allowed instructions. |
+
+Substring-match defensively. The exact error name format is Anchor-rendered and can drift across program redeploys — when in doubt, surface the raw `detail` to the human and stop retrying.
 
 ## Recovery patterns
 
