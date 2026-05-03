@@ -2,7 +2,7 @@
 name: klink
 description: Pay for services on Solana with policy-bounded session keys. Use when an AI agent needs to spend USDC autonomously without holding the user's master key.
 purpose: Self-onboarding reference for AI agents holding a klink API key. Curl examples, exact error codes, recovery patterns. Mirrors the pay-with-locus skill format so existing agent tooling drops in.
-last_updated: 2026-05-02
+last_updated: 2026-05-04
 ---
 
 # klink agent skill
@@ -27,8 +27,10 @@ There are **two different origins** in this system:
 
 | Origin | What lives here | Examples |
 |---|---|---|
-| **Dashboard** | This skill, the human's UI | `https://klink.dev` (prod) · `http://localhost:3030` (dev) |
-| **API** | The endpoints you actually call | `https://api.klink.dev` (prod) · `http://localhost:3000` (dev) |
+| **Dashboard** | This skill, the human's UI | `https://klink.dev` (prod, when DNS lands) · `http://localhost:3030` (dev) |
+| **API** | The endpoints you actually call | `https://klink-api.onrender.com` (current prod, free-tier Render) · `http://localhost:3000` (dev) |
+
+> **Render free-tier cold start:** the prod api can return `502` / `503` with no body for ~30s after idle. That's not in the regular error taxonomy — it's a cold-start signal. Backoff + retry once before escalating.
 
 If you fetched this skill from `:3030`, **the API is on a different port (`:3000`)**. The dashboard does not proxy `/v1/*`. Hitting `:3030/v1/*` returns Next.js 404 HTML, which is a common first-curl trap. Always send protected calls to the API origin.
 
@@ -44,7 +46,7 @@ Authorization: Bearer klink_dev_<your-token>
 
 ```bash
 curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
-  https://api.klink.dev/v1/yield/position
+  https://klink-api.onrender.com/v1/yield/position
 # → {"deployed":"0","accrued":null,"total_balance":"0"}
 ```
 
@@ -52,7 +54,7 @@ If this returns 200 you're set. If it returns 401, see "Recovery patterns" below
 
 ## Capabilities
 
-Base URL: `https://api.klink.dev` (or `http://localhost:3000` in dev — see URLs section above; **not** the dashboard origin).
+Base URL: `https://klink-api.onrender.com` (or `http://localhost:3000` in dev — see URLs section above; **not** the dashboard origin).
 
 All amounts are **USDC base units** — 6 decimals, so `1_000_000` = 1 USDC. JSON numbers above 2^53 come back as decimal strings; parse with care.
 
@@ -62,7 +64,7 @@ Read your on-chain vault state. Free. Use this on every cold start to verify aut
 
 ```bash
 curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
-  https://api.klink.dev/v1/yield/position
+  https://klink-api.onrender.com/v1/yield/position
 ```
 
 ```json
@@ -81,7 +83,7 @@ Use when you have a known recipient and just need to move USDC. Recipient must a
 curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   -H "content-type: application/json" \
   -d '{"recipient":"<base58-pubkey>","amount":500000}' \
-  https://api.klink.dev/v1/spend/transfer
+  https://klink-api.onrender.com/v1/spend/transfer
 ```
 
 ```json
@@ -102,7 +104,7 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
     "recipient": "<base58>",
     "amount": 50000
   }' \
-  https://api.klink.dev/v1/spend/sign-payment
+  https://klink-api.onrender.com/v1/spend/sign-payment
 ```
 
 ```json
@@ -123,15 +125,17 @@ Use for services in the curated catalog. klink probes the service, verifies the 
 curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   -H "content-type: application/json" \
   -d '{
-    "slug": "openai-gpt4",
+    "slug": "openai-chatgpt",
     "path": "/v1/chat/completions",
     "body": { "model": "gpt-4", "messages": [...] },
     "max_amount": 100000
   }' \
-  https://api.klink.dev/v1/spend/service
+  https://klink-api.onrender.com/v1/spend/service
 ```
 
 The HTTP status + body you get back are passthrough from the upstream service. The `x-tx-signature` response header carries the on-chain proof of payment.
+
+Currently-seeded slugs (catalog `enabled` flag may still be off — check with the human first): `anthropic-claude`, `openai-chatgpt`, `exa-search`, `firecrawl`. A `404 "service '<slug>' not in catalog or disabled"` means the slug is unknown OR has not been turned on yet — not a transient.
 
 ### `POST /v1/yield/deposit` and `POST /v1/yield/withdraw` — Kamino lending
 
@@ -141,7 +145,7 @@ Move idle USDC into Kamino USDC reserve to earn supply yield, or pull it back. Y
 curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
   -H "content-type: application/json" \
   -d '{"amount":2000000}' \
-  https://api.klink.dev/v1/yield/deposit
+  https://klink-api.onrender.com/v1/yield/deposit
 ```
 
 `max_deployed_fraction_bp` (set by the human) caps how much of the vault may be deployed at once. A 2-USDC deposit when the cap is hit will revert with `0xbc4` style on-chain error mapped to a 402.
@@ -191,7 +195,7 @@ INSUFFICIENT_LIQUID         → check /v1/yield/position; if deployed > 0, withd
 OUTSIDE_TIME_WINDOW         → wait until window opens; don't tight-loop
 URL_NOT_ALLOWED             → tell the human; they edit the off-chain policy
 QUOTED_OVER_MAX             → either negotiate cheaper service or escalate to human
-on-chain "AccountNotInitialized" → session was created in DB but never confirmed on-chain. Tell the human; they recreate the session.
+on-chain "AccountNotInitialized" → see "On-chain 402 substrings" — could be recipient_usdc_ata missing (most common) OR session PDA uninitialized. Inspect the `detail` for which account name is named. Both surface to human; the remediation differs (ATA-create vs session re-create).
 RPC unavailable             → exponential backoff (1s, 2s, 4s, 8s, cap 30s)
 ```
 

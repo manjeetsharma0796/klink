@@ -139,6 +139,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-312 — Serve `skill.md` from the api at `GET /skill.md`
+- Status: pending
+- Depends-on: T-311
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked.
+
 ### T-238 — Add `liquid` field to `GET /v1/yield/position`
 - Status: pending
 - Depends-on: T-213
