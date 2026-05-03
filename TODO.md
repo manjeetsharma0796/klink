@@ -196,6 +196,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-236 — Remove stale BackendPending placeholders
+- Status: done @Jishnu 2026-05-03
+- Depends-on: T-218, T-219, T-221, T-222, T-223, T-224, T-235
+- OS: any
+- Scope: web
+- Acceptance: 8 `<BackendPending taskId="…" />` callsites across the dashboard pointed at tasks that have all shipped (T-218/219/221/222/223/224/235). They fired on a 404/405 response and rendered "Backend endpoint pending — T-XXX … will activate when the endpoint lands" copy that's now misleading: the endpoints are live, so a 404/405 is a real failure (backend down, wrong path, RPC dead) rather than pending work. Removed every callsite + the `BackendPending` component itself (`apps/web/app/dashboard/_components/backend-pending.tsx` deleted). `useSessions` + `useSession` dropped their `notImplemented` field. GET pages (overview, sessions list, single-session) now render a small "Couldn't load X. Check the api logs and retry." message on error instead. Mutation flows (settings policy / drain, time-window, url-allowlist, yield deposit/withdraw) dropped their local `pending` state — the existing toast on error path is the right error UX. Web typecheck + 37 web tests green; biome clean on changed files. Filed 2026-05-03 after the user reported the placeholder copy was still rendering on the live dashboard despite the backend tasks being done.
+
 ### T-311 — Agent-onboarding SKILL.md for klink ecosystem
 - Status: done @Jishnu 2026-05-02
 - Depends-on: —

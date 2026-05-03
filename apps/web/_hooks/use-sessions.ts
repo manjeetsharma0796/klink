@@ -7,8 +7,7 @@ export function useSessions() {
   const parsed = data ? sessionsListSchema.safeParse(data) : null;
   return {
     sessions: parsed?.success ? (parsed.data as SessionRow[]) : null,
-    notImplemented: error?.status === 404 || error?.status === 405,
-    error: error && ![404, 405].includes(error.status) ? error : null,
+    error,
     isLoading,
     mutate,
   };

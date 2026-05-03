@@ -5,7 +5,6 @@ import { AlertCircle } from "lucide-react";
 import { useSession } from "@/_hooks/use-session";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { BackendPending } from "../../_components/backend-pending";
 import { RecipientList } from "./recipient-list";
 import { InstructionBitmap } from "./instruction-bitmap";
 import { UrlAllowlist } from "./url-allowlist";
@@ -13,13 +12,15 @@ import { TimeWindow } from "./time-window";
 
 export default function SessionAllowlistPage() {
   const params = useParams<{ id: string }>();
-  const { session, notImplemented, isLoading, mutate } = useSession(params.id);
+  const { session, error, isLoading, mutate } = useSession(params.id);
 
-  if (notImplemented) {
+  if (error) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">Allowlist editor</h1>
-        <BackendPending taskId="T-219" description="GET /v1/sessions/:id — single session detail with on-chain + off-chain state." />
+        <p className="text-sm text-destructive">
+          Couldn't load this session. Check the api logs and retry.
+        </p>
       </div>
     );
   }

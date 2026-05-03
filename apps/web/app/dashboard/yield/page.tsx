@@ -10,10 +10,8 @@ import { useWalletData } from "@/_hooks/use-wallet";
 import { useOnChainVault } from "@/_hooks/use-on-chain-vault";
 import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
 import { useToast } from "@/app/_components/ui/use-toast";
-import { ApiError } from "@/lib/api-client";
 import { formatUsdc, parseUsdcInput } from "@/lib/formatters";
 import { MAX_BP } from "@/lib/constants";
-import { BackendPending } from "../_components/backend-pending";
 
 export default function YieldPage() {
   const { publicKey } = useWallet();
@@ -21,7 +19,6 @@ export default function YieldPage() {
   const onChain = useOnChainVault(publicKey?.toBase58() ?? null);
   const [depositInput, setDepositInput] = useState("");
   const [withdrawInput, setWithdrawInput] = useState("");
-  const [pending, setPending] = useState<"deposit" | "withdraw" | null>(null);
   const { run, phase } = useBuildAndSignTx();
   const { toast } = useToast();
 
@@ -44,21 +41,13 @@ export default function YieldPage() {
       toast({ title: `${kind} confirmed` });
       onChain.mutate();
     } catch (e) {
-      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) setPending(kind);
-      else toast({ title: "Failed", description: String(e), variant: "destructive" });
+      toast({ title: "Failed", description: String(e), variant: "destructive" });
     }
   }
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Yield</h1>
-
-      {pending && (
-        <BackendPending
-          taskId="T-222"
-          description={`POST /v1/yield/${pending} (dashboard-JWT path) — owner build-tx-then-sign for Kamino. Currently only the agent-API-key path is implemented in T-213.`}
-        />
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

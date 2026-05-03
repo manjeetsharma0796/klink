@@ -7,13 +7,12 @@ import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Badge } from "@/app/_components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
 import { truncatePubkey, formatTimestamp } from "@/lib/formatters";
-import { BackendPending } from "../_components/backend-pending";
 import { NewSessionModal } from "./new-session-modal";
 import { RevokeConfirm } from "./revoke-confirm";
 import { RotateKeyButton } from "./rotate-key-button";
 
 export default function SessionsPage() {
-  const { sessions, notImplemented, isLoading, mutate } = useSessions();
+  const { sessions, error, isLoading, mutate } = useSessions();
 
   return (
     <div className="space-y-6">
@@ -22,11 +21,13 @@ export default function SessionsPage() {
         <NewSessionModal onCreated={() => mutate()} />
       </div>
 
-      {notImplemented && (
-        <BackendPending taskId="T-218" description="GET /v1/sessions — list sessions for the caller's wallet." />
+      {error && (
+        <p className="text-sm text-destructive">
+          Couldn't load sessions. Check the api logs and retry.
+        </p>
       )}
 
-      {!notImplemented && (
+      {!error && (
         <Card>
           <CardHeader><CardTitle className="text-base">Active and historical sessions</CardTitle></CardHeader>
           <CardContent>

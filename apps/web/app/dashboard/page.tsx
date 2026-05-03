@@ -9,7 +9,6 @@ import { StatCard } from "./_components/stat-card";
 import { BalanceCard } from "./_components/balance-card";
 import { ActivityRail } from "./_components/activity-rail";
 import { CreateWalletCta } from "./_components/create-wallet-cta";
-import { BackendPending } from "./_components/backend-pending";
 
 export default function DashboardPage() {
   const w = useWalletData();
@@ -32,11 +31,14 @@ export default function DashboardPage() {
   }
 
   if (w.error) {
-    // Most likely T-224 not yet shipped — graceful fallback.
+    // Real failure — backend down, RPC dead, JWT invalid. T-224 itself is
+    // shipped; a 404 would be caught by w.notFound (CreateWalletCta branch).
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <BackendPending taskId="T-224" description="GET /v1/wallet — read wallet info. Required to render the overview." />
+        <p className="text-sm text-destructive">
+          Couldn't load wallet info. Check the api logs and retry.
+        </p>
       </div>
     );
   }

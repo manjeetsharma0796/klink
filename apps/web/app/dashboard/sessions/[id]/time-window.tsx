@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/c
 import { Button } from "@/app/_components/ui/button";
 import { Slider } from "@/app/_components/ui/slider";
 import { Input } from "@/app/_components/ui/input";
-import { api, ApiError } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useToast } from "@/app/_components/ui/use-toast";
-import { BackendPending } from "../../_components/backend-pending";
 
 interface Props {
   walletId: string;
@@ -23,14 +22,12 @@ export function TimeWindow({ walletId, current, onSaved }: Props) {
   const [mask, setMask] = useState(current?.dowBitmask ?? 127);
   const [tz, setTz] = useState(current?.tz ?? "UTC");
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState(false);
   const { toast } = useToast();
 
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">Time window (off-chain)</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {pending && <BackendPending taskId="T-223" description="PATCH /v1/wallet/off-chain-policy — set time window." />}
         <div className="flex flex-wrap gap-2">
           {DOW.map((d, i) => (
             <label key={d} className="flex items-center gap-1 text-sm">
@@ -65,8 +62,7 @@ export function TimeWindow({ walletId, current, onSaved }: Props) {
               toast({ title: "Time window saved" });
               onSaved();
             } catch (e) {
-              if (e instanceof ApiError && (e.status === 404 || e.status === 405)) setPending(true);
-              else toast({ title: "Failed", description: String(e), variant: "destructive" });
+              toast({ title: "Failed", description: String(e), variant: "destructive" });
             } finally {
               setBusy(false);
             }

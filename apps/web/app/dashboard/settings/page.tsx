@@ -10,14 +10,11 @@ import { Skeleton } from "@/app/_components/ui/skeleton";
 import { useWalletData } from "@/_hooks/use-wallet";
 import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
 import { useToast } from "@/app/_components/ui/use-toast";
-import { ApiError } from "@/lib/api-client";
 import { MAX_BP } from "@/lib/constants";
-import { BackendPending } from "../_components/backend-pending";
 
 export default function SettingsPage() {
   const { wallet, isLoading, mutate } = useWalletData();
   const [bp, setBp] = useState<number | null>(null);
-  const [pending, setPending] = useState(false);
   const { run, phase } = useBuildAndSignTx();
   const { toast } = useToast();
 
@@ -26,7 +23,6 @@ export default function SettingsPage() {
   const drain = useBuildAndSignTx();
   const [drainAddress, setDrainAddress] = useState("");
   const [drainAmount, setDrainAmount] = useState("");
-  const [drainPending, setDrainPending] = useState(false);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!wallet) return <p className="text-sm text-muted-foreground">No wallet yet — create one first.</p>;
@@ -37,8 +33,6 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-
-      {pending && <BackendPending taskId="T-221" description="POST /v1/wallet/policy — build set_max_deployed_fraction tx." />}
 
       <Card>
         <CardHeader><CardTitle className="text-base">Max Deployed Fraction</CardTitle></CardHeader>
@@ -57,8 +51,7 @@ export default function SettingsPage() {
                 setBp(null);
                 mutate();
               } catch (e) {
-                if (e instanceof ApiError && (e.status === 404 || e.status === 405)) setPending(true);
-                else toast({ title: "Failed", description: String(e), variant: "destructive" });
+                toast({ title: "Failed", description: String(e), variant: "destructive" });
               }
             }}
           >
@@ -87,12 +80,6 @@ export default function SettingsPage() {
             policy — no allowlist, no per-tx cap, no daily cap. Signed by your Phantom; the
             backend never holds your key. Use this if klink is offline and you want to recover funds.
           </p>
-          {drainPending && (
-            <BackendPending
-              taskId="T-235"
-              description="POST /v1/wallet/transfer — needs T-116 program redeploy on devnet first."
-            />
-          )}
           <div className="space-y-2">
             <Label htmlFor="drain-recipient">Recipient pubkey</Label>
             <Input
@@ -147,11 +134,7 @@ export default function SettingsPage() {
                 });
                 setDrainAmount("");
               } catch (e) {
-                if (e instanceof ApiError && (e.status === 404 || e.status === 405)) {
-                  setDrainPending(true);
-                } else {
-                  toast({ title: "Drain failed", description: String(e), variant: "destructive" });
-                }
+                toast({ title: "Drain failed", description: String(e), variant: "destructive" });
               }
             }}
           >
