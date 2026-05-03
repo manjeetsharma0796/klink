@@ -1,7 +1,7 @@
 ---
+icon: scroll-text
 title: Audit trail
-purpose: Why Solana transaction history is the source of truth and what off-chain enrichment adds. Source of truth = docs/specs/2026-04-28-agent-wallet-design.md §1.3 + §3.3 + §4
-last_updated: 2026-04-28
+description: Why Solana transaction history is the source of truth and what off-chain enrichment adds
 ---
 
 # Audit trail
@@ -13,9 +13,9 @@ Klink treats the audit trail as a first-class feature. The source of truth is **
 | Audit content | Layer | Notes |
 |---|---|---|
 | Every state-changing instruction (`transfer_usdc`, `kamino_deposit`, `kamino_withdraw`, `init_vault`, `add_session`, `revoke_session`, `set_max_deployed_fraction`, `update_session_allowlist`) | On-chain | Free, immutable, queryable from any RPC |
-| Off-chain decisions (allow / deny + reason) | Off-chain | Postgres `audit_log` table |
+| Off-chain decisions (allow / deny + reason) | Off-chain | Audit log |
 | Service slug, URL pattern hit, time-of-day decision context | Off-chain | Backend has visibility the chain doesn't |
-| Funding events (Dodo Payments → treasury → vault) | Both | Dodo session in `dodo_payments`, on-chain transfer in Solana history |
+| Funding events (fiat-in → treasury → vault) | Both | Payment session off-chain, on-chain transfer in Solana history |
 
 ## Why on-chain is the source of truth
 
@@ -28,17 +28,16 @@ Off-chain logs are convenient but lossy — they're a derived view of what the c
 
 ## What the off-chain `audit_log` adds
 
-The chain knows *what* happened. The off-chain log knows *why* a particular HTTP request resolved the way it did:
+The chain knows *what* happened. The off-chain log knows *why* a particular HTTP request resolved the way it did. Each row carries:
 
 ```
-audit_log:
-  id, wallet_id, session_id,
-  action,                     -- pay_service | transfer | kamino_deposit | ...
-  amount, recipient_or_url,
-  decision   ENUM(allow, deny),
-  reason,                     -- "URL_NOT_ALLOWED", "OUTSIDE_TIME_WINDOW", ...
-  tx_signature NULL,          -- present iff allowed (then submitted)
-  created_at
+id, wallet_id, session_id,
+action,                     -- pay_service | transfer | kamino_deposit | ...
+amount, recipient_or_url,
+decision   ENUM(allow, deny),
+reason,                     -- "URL_NOT_ALLOWED", "OUTSIDE_TIME_WINDOW", ...
+tx_signature NULL,          -- present iff allowed (then submitted)
+created_at
 ```
 
 Critically, the off-chain log records **both `allow` and `deny`** decisions. This makes "the policy blocked X attempts" a queryable, presentable signal — you can see what your agent *tried* to do, not just what it succeeded at. Pure on-chain history would only show successes.
@@ -49,7 +48,7 @@ Common `audit_log.reason` values when `decision = 'deny'`:
 
 | Reason | Layer that denied | Meaning |
 |---|---|---|
-| `URL_NOT_ALLOWED` | Off-chain | URL didn't match `allowed_urls` and wasn't in `service_catalog` |
+| `URL_NOT_ALLOWED` | Off-chain | URL didn't match the allowlist and wasn't in the curated catalog |
 | `OUTSIDE_TIME_WINDOW` | Off-chain | Spend attempted outside the wallet's time-of-day window |
 | `INSUFFICIENT_LIQUID` | Off-chain pre-flight | Liquid balance < requested amount; caller must withdraw from yield first |
 | `SessionRevoked` | On-chain | Session account was closed before the tx confirmed |
@@ -65,7 +64,7 @@ Both views should agree on the on-chain set. The off-chain view is a **superset*
 ## What the trail does NOT show
 
 * **Read-only API calls.** A `GET /v1/wallet` doesn't write to `audit_log`. The audit covers state-changing actions.
-* **Off-chain context for on-chain ops not initiated by Klink.** If someone sends USDC directly to the vault's ATA (a fund), it's on-chain visible but doesn't have an off-chain `audit_log` row — there's no Klink HTTP request behind it.
+* **Off-chain context for on-chain ops not initiated by Klink.** If someone sends USDC directly to the vault's ATA (a fund), it's on-chain visible but doesn't have an off-chain audit row — there's no Klink HTTP request behind it.
 * **Off-chain decisions on read endpoints.** The audit log is for spend/yield decisions, not for dashboard JWT auth or session-list reads.
 
 ## Implications for the human owner

@@ -1,12 +1,12 @@
 ---
+icon: wallet
 title: Budgets
-purpose: The four numeric caps that bound a session's spending power and the vault's yield exposure. Source of truth = docs/specs/2026-04-28-agent-wallet-design.md §2.5
-last_updated: 2026-04-28
+description: The four numeric caps that bound a session's spending power and the vault's yield exposure
 ---
 
 # Budgets
 
-Klink has four numeric caps. The first three live on the [Session](sessions.md) account and bound an agent's spending. The fourth lives on the [Vault PDA](vault-pda.md) and bounds yield exposure.
+Klink has four numeric caps. The first three live on the [Session](sessions.md) account and bound an agent's spending. The fourth lives on the [Vault](vault.md) and bounds yield exposure.
 
 | Cap | Account | Unit | Enforced in |
 |---|---|---|---|
@@ -54,7 +54,7 @@ if session.expiry != 0:
 
 ## `max_deployed_fraction_bp` — yield exposure ceiling
 
-Hard cap on the fraction of total USDC the wallet may have deposited in [Kamino](yield.md) at any given moment. Stored in basis points: `8000` = 80%.
+Hard cap on the fraction of total USDC the wallet may have deposited in the [yield reserve](yield.md) at any given moment. Stored in basis points: `8000` = 80%.
 
 ```
 let total = vault.deployed_amount + ata_balance + amount;
@@ -73,7 +73,7 @@ Why an explicit cap?
 
 * **No cumulative-lifetime cap.** Sessions cap per-tx and per-day; a long-lived session can spend an unbounded total over time. Use `expiry` as the lifetime backstop.
 * **No per-recipient cap.** A recipient is either in `allowed_recipients` or it isn't; spend volume per recipient is not bounded separately.
-* **No off-chain `max_per_call` for non-curated URLs in v1.** The `allowed_urls` JSONB schema reserves a `max_per_call` field, but it is not used in MVP.
+* **No off-chain `max_per_call` for non-curated URLs.** The URL allowlist schema reserves a `max_per_call` field, but it is not enforced in the current release.
 
 ## Choosing values
 
@@ -91,4 +91,4 @@ Values are illustrative — pick what fits the agent's worst-case, not its media
 ## Read next
 
 * [Sessions](sessions.md) — the account these caps live on
-* [Yield (Kamino)](yield.md) — how `max_deployed_fraction_bp` interacts with deposits
+* [Yield](yield.md) — how `max_deployed_fraction_bp` interacts with deposits

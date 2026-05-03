@@ -1,7 +1,7 @@
 ---
+icon: hand-wave
 title: Welcome to Klink
-purpose: Public-facing landing page for the Klink developer documentation
-last_updated: 2026-04-28
+description: A non-custodial Solana smart-wallet for AI agents — spend caps, allowlists, audit trails by default
 ---
 
 # Welcome to Klink
@@ -15,23 +15,20 @@ If you build agents that spend, this is the wallet between your agent and its mo
 | Actor | Holds | Authority | If credential leaks |
 |---|---|---|---|
 | **Human owner** | Phantom keypair on-device | Master — configures policy, funds wallet, can revoke any session | Total loss (same as any Solana wallet) |
-| **Backend** | Session keypair (Postgres, AES-256-GCM) | Delegated — co-signs spend txs subject to on-chain policy | Bounded by `daily_cap` × time-to-revoke; restricted by recipient + program allowlists |
+| **Backend** | Session keypair (encrypted at rest) | Delegated — co-signs spend txs subject to on-chain policy | Bounded by `daily_cap` × time-to-revoke; restricted by recipient + program allowlists |
 | **Agent** | Bearer API key | None on-chain — talks to the backend over HTTP | Zero direct on-chain risk |
 
 The agent never crosses the trust boundary. The session keypair stays in the backend, never on the agent's machine. The owner key never leaves the human's device.
 
-## Read in this order
+## What you'll find here
 
-1. **[What is Klink?](introduction/what-is-klink.md)** — niche, value proposition, why Solana
-2. **[How it works](introduction/how-it-works.md)** — the three-layer model in one page
-3. **[Concepts → Overview](concepts/overview.md)** — mental model and vocabulary
-4. **[Architecture → System Overview](architecture/overview.md)** — diagrams, what lives where
-5. **[Getting Started → Prerequisites](getting-started/prerequisites.md)** — what you need to integrate
+- **[Introduction](introduction/what-is-klink.md)** — what Klink is, who it's for, why Solana
+- **[Quickstart](getting-started/quickstart.md)** — sign in, create a vault, hand an agent a key, audit a spend
+- **[Core Concepts](concepts/overview.md)** — Vault, Sessions, Policies, Budgets, Audit Trail, Yield
+- **[Architecture](architecture/overview.md)** — the three-layer model with diagrams
+- **[Developer Resources](developer-resources/sdk.md)** — SDK, CLI, and the agent skill
+- **[Reference](resources/glossary.md)** — glossary, FAQ, security disclosures, roadmap
 
 ## Status
 
-Pre-mainnet. Currently devnet-only. The Anchor program is in active development; the TypeScript SDK is not yet released. See [Roadmap](resources/roadmap.md) for the path to mainnet and [Risks](resources/risks.md) for the honest disclosure of where we are.
-
-## Source of truth
-
-The Anchor program, account layouts, and validator logic described here mirror the [internal design spec](https://github.com/manjeetsharma0796/klink/blob/main/docs/specs/2026-04-28-agent-wallet-design.md). When this site and the spec disagree, the spec wins — file an issue and we will update.
+Klink is in **beta on Solana devnet**. The on-chain program enforces every policy described in these docs; the dashboard, HTTP API, and agent skill are live. The SDK and CLI are on the way — see [Roadmap](resources/roadmap.md). For mainnet readiness, see [Risks & Disclosures](resources/risks.md).

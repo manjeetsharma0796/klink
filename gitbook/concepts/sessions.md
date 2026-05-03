@@ -1,7 +1,7 @@
 ---
+icon: key-round
 title: Sessions
-purpose: Per-agent on-chain Session account — delegated authority with caps, allowlists, expiry, and a typed-instruction bitmap. Source of truth = docs/specs/2026-04-28-agent-wallet-design.md §2.2.2 + §2.4
-last_updated: 2026-04-28
+description: Per-agent on-chain Session account — delegated authority with caps, allowlists, expiry, and a typed-instruction bitmap
 ---
 
 # Sessions
@@ -35,7 +35,7 @@ struct Session {
 seeds = ["session", vault.key(), session_pubkey.as_ref()]
 ```
 
-The session PDA is derived from the vault and the session's public key. The session's keypair lives in the backend (encrypted in Postgres); the session's pubkey is what the on-chain account is keyed by.
+The session PDA is derived from the vault and the session's public key. The session's keypair lives in the backend (encrypted at rest); the session's pubkey is what the on-chain account is keyed by.
 
 ## Allowed instructions (bitmap)
 
@@ -44,9 +44,9 @@ The session PDA is derived from the vault and the session's public key. The sess
 | Bit | Instruction | What it lets the session do |
 |---|---|---|
 | 0 | `transfer_usdc` | Pay an address from `allowed_recipients` |
-| 1 | `kamino_deposit` | Deposit USDC to Kamino's main USDC reserve |
-| 2 | `kamino_withdraw` | Withdraw USDC from Kamino back to the vault |
-| 3 | reserved (`jupiter_swap`, post-MVP) | — |
+| 1 | `kamino_deposit` | Deposit USDC to the curated USDC reserve |
+| 2 | `kamino_withdraw` | Withdraw USDC from the reserve back to the vault |
+| 3 | reserved (swap, future) | — |
 | 4–31 | reserved | — |
 
 `allowed_instructions = 0b0000_0111` enables transfer + deposit + withdraw. `allowed_instructions = 0b0000_0001` is a transfer-only session. `allowed_instructions = 0` is a read-only session that cannot move funds at all.
@@ -58,9 +58,9 @@ The bitmap is one of the strongest blast-radius levers: if you don't trust an ag
 Every Klink instruction that does a CPI hardcodes the destination program ID:
 
 * `transfer_usdc` → SPL Token Program (hardcoded)
-* `kamino_deposit` / `kamino_withdraw` → Kamino program (hardcoded)
+* `kamino_deposit` / `kamino_withdraw` → curated yield protocol (hardcoded)
 
-The wallet program will not dispatch to any other program for these operations. Adding a new protocol (e.g., MarginFi, Jupiter) requires a program upgrade, gated by the multisig upgrade authority. The bitmap therefore lists *typed instructions* rather than *program addresses*, because the program ID is structural — not data.
+The wallet program will not dispatch to any other program for these operations. Adding a new protocol requires a program upgrade, gated by the multisig upgrade authority. The bitmap therefore lists *typed instructions* rather than *program addresses*, because the program ID is structural — not data.
 
 ## Lifecycle
 
@@ -108,7 +108,7 @@ Sponsorable by the backend at creation time. Refunded to the vault owner on revo
 
 * **No URL allowlist.** That's off-chain ([Policies](policies.md) → off-chain rich rules).
 * **No time-of-day window.** That's off-chain too.
-* **No API key.** The API key lives in the backend's `api_keys` table, hashed; it resolves to a session at request time.
+* **No API key.** The API key lives in the backend, hashed at rest; it resolves to a session at request time.
 
 ## Read next
 

@@ -1,35 +1,33 @@
 # Table of contents
 
-* [Welcome to Klink](README.md)
-
-## Introduction
-
-* [What is Klink?](introduction/what-is-klink.md)
-* [How it works](introduction/how-it-works.md)
+* [Welcome](README.md)
 
 ## Getting Started
 
-* [Prerequisites](getting-started/prerequisites.md)
+* [Introduction](introduction/what-is-klink.md)
 * [Quickstart](getting-started/quickstart.md)
-* [Agent skill (skill.md)](skill.md)
+* [Prerequisites](getting-started/prerequisites.md)
 
-## Concepts
+## Core Concepts
 
 * [Overview](concepts/overview.md)
-* [Vault PDA](concepts/vault-pda.md)
+* [Architecture](architecture/overview.md)
+* [Vault](concepts/vault.md)
 * [Sessions](concepts/sessions.md)
 * [Policies](concepts/policies.md)
 * [Budgets](concepts/budgets.md)
 * [Audit Trail](concepts/audit-trail.md)
-* [Yield (Kamino)](concepts/yield.md)
+* [Yield](concepts/yield.md)
 
-## Architecture
+## Developer Resources
 
-* [System Overview](architecture/overview.md)
+* [SDK](developer-resources/sdk.md)
+* [CLI](developer-resources/cli.md)
+* [Agent Skill](skill.md)
 
-## Resources
+## Reference
 
 * [Glossary](resources/glossary.md)
 * [FAQ](resources/faq.md)
-* [Risks](resources/risks.md)
+* [Risks & Disclosures](resources/risks.md)
 * [Roadmap](resources/roadmap.md)
