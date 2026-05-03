@@ -244,16 +244,43 @@ export const postYieldDepositHandler = makePostYieldDepositHandler();
 export const postYieldWithdrawHandler = makePostYieldWithdrawHandler();
 
 // ---------------------------------------------------------------------------
-// GET /v1/yield/position — agent or owner reads deployed_amount + accrued
+// GET /v1/yield/position — agent or owner reads liquid + deployed + accrued
+// (T-238 added the `liquid` field so agents can plan a spend without
+// fail-and-parse-INSUFFICIENT_LIQUID. Pre-T-238 the response only carried
+// `deployed`, which led to Manjeet's agent looping.)
 // ---------------------------------------------------------------------------
+
+export type LiquidReader = (conn: Connection, vaultUsdcAta: PublicKey) => Promise<bigint>;
+
+/** Thin wrapper — caller (handler) decides how to surface throws. */
+const defaultLiquidReader: LiquidReader = async (conn, vaultUsdcAta) => {
+  const bal = await conn.getTokenAccountBalance(vaultUsdcAta);
+  return BigInt(bal.value.amount);
+};
+
+/**
+ * SPL Token's `getTokenAccountBalance` throws when the ATA doesn't exist
+ * on chain (TokenAccountNotFoundError). For the position endpoint we treat
+ * that as "0 liquid" — a vault with no USDC ATA yet is a real cold-wallet
+ * state, not an error worth nulling out the whole field for. Any *other*
+ * thrown error (RPC down, network blip) surfaces as `null` so the agent
+ * can distinguish.
+ */
+function isAtaNotFoundError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("could not find account") || msg.includes("TokenAccountNotFound");
+}
 
 export interface MakeGetYieldPositionDeps {
   connection?: ConnectionFactory;
+  /** Test seam — defaults to a real getTokenAccountBalance call. */
+  liquid?: LiquidReader;
 }
 
 export function makeGetYieldPositionHandler(deps: MakeGetYieldPositionDeps = {}) {
   const newConn =
     deps.connection ?? (() => new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed"));
+  const readLiquid = deps.liquid ?? defaultLiquidReader;
 
   return async function getYieldPosition(req: Request, res: Response) {
     const wallet = req.wallet;
@@ -262,8 +289,10 @@ export function makeGetYieldPositionHandler(deps: MakeGetYieldPositionDeps = {})
       return;
     }
     let vault: PublicKey;
+    let vaultUsdcAta: PublicKey;
     try {
       vault = new PublicKey(wallet.vaultPda);
+      vaultUsdcAta = new PublicKey(wallet.usdcAta);
     } catch {
       res.status(500).json({ error: "vault pubkey invalid" });
       return;
@@ -292,12 +321,36 @@ export function makeGetYieldPositionHandler(deps: MakeGetYieldPositionDeps = {})
       return;
     }
 
+    // Liquid balance is best-effort. Three possible outcomes:
+    //  - bigint: real balance from the SPL token account
+    //  - 0n: ATA doesn't exist yet (cold wallet — not an error)
+    //  - null: RPC down or some other unknown failure
+    // Agents can distinguish "0" from "null" to decide whether to retry.
+    let liquid: bigint | null;
+    try {
+      liquid = await readLiquid(conn, vaultUsdcAta);
+    } catch (err) {
+      if (isAtaNotFoundError(err)) {
+        liquid = 0n;
+      } else {
+        console.error("[GET /v1/yield/position] liquid read failed:", err);
+        liquid = null;
+      }
+    }
+
+    const totalBalance = liquid !== null ? liquid + deployed : deployed;
+
     res.json({
+      // T-238: liquid USDC in the vault ATA, ready to spend. `null` only when
+      // the SPL balance read itself failed (RPC down) — distinguish from "0"
+      // which means the ATA exists but is empty. Pre-T-238 agents had to
+      // fail-and-parse-INSUFFICIENT_LIQUID to learn this.
+      liquid: liquid !== null ? liquid.toString() : null,
       deployed: deployed.toString(),
       // accrued yield computation deferred — needs Kamino cToken exchange-rate
       // via klend-sdk or manual reserve decode. Track in TODO §2 follow-up.
       accrued: null,
-      total_balance: deployed.toString(),
+      total_balance: totalBalance.toString(),
     });
   };
 }

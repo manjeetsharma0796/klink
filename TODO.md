@@ -146,13 +146,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api
 - Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked.
 
-### T-238 — Add `liquid` field to `GET /v1/yield/position`
-- Status: in-progress @Jishnu 2026-05-04
-- Depends-on: T-213
-- OS: any
-- Scope: api
-- Acceptance: extend `apps/api/src/routes/yield.ts` `getYieldPositionHandler` to also fetch the vault USDC ATA balance via `Connection.getTokenAccountBalance(vaultUsdcAta)` and include it as `liquid: "<base-units-string>"` alongside `deployed`, `accrued`, `total_balance`. Today the agent has no way to see liquid USDC except by attempting a spend and parsing `INSUFFICIENT_LIQUID.liquid` from a 402 — surfaced 2026-05-04 by the T-237 skill.md validation as a likely cause of @Manjeet's agent failure. Update `total_balance` to `liquid + deployed` (currently it's `deployed.toString()`) so the field matches its name. Bump skill.md to document the new field. Test in `apps/api/tests/routes/yield-position.test.ts` (new) covering: liquid present, liquid 0, RPC failure on balance fetch (still return position with `liquid: null`).
-
 ### T-239 — Agent-readable session metadata endpoint (`GET /v1/session/me`)
 - Status: pending
 - Depends-on: T-204, T-206
@@ -222,6 +215,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-238 — Add `liquid` field to `GET /v1/yield/position`
+- Status: done @Jishnu 2026-05-04
+- Depends-on: T-213
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/routes/yield.ts` `getYieldPositionHandler` now fetches the vault USDC ATA balance via `Connection.getTokenAccountBalance(vaultUsdcAta)` and returns it as `liquid` alongside `deployed`, `accrued`, `total_balance`. Three states the field can be in: `"<n>"` decimal-string of base units (real balance), `"0"` (ATA exists but empty OR ATA hasn't been created yet — both treated identically; cold wallet is not an error), `null` (RPC down or unknown failure — agents distinguish to decide whether to retry). `total_balance` is now `liquid + deployed` (or just `deployed` when liquid is null). Liquid read failure is best-effort: it does not 5xx the whole position read — the handler still returns deployed + accrued so agents see what's available. New `LiquidReader` test seam + module-level `isAtaNotFoundError(err)` helper that pattern-matches "could not find account" and "TokenAccountNotFound". 6 unit tests pin: positive-liquid + total_balance arithmetic, ATA empty (0n), generic throw → null, TokenAccountNotFound → 0n (not null), correct ATA pubkey routed (regression guard against accidentally querying the vault PDA), and a fixture round-trip via `decodeVaultDeployedAmount`. skill.md updated: position section response shape now lists `liquid` first with all three state semantics; INSUFFICIENT_LIQUID row in error taxonomy noted as race-window backstop now that planning is done from `liquid` directly; recovery-patterns line for INSUFFICIENT_LIQUID rewritten to point at the new field. Live verified against the api with the funded test wallet: returned `{"liquid":"17500000","deployed":"0","accrued":null,"total_balance":"17500000"}` — matches the wallet's actual 17.5 USDC sitting in the vault ATA. **Closes the most-likely root cause of Manjeet's agent failure** (no plan path → fail-then-recover loop). 181 api tests pass; web typecheck clean; skill-sync test passes.
 
 ### T-237 — Validate skill.md against fresh agent contexts
 - Status: done @Jishnu 2026-05-04

@@ -68,12 +68,15 @@ curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
 ```
 
 ```json
-{ "deployed": "0", "accrued": null, "total_balance": "0" }
+{ "liquid": "0", "deployed": "0", "accrued": null, "total_balance": "0" }
 ```
 
-`deployed` = USDC currently lent to Kamino. `accrued` is `null` until the Kamino exchange-rate read is wired (deferred). `total_balance` ≈ `deployed` for now.
+- `liquid` — USDC in the vault ATA, ready to spend right now. **Decimal string** of base units (1 USDC = 1_000_000). Three possible values: `"<n>"` for a real balance, `"0"` if the ATA hasn't been created yet (cold wallet), `null` if the SPL balance read itself failed (RPC down — distinguish from 0 to decide whether to retry).
+- `deployed` — USDC currently lent to Kamino.
+- `accrued` — `null` until the Kamino exchange-rate read is wired (deferred).
+- `total_balance` — `liquid + deployed`. If `liquid` is null, falls back to `deployed`.
 
-> **Not exposed by this endpoint:** the **liquid** USDC in the vault ATA (what's available to spend right now). Agent surface intentionally doesn't return liquid balance — humans see it in the dashboard. Practical consequence: the only way you learn liquid balance is **attempt a spend and parse `INSUFFICIENT_LIQUID.liquid` from a 402** (see error taxonomy). Tracked as a follow-up; until then plan for the failure path.
+Use this on every cold start to plan a spend amount. Pre-T-238 this endpoint didn't expose `liquid` and agents had to fail a spend + parse `INSUFFICIENT_LIQUID.liquid`. That's still the source-of-truth for the *exact* moment of the spend (race window between read + spend), but for normal planning the field here is what you want.
 
 ### `POST /v1/spend/transfer` — direct USDC transfer
 
@@ -161,7 +164,7 @@ The HTTP status + the response `error` field are the contract.
 | `401` | `"invalid api key"` | Token doesn't match any session, OR hash mismatch | Tell the human to mint a new session. Don't retry — keys don't recover. |
 | `401` | `"api key revoked"` | The human rotated the key | Tell the human; they need to send you the new one. |
 | `401` | `"session revoked"` | The whole session was revoked on chain | Stop. Create-session is human-only. |
-| `402` | `"INSUFFICIENT_LIQUID"` + `liquid` / `amount` / `deficit` (USDC base units) | Vault USDC ATA balance < amount | Either reduce amount, or call `POST /v1/yield/withdraw` first to free deployed funds. The response tells you exactly how much you're short — also use it to **learn current liquid balance** since `/v1/yield/position` doesn't expose it. |
+| `402` | `"INSUFFICIENT_LIQUID"` + `liquid` / `amount` / `deficit` (USDC base units) | Vault USDC ATA balance < amount | Either reduce amount, or call `POST /v1/yield/withdraw` first to free deployed funds. The response tells you exactly how much you're short. (Pre-T-238 this was the only way to learn liquid balance; now `/v1/yield/position` exposes it directly — use that to plan, treat this 402 as the race-window backstop.) |
 | `402` | `"on-chain submission failed"` + `detail` (free text from the program) | Solana revert. The `detail` string carries the actual error; today there is no machine-readable subcode. Substring-match these patterns: | See "On-chain 402 substrings" below. |
 | `402` | `"QUOTED_OVER_MAX"` + `quoted` / `max_amount` | Service wants more than you authorised | Don't retry with the same `max_amount`. Either ask the human to raise it, or pick a cheaper service. |
 | `403` | `"OUTSIDE_TIME_WINDOW"` | Current time is outside the human's allowed hours-of-day window | Wait until the window opens; don't retry tightly. Window is in the wallet's configured timezone. |
@@ -191,7 +194,7 @@ Substring-match defensively. The exact error name format is Anchor-rendered and 
 
 ```
 auth fails                  → tell the human; you can't self-recover
-INSUFFICIENT_LIQUID         → check /v1/yield/position; if deployed > 0, withdraw first
+INSUFFICIENT_LIQUID         → /v1/yield/position now exposes `liquid` directly; use it to plan, then if deployed > 0 + still short, withdraw first
 OUTSIDE_TIME_WINDOW         → wait until window opens; don't tight-loop
 URL_NOT_ALLOWED             → tell the human; they edit the off-chain policy
 QUOTED_OVER_MAX             → either negotiate cheaper service or escalate to human
