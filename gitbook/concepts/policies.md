@@ -1,7 +1,7 @@
 ---
+icon: shield-check
 title: Policies
-purpose: How Klink composes on-chain hard limits with off-chain rich rules. Source of truth = docs/specs/2026-04-28-agent-wallet-design.md §2.5 + §3.5
-last_updated: 2026-04-28
+description: How Klink composes on-chain hard limits with off-chain rich rules
 ---
 
 # Policies
@@ -15,7 +15,7 @@ The off-chain layer is enrichment. The on-chain layer is the trustless guarantee
 
 ## On-chain hard limits
 
-These live on the [Vault PDA](vault-pda.md) and the [Session](sessions.md) account. The program checks them in `transfer_usdc`, `kamino_deposit`, and `kamino_withdraw`:
+These live on the [Vault](vault.md) and the [Session](sessions.md) account. The program checks them in `transfer_usdc`, `kamino_deposit`, and `kamino_withdraw`:
 
 | Check | Source | Enforced in |
 |---|---|---|
@@ -32,24 +32,24 @@ Any failed check **reverts the entire transaction**. There is no partial applica
 
 ## Off-chain rich rules
 
-These live in Postgres on the `off_chain_policies` row keyed by wallet:
+These live in the off-chain policy store, keyed by wallet:
 
 | Rule | Storage |
 |---|---|
-| URL allowlist | `allowed_urls` JSONB — list of `{ "pattern": "https://api.example.com/*", "max_per_call": 0.10 }` entries |
-| Time-of-day window | `time_window_start_min`, `time_window_end_min`, `time_window_dow_bitmask`, `timezone` |
+| URL allowlist | List of `{ "pattern": "https://api.example.com/*", "max_per_call": 0.10 }` entries |
+| Time-of-day window | `start_min`, `end_min`, day-of-week bitmask, `timezone` |
 
 ### URL allowlist
 
 Wildcards are restricted to **path segments only**. No host wildcards — `*.example.com` is rejected at insertion. This is the mitigation for the `*.evil.com` attack pattern: a user enters a permissive host pattern, an attacker registers a matching subdomain.
 
-Patterns look like `https://api.example.com/v1/*`. Curated services in the `service_catalog` table short-circuit the allowlist check (the proxy already constrains what the agent can hit).
+Patterns look like `https://api.example.com/v1/*`. Curated services short-circuit the allowlist check (the proxy already constrains what the agent can hit).
 
 ### Time-of-day window
 
-* `timezone` — the wallet's preferred timezone (uses `Intl.DateTimeFormat` for DST-correct conversion, not naive offset math).
-* `time_window_dow_bitmask` — bit 0 = Monday, bit 6 = Sunday. Both endpoints inclusive.
-* `time_window_start_min` and `time_window_end_min` — minute-of-day in the wallet's timezone.
+* **timezone** — the wallet's preferred timezone (DST-correct conversion).
+* **day-of-week bitmask** — bit 0 = Monday, bit 6 = Sunday. Both endpoints inclusive.
+* **start / end** — minute-of-day in the wallet's timezone.
 
 A spend at 22:00 IST when the window is 09:00–18:00 IST is denied — even if every on-chain check would pass.
 
@@ -59,7 +59,7 @@ A spend at 22:00 IST when the window is 09:00–18:00 IST is denied — even if 
 POST /v1/spend/* (any spend endpoint)
   1. Auth: validate api_key → resolve session_id, wallet_id
   2. Time check (off-chain) — deny if outside window
-  3. URL check (off-chain) — service_catalog short-circuit, else allowlist match
+  3. URL check (off-chain) — curated-service short-circuit, else allowlist match
   4. Liquidity check — strict; no magic withdraw
   5. Build typed instruction → sign with session keypair → submit to Solana
   6. Solana validator runs all on-chain hard limits

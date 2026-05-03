@@ -1,12 +1,10 @@
 ---
 title: Getting Started
-purpose: Section index for what you need before integrating Klink
-last_updated: 2026-04-28
+description: Section index for what you need before integrating Klink
 ---
 
 # Getting Started
 
+* **[Introduction](../introduction/what-is-klink.md)** — what Klink is, the trust model, the spend hot path
+* **[Quickstart](quickstart.md)** — end-to-end devnet walkthrough
 * **[Prerequisites](prerequisites.md)** — accounts, tools, RPC, devnet funds
-* **[Quickstart](quickstart.md)** — devnet beta walkthrough (coming soon)
-
-The full hands-on quickstart is gated on the TypeScript SDK release. See [Roadmap](../resources/roadmap.md).
