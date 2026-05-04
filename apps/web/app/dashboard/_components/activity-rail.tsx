@@ -26,7 +26,7 @@ export function ActivityRail() {
           {sessions.isLoading ? <Skeleton className="h-5 w-20" /> : (
             <span className="text-2xl font-semibold">{activeCount ?? "—"}</span>
           )}
-          <Link href="/dashboard/sessions" className="text-xs font-medium text-primary hover:underline">
+          <Link href="/dashboard/sessions" className="text-xs font-medium text-olive-deep hover:underline">
             Manage
           </Link>
         </CardContent>

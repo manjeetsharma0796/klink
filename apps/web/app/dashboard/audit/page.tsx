@@ -73,7 +73,7 @@ export default function AuditPage() {
                     <TableCell className="text-xs">{e.reason ?? "—"}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {e.txSignature ? (
-                        <a className="text-primary hover:underline" target="_blank" href={`https://solscan.io/tx/${e.txSignature}?cluster=devnet`} rel="noreferrer">
+                        <a className="text-olive-deep font-medium hover:underline" target="_blank" href={`https://solscan.io/tx/${e.txSignature}?cluster=devnet`} rel="noreferrer">
                           {truncatePubkey(e.txSignature)}
                         </a>
                       ) : "—"}

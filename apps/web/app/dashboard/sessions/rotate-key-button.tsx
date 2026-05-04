@@ -33,7 +33,7 @@ export function RotateKeyButton({ sessionId, label, onRotated }: Props) {
       <button
         type="button"
         disabled={busy}
-        className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+        className="text-xs font-medium text-olive-deep hover:underline disabled:opacity-50"
         onClick={async () => {
           if (!window.confirm(confirm)) return;
           setBusy(true);

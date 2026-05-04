@@ -60,7 +60,7 @@ export default function SessionsPage() {
                         </TableCell>
                         <TableCell className="text-xs">{formatTimestamp(Date.parse(s.createdAt) / 1000)}</TableCell>
                         <TableCell className="space-x-2 text-right">
-                          <Link href={`/dashboard/sessions/${s.id}`} className="text-xs font-medium text-primary hover:underline">
+                          <Link href={`/dashboard/sessions/${s.id}`} className="text-xs font-medium text-olive-deep hover:underline">
                             Allowlist
                           </Link>
                           {status === "active" && (

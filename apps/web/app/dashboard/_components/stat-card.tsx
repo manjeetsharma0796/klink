@@ -61,7 +61,7 @@ export function StatCard({ title, rows, loading }: Props) {
                   <button
                     type="button"
                     aria-label={`Copy ${row.label}`}
-                    className="text-xs font-medium text-primary hover:underline"
+                    className="text-xs font-medium text-olive-deep hover:underline"
                     onClick={async () => {
                       // row.value is a string here — the outer guard rules out null.
                       const v = row.value as string;
@@ -80,7 +80,7 @@ export function StatCard({ title, rows, loading }: Props) {
                 {row.href && (
                   <Link
                     href={row.href}
-                    className="text-xs font-medium text-primary hover:underline"
+                    className="text-xs font-medium text-olive-deep hover:underline"
                   >
                     {row.cta ?? "Configure"}
                   </Link>
