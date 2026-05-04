@@ -9,8 +9,16 @@ import { Slider } from "@/app/_components/ui/slider";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 import { useWalletData } from "@/_hooks/use-wallet";
 import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
+import { useOnChainVault } from "@/_hooks/use-on-chain-vault";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { MAX_BP } from "@/lib/constants";
+
+function formatUsdcFromBaseUnits(baseUnits: bigint): string {
+  if (baseUnits === BigInt(0)) return "0";
+  const usdc = Number(baseUnits) / 1_000_000;
+  // Strip trailing zeros after the decimal point.
+  return usdc.toFixed(6).replace(/\.?0+$/, "");
+}
 
 export default function SettingsPage() {
   const { wallet, isLoading, mutate } = useWalletData();
@@ -24,8 +32,13 @@ export default function SettingsPage() {
   const [drainAddress, setDrainAddress] = useState("");
   const [drainAmount, setDrainAmount] = useState("");
 
+  // T-241: liquid balance for the Max button on the take-back-custody card.
+  const onChain = useOnChainVault(wallet?.ownerPubkey);
+  const liquidBaseUnits = onChain.data?.liquid ?? BigInt(0);
+  const liquidUsdcLabel = formatUsdcFromBaseUnits(liquidBaseUnits);
+
   if (isLoading) return <Skeleton className="h-64 w-full" />;
-  if (!wallet) return <p className="text-sm text-muted-foreground">No wallet yet — create one first.</p>;
+  if (!wallet) return <p className="text-sm text-muted-foreground">No wallet yet. Create one first.</p>;
 
   const value = bp ?? wallet.maxDeployedFractionBp;
   const drainBusy = drain.phase !== "idle" && drain.phase !== "done" && drain.phase !== "error";
@@ -72,28 +85,50 @@ export default function SettingsPage() {
 
       <Card className="border-destructive/40">
         <CardHeader>
-          <CardTitle className="text-base text-destructive">Danger zone — emergency drain</CardTitle>
+          <CardTitle className="text-base text-destructive">Take back custody</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Move USDC out of the vault directly to any Solana address. Bypasses every session
-            policy — no allowlist, no per-tx cap, no daily cap. Signed by your Phantom; the
-            backend never holds your key. Use this if klink is offline and you want to recover funds.
+            Send USDC from the vault to any wallet you pick. There&apos;s no allowlist on this path, no per-tx cap, and no daily cap. Your Phantom signs the transaction. The backend never holds your key. Use this to recover funds if klink ever stops responding.
           </p>
           <div className="space-y-2">
-            <Label htmlFor="drain-recipient">Recipient pubkey</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="drain-recipient">Recipient pubkey</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setDrainAddress(wallet.ownerPubkey)}
+              >
+                Use my wallet
+              </Button>
+            </div>
             <Input
               id="drain-recipient"
               value={drainAddress}
               onChange={(e) => setDrainAddress(e.target.value)}
-              placeholder="e.g. 6fELFcucWR7CPrBrRmfAs8tNjvt5dUnQDk3cguAtdrjZ"
+              placeholder="paste a Solana address"
               className="font-mono"
               spellCheck={false}
               autoComplete="off"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="drain-amount">Amount (USDC)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="drain-amount">Amount (USDC)</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                disabled={liquidBaseUnits === BigInt(0)}
+                onClick={() => setDrainAmount(liquidUsdcLabel)}
+                title={liquidBaseUnits === BigInt(0) ? "vault is empty" : `pre-fill with ${liquidUsdcLabel} USDC`}
+              >
+                Max ({liquidUsdcLabel} liquid)
+              </Button>
+            </div>
             <Input
               id="drain-amount"
               type="number"
@@ -105,7 +140,7 @@ export default function SettingsPage() {
               placeholder="100"
             />
             <p className="text-xs text-muted-foreground">
-              Converted to USDC base units (×1,000,000) before signing.
+              Converted to USDC base units (multiplied by 1,000,000) before signing.
             </p>
           </div>
           <Button
@@ -119,7 +154,7 @@ export default function SettingsPage() {
               }
               const baseUnits = Math.round(usdc * 1_000_000);
               const ok = window.confirm(
-                `Transfer ${usdc} USDC from your vault to ${drainAddress.trim()}?\n\nThis bypasses session policy and cannot be undone.`,
+                `Send ${usdc} USDC to ${drainAddress.trim()}?\n\nThis cannot be undone.`,
               );
               if (!ok) return;
               try {
@@ -129,17 +164,17 @@ export default function SettingsPage() {
                   wallet_id: wallet.id,
                 });
                 toast({
-                  title: "Drain submitted",
+                  title: "Withdrawal submitted",
                   description: result.signature ? `tx ${result.signature.slice(0, 12)}…` : "ok",
                 });
                 setDrainAmount("");
               } catch (e) {
-                toast({ title: "Drain failed", description: String(e), variant: "destructive" });
+                toast({ title: "Withdrawal failed", description: String(e), variant: "destructive" });
               }
             }}
           >
             {drain.phase === "idle" || drain.phase === "done" || drain.phase === "error"
-              ? "Drain to recipient"
+              ? "Withdraw"
               : `${drain.phase}…`}
           </Button>
         </CardContent>
