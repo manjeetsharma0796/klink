@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { Button } from "@/app/_components/ui/button";
-import { Badge } from "@/app/_components/ui/badge";
-import { Skeleton } from "@/app/_components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
-import { formatTimestamp, formatUsdc, truncatePubkey } from "@/lib/formatters";
-import { cn } from "@/lib/cn";
 import { useAudit } from "@/_hooks/use-audit";
+import { Badge } from "@/app/_components/ui/badge";
+import { Button } from "@/app/_components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { Skeleton } from "@/app/_components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/app/_components/ui/table";
+import { cn } from "@/lib/cn";
+import { formatTimestamp, formatUsdc, truncatePubkey } from "@/lib/formatters";
+import { useState } from "react";
 
 const FILTERS = [
   { v: "all", label: "All" },
@@ -39,7 +46,9 @@ export default function AuditPage() {
         ))}
       </div>
       <Card>
-        <CardHeader><CardTitle className="text-base">{entries.length} entries</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">{entries.length} entries</CardTitle>
+        </CardHeader>
         <CardContent>
           {isLoading && entries.length === 0 ? (
             <Skeleton className="h-40 w-full" />
@@ -55,28 +64,58 @@ export default function AuditPage() {
                   <TableHead>Recipient / URL</TableHead>
                   <TableHead>Decision</TableHead>
                   <TableHead>Reason</TableHead>
-                  <TableHead>Tx</TableHead>
+                  <TableHead>Tx / Invoice</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map((e) => (
                   <TableRow key={e.id}>
-                    <TableCell className="text-xs">{formatTimestamp(Date.parse(e.createdAt) / 1000)}</TableCell>
+                    <TableCell className="text-xs">
+                      {formatTimestamp(Date.parse(e.createdAt) / 1000)}
+                    </TableCell>
                     <TableCell>{e.action}</TableCell>
-                    <TableCell className="font-mono text-xs">{e.amount ? formatUsdc(e.amount) : "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{e.recipientOrUrl ? truncatePubkey(e.recipientOrUrl) : "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {e.amount ? formatUsdc(e.amount) : "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {e.recipientOrUrl ? truncatePubkey(e.recipientOrUrl) : "—"}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={e.decision === "allow" ? "default" : "destructive"} className={cn(e.decision === "deny" && "bg-destructive/10 text-destructive")}>
+                      <Badge
+                        variant={e.decision === "allow" ? "default" : "destructive"}
+                        className={cn(
+                          e.decision === "deny" && "bg-destructive/10 text-destructive",
+                        )}
+                      >
                         {e.decision}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">{e.reason ?? "—"}</TableCell>
                     <TableCell className="font-mono text-xs">
-                      {e.txSignature ? (
-                        <a className="text-olive-deep font-medium hover:underline" target="_blank" href={`https://solscan.io/tx/${e.txSignature}?cluster=devnet`} rel="noreferrer">
-                          {truncatePubkey(e.txSignature)}
-                        </a>
-                      ) : "—"}
+                      <div className="flex flex-col gap-1">
+                        {e.txSignature ? (
+                          <a
+                            className="text-olive-deep font-medium hover:underline"
+                            target="_blank"
+                            href={`https://solscan.io/tx/${e.txSignature}?cluster=devnet`}
+                            rel="noreferrer"
+                          >
+                            {truncatePubkey(e.txSignature)}
+                          </a>
+                        ) : null}
+                        {/* T-245 — invoice download for fund_dodo rows. Falls through silently when invoice_url isn't populated yet (e.g. webhook hasn't fired). */}
+                        {e.dodoInvoiceUrl ? (
+                          <a
+                            className="text-olive-deep hover:underline"
+                            target="_blank"
+                            href={e.dodoInvoiceUrl}
+                            rel="noreferrer"
+                          >
+                            invoice
+                          </a>
+                        ) : null}
+                        {!e.txSignature && !e.dodoInvoiceUrl ? "—" : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -85,7 +124,9 @@ export default function AuditPage() {
           )}
           {hasMore && (
             <div className="mt-4 flex justify-center">
-              <Button variant="secondary" size="sm" onClick={() => setSize(size + 1)}>Load more</Button>
+              <Button variant="secondary" size="sm" onClick={() => setSize(size + 1)}>
+                Load more
+              </Button>
             </div>
           )}
         </CardContent>

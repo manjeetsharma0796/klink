@@ -19,20 +19,30 @@ import useSWR from "swr";
  * once the payment is settled.
  */
 export default function FundReturnPage() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [lookupId, setLookupId] = useState<string | null>(null);
+  const [optimisticSuccess, setOptimisticSuccess] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
-  // One-shot read from URL or sessionStorage on mount.
+  // One-shot read on mount. Dodo's redirect URL appends `?payment_id=pay_…&status=succeeded`;
+  // we also accept `?session_id` and `?session` as aliases. Falls back to
+  // sessionStorage (set by the Fund page before redirecting to Dodo) so the
+  // lookup works even when Dodo doesn't include a query param.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get("session_id") || params.get("session");
+    const fromUrl = params.get("payment_id") || params.get("session_id") || params.get("session");
     let fromStorage: string | null = null;
     try {
       fromStorage = sessionStorage.getItem("klink:dodo-pending-session");
     } catch {
       // ignore
     }
-    setSessionId(fromUrl || fromStorage);
+    setLookupId(fromUrl || fromStorage);
+    // T-245 — Dodo includes status=succeeded in the redirect URL the moment
+    // payment authorizes. We can show an optimistic "Payment received,
+    // settling on-chain..." state immediately while still polling the
+    // backend for the real on-chain settlement. Saves the customer ~5-15s
+    // of staring at a Pending spinner.
+    if (params.get("status") === "succeeded") setOptimisticSuccess(true);
   }, []);
 
   // Tick a counter every second so we can stop polling at the timeout.
@@ -45,7 +55,7 @@ export default function FundReturnPage() {
   // we stop polling once we hit settled/failed or 30s elapsed.
   const stopped = elapsed >= 30;
   const { data, error } = useSWR<unknown>(
-    sessionId && !stopped ? `/v1/fund/dodo-payment/${sessionId}` : null,
+    lookupId && !stopped ? `/v1/fund/dodo-payment/${lookupId}` : null,
     {
       refreshInterval: 2000,
       revalidateOnFocus: false,
@@ -82,26 +92,32 @@ export default function FundReturnPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Payment status</h1>
       <Card className="max-w-xl">
         <CardHeader>
-          <CardTitle className="text-base">{titleFor(status, sessionId, stopped, error)}</CardTitle>
+          <CardTitle className="text-base">
+            {titleFor(status, lookupId, stopped, error, optimisticSuccess)}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!sessionId ? (
+          {!lookupId ? (
             <NoSessionFallback onReturn={handleManualReturn} />
-          ) : status === null && !stopped ? (
-            <PendingState />
-          ) : status === "pending" && !stopped ? (
-            <PendingState />
           ) : status === "settled" && parsed?.success ? (
             <SettledState
               amountUsd={parsed.data.amount_usd}
               amountUsdc={parsed.data.amount_usdc}
               txSignature={parsed.data.tx_signature}
+              invoiceUrl={parsed.data.invoice_url}
               onReturn={handleManualReturn}
             />
           ) : status === "failed" ? (
             <FailedState onReturn={handleManualReturn} />
+          ) : status === null && !stopped ? (
+            <PendingState optimistic={optimisticSuccess} />
+          ) : status === "pending" && !stopped ? (
+            <PendingState optimistic={optimisticSuccess} />
           ) : (
-            <TimeoutState onReturn={handleManualReturn} />
+            <TimeoutState
+              invoiceUrl={parsed?.success ? parsed.data.invoice_url : null}
+              onReturn={handleManualReturn}
+            />
           )}
         </CardContent>
       </Card>
@@ -111,26 +127,35 @@ export default function FundReturnPage() {
 
 function titleFor(
   status: string | null,
-  sessionId: string | null,
+  lookupId: string | null,
   stopped: boolean,
   error: unknown,
+  optimistic: boolean,
 ): string {
-  if (!sessionId) return "Payment status";
+  if (!lookupId) return "Payment status";
   if (error) return "Couldn't reach the payment status service";
   if (status === "settled") return "Funded";
   if (status === "failed") return "Payment didn't go through";
   if (stopped) return "Still processing";
+  if (optimistic) return "Payment received — settling on-chain";
   return "Processing your payment...";
 }
 
-function PendingState() {
+function PendingState({ optimistic }: { optimistic: boolean }) {
   return (
     <>
       <div className="flex items-center gap-3">
-        <div className="size-2 rounded-full bg-amber-500 animate-pulse" />
+        <div
+          className={
+            optimistic
+              ? "size-2 rounded-full bg-emerald-500"
+              : "size-2 rounded-full bg-amber-500 animate-pulse"
+          }
+        />
         <p className="text-sm text-muted-foreground">
-          We're confirming your payment with Dodo and disbursing USDC to your vault. This usually
-          takes 5-15 seconds.
+          {optimistic
+            ? "Your payment authorized successfully. We're disbursing USDC to your vault now — usually 5-15 seconds."
+            : "We're confirming your payment with Dodo and disbursing USDC to your vault. This usually takes 5-15 seconds."}
         </p>
       </div>
       <Skeleton className="h-4 w-3/4" />
@@ -143,11 +168,13 @@ function SettledState({
   amountUsd,
   amountUsdc,
   txSignature,
+  invoiceUrl,
   onReturn,
 }: {
   amountUsd: number;
   amountUsdc: number;
   txSignature: string | null;
+  invoiceUrl: string | null;
   onReturn: () => void;
 }) {
   const usdDollars = (amountUsd / 100).toFixed(2);
@@ -175,7 +202,7 @@ function SettledState({
         </p>
       ) : null}
       <p className="text-xs text-muted-foreground">Redirecting to your dashboard in 5 seconds...</p>
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <Link href="/dashboard">
           <Button onClick={onReturn}>Go to dashboard</Button>
         </Link>
@@ -184,6 +211,11 @@ function SettledState({
             View audit log
           </Button>
         </Link>
+        {invoiceUrl ? (
+          <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="secondary">Download invoice</Button>
+          </a>
+        ) : null}
       </div>
     </>
   );
@@ -212,14 +244,20 @@ function FailedState({ onReturn }: { onReturn: () => void }) {
   );
 }
 
-function TimeoutState({ onReturn }: { onReturn: () => void }) {
+function TimeoutState({
+  invoiceUrl,
+  onReturn,
+}: {
+  invoiceUrl: string | null | undefined;
+  onReturn: () => void;
+}) {
   return (
     <>
       <p className="text-sm text-muted-foreground">
         We're still settling your payment. It can occasionally take a minute longer than expected.
         Check the audit log for the on-chain confirmation.
       </p>
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <Link href="/dashboard/audit">
           <Button onClick={onReturn}>View audit log</Button>
         </Link>
@@ -228,6 +266,11 @@ function TimeoutState({ onReturn }: { onReturn: () => void }) {
             Back to dashboard
           </Button>
         </Link>
+        {invoiceUrl ? (
+          <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="secondary">Download invoice</Button>
+          </a>
+        ) : null}
       </div>
     </>
   );
