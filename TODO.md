@@ -244,6 +244,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-248 — Dashboard: graceful loading bar + themed confirm dialogs (replace native window.confirm)
+- Status: in-progress @Jishnu 2026-05-05
+- Depends-on: T-242, T-247
+- OS: any
+- Scope: web
+- Acceptance: thin sap-green progress bar fixed at the bottom of the topbar, driven by a `ProgressProvider` context that tracks active operations as a refcount. `useBuildAndSignTx` auto-registers with the provider whenever its phase is non-idle/non-done/non-error, so every mutation in the app (wallet create, session create, allowlist patch, recipient add/remove, instruction-bit toggle, yield deposit/withdraw, drain) gets a progress indicator without per-callsite wiring. Route transitions also drive the bar via a `usePathname` listener that flashes 0→100% on path change. New `<ConfirmDialog>` component wraps the existing shadcn `<Dialog>` primitive with a promise-based `useConfirm()` hook, themed to match the brand (cream surface, olive title, destructive variant for irreversible actions). Replaces 2 native `window.confirm` calls: `apps/web/app/dashboard/settings/page.tsx:156` (drain confirmation) and `apps/web/app/dashboard/sessions/rotate-key-button.tsx:38` (key rotation). The dialog uses the same destructive accent (orange-bright) as the surrounding card so visual hierarchy stays consistent. Bun typecheck clean, 37 web tests pass. No backend changes.
+- Notes: triggered 2026-05-05 by user. The native browser confirm dialogs felt out-of-place under the new cream + sap-green palette, and the lack of any progress indication during the multi-step `useBuildAndSignTx` phases (build → sign → submit → confirm, can take 5-10s on devnet) made successful actions feel like they had silently hung. This task is pure UX polish on top of T-242's theme port.
+
 ### T-247 — Sign-in: hydration error + stuck wallet screen after sign-out + reconnect with different wallet
 - Status: done @Jishnu 2026-05-05
 - Depends-on: T-203, T-302
