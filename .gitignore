@@ -47,6 +47,7 @@
 !Anchor.toml
 !Cargo.toml
 !Cargo.lock
+!.mcp.json
 
 # Future config files (uncomment when added by scaffold tasks)
 # !tsconfig.json
