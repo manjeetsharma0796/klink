@@ -194,6 +194,7 @@ The HTTP status + the response `error` field are the contract.
 | `500` | `"server misconfigured"` | Backend env is missing something required | **Do not retry.** This is an ops issue, not a transient. Surface to human with the endpoint you tried — the api log will show which env var is missing. |
 | `502` | `"service probe failed"` | The upstream x402 service didn't respond | Standard upstream-down behaviour. Backoff and retry. |
 | `503` | `"rpc unavailable"` | Solana RPC is having a moment | Backoff and retry — usually transient (~30s). |
+| `503` | `"YIELD_DISABLED"` + `detail` | Yield is config-gated off on this environment (devnet today; lights up at mainnet cutover) | **Do not retry.** Tell the human yield is unavailable here; they choose to switch environments or wait for mainnet. Position reads still work. |
 
 ### On-chain 402 substrings
 
@@ -243,7 +244,7 @@ If you're hitting `INSUFFICIENT_LIQUID` repeatedly, that's a signal to the human
 ## Beta caveats
 
 - Klink is currently devnet only; mainnet support arrives after the program audit completes.
-- Yield reserve env vars aren't fully wired in every environment — `/v1/yield/deposit` and `/v1/yield/withdraw` may return `500 "server misconfigured"` until the operator populates the reserve env vars. Treat both endpoints as unavailable in that case; surface to the human, don't retry. Local dev with the vars populated still works.
+- Yield is config-gated and disabled on this environment — `/v1/yield/deposit` and `/v1/yield/withdraw` return `503 {"error":"YIELD_DISABLED", ...}` until the 5 Kamino reserve env vars are populated. Kamino's `Klend` program IS deployed on devnet (same program ID as mainnet, per their program-addresses doc), but their docs and public API only publish canonical mainnet markets — integrators pick a reserve themselves. We haven't yet, so devnet yield is feature-flagged off; mainnet cutover (T-114) lights everything up. Treat as feature-flagged off; surface to the human, don't retry. Position reads (`/v1/yield/position`) still work — they return `deployed: "0"`.
 - No agent-readable session introspection yet — there's no endpoint that returns your own `daily_cap`, `max_per_tx`, `allowed_recipients`, or `allowed_instructions`. Until that lands, you discover bounds by attempting an action and parsing the on-chain revert (`AmountExceedsMaxPerTx`, `RecipientNotAllowed`, `InstructionNotAllowed`, `DailyCapExceeded`, `SessionExpired` — see "On-chain 402 substrings"). If the human asks "what's my budget?" or "do I have the kamino_deposit bit?", surface the question — the answer isn't reachable from the agent surface today.
 - Accrued yield (`/v1/yield/position` `accrued` field) is `null` until the exchange-rate decode lands.
 - Curated service catalog (`/v1/spend/service`) may have 0 enabled rows on a fresh deploy — every slug returns `404 "service '<slug>' not in catalog or disabled"`. Until that's seeded, fall back to `/v1/spend/sign-payment` for x402 services in the off-chain URL allowlist.

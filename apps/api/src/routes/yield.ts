@@ -49,8 +49,26 @@ function envPubkey(name: string): PublicKey {
   return new PublicKey(envOrThrow(name));
 }
 
+const KAMINO_ENV_VARS = [
+  "KAMINO_RESERVE",
+  "KAMINO_LENDING_MARKET",
+  "KAMINO_LENDING_MARKET_AUTHORITY",
+  "KAMINO_RESERVE_LIQUIDITY_SUPPLY",
+  "KAMINO_RESERVE_COLLATERAL_MINT",
+] as const;
+
+// T-240: yield deposit/withdraw require all 5 reserve PDAs to be configured.
+// On devnet they aren't — Kamino's public API explicitly does not surface
+// devnet lending markets (`?env=devnet` is silently ignored), and the 100+
+// orphan markets visible via raw RPC are unsupported test deployments. Real
+// wiring lands as part of the mainnet cutover (T-114). Until then this
+// returns a clean 503 YIELD_DISABLED so agents get a stable signal instead
+// of a 500 leaking ops state.
+function isKaminoEnabled(): boolean {
+  return KAMINO_ENV_VARS.every((k) => !!process.env[k]);
+}
+
 function loadKaminoAddrs(): KaminoReserveAddrs {
-  // Per-network constants — populated when T-113 deploys to devnet.
   return {
     reserve: envPubkey("KAMINO_RESERVE"),
     lendingMarket: envPubkey("KAMINO_LENDING_MARKET"),
@@ -120,6 +138,18 @@ function makeKaminoMutationHandler(variant: "deposit" | "withdraw", deps: MakeYi
     const wallet = req.wallet;
     if (!session || !wallet) {
       res.status(401).json({ error: "api key required" });
+      return;
+    }
+
+    if (!isKaminoEnabled()) {
+      res.status(503).json({
+        error: "YIELD_DISABLED",
+        detail:
+          "Yield endpoints are config-gated and not enabled on this environment. " +
+          "Kamino devnet is unsupported by the protocol team (their public API does " +
+          "not surface devnet markets); mainnet wiring is part of the multisig " +
+          "cutover (T-114). Surface to the human; do not retry.",
+      });
       return;
     }
 
