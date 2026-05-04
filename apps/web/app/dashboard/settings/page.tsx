@@ -10,6 +10,7 @@ import { Skeleton } from "@/app/_components/ui/skeleton";
 import { useWalletData } from "@/_hooks/use-wallet";
 import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
 import { useOnChainVault } from "@/_hooks/use-on-chain-vault";
+import { useConfirm } from "@/app/_components/confirm-dialog";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { MAX_BP } from "@/lib/constants";
 
@@ -25,6 +26,7 @@ export default function SettingsPage() {
   const [bp, setBp] = useState<number | null>(null);
   const { run, phase } = useBuildAndSignTx();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   // Emergency drain (T-116 / T-235) is intentionally a separate hook instance
   // so its phase doesn't conflict with the policy slider above.
@@ -153,9 +155,12 @@ export default function SettingsPage() {
                 return;
               }
               const baseUnits = Math.round(usdc * 1_000_000);
-              const ok = window.confirm(
-                `Send ${usdc} USDC to ${drainAddress.trim()}?\n\nThis cannot be undone.`,
-              );
+              const ok = await confirm({
+                title: `Send ${usdc} USDC to ${drainAddress.trim().slice(0, 8)}…${drainAddress.trim().slice(-4)}?`,
+                description: "This bypasses every session policy and cannot be undone. Your Phantom signs the transaction; klink builds it but never holds your key.",
+                confirmText: "Withdraw",
+                destructive: true,
+              });
               if (!ok) return;
               try {
                 const result = await drain.run("/v1/wallet/transfer", "POST", {

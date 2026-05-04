@@ -2,7 +2,8 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useProgress } from "../app/_components/progress-context";
 import { ApiError, api } from "../lib/api-client";
 import { getRpcConnection } from "../lib/on-chain";
 import { type BuildTxResponse, buildTxResponseSchema } from "../lib/schemas";
@@ -25,6 +26,29 @@ export function useBuildAndSignTx() {
     "idle" | "building" | "signing" | "submitting" | "confirming" | "done" | "error"
   >("idle");
   const [error, setError] = useState<BuildAndSignError | null>(null);
+
+  // T-248: auto-register with the global progress bar whenever the hook is
+  // mid-flight. The bar is refcount-driven so multiple concurrent mutations
+  // across the dashboard each contribute a +1 / -1 pair.
+  const progress = useProgress();
+  const endProgressRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const inFlight = phase === "building" || phase === "signing" || phase === "submitting" || phase === "confirming";
+    if (inFlight && !endProgressRef.current) {
+      endProgressRef.current = progress.start();
+    } else if (!inFlight && endProgressRef.current) {
+      endProgressRef.current();
+      endProgressRef.current = null;
+    }
+  }, [phase, progress]);
+  useEffect(() => () => {
+    // Unmount cleanup, defensive against leaks if the component is torn down
+    // mid-flight (route change while a tx is signing, etc).
+    if (endProgressRef.current) {
+      endProgressRef.current();
+      endProgressRef.current = null;
+    }
+  }, []);
 
   const run = useCallback(
     async (

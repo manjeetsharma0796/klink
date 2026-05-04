@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ApiError, api } from "@/lib/api-client";
+import { useConfirm } from "@/app/_components/confirm-dialog";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { ApiKeyRevealModal } from "./api-key-reveal-modal";
 
@@ -25,8 +26,7 @@ export function RotateKeyButton({ sessionId, label, onRotated }: Props) {
   const [busy, setBusy] = useState(false);
   const [revealKey, setRevealKey] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const confirm = `Rotate key for "${label}"? The current API key stops working immediately.`;
+  const confirm = useConfirm();
 
   return (
     <>
@@ -35,7 +35,13 @@ export function RotateKeyButton({ sessionId, label, onRotated }: Props) {
         disabled={busy}
         className="text-xs font-medium text-olive-deep hover:underline disabled:opacity-50"
         onClick={async () => {
-          if (!window.confirm(confirm)) return;
+          const ok = await confirm({
+            title: `Rotate key for "${label}"?`,
+            description: "The current API key stops working immediately. Make sure any agent using it is ready for the new key.",
+            confirmText: "Rotate key",
+            destructive: true,
+          });
+          if (!ok) return;
           setBusy(true);
           try {
             const r = await api.post<{ apiKey: string; keyPrefix: string }>(

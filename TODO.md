@@ -245,7 +245,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 _(newest first)_
 
 ### T-248 — Dashboard: graceful loading bar + themed confirm dialogs (replace native window.confirm)
-- Status: in-progress @Jishnu 2026-05-05
+- Status: done @Jishnu 2026-05-05
 - Depends-on: T-242, T-247
 - OS: any
 - Scope: web
