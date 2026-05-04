@@ -21,7 +21,7 @@ const config: Config = {
       },
       borderRadius: { lg: "0.75rem", md: "0.5rem", sm: "0.375rem" },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["var(--font-manrope)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       keyframes: {
