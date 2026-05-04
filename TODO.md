@@ -152,8 +152,15 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: new `GET /v1/session/me` returning the calling api-key's session config — `max_per_tx`, `daily_cap`, `daily_spent`, `daily_window_start`, `expiry`, `allowed_recipients`, `allowed_instructions` (decoded from the on-chain Session PDA via existing `decodeSessionAccount`). Mirrors what the dashboard sees at `GET /v1/sessions/:id` but scoped to the caller's own session via `req.session.id` from the api-key middleware. Today an agent hit `403`/on-chain-revert errors with no way to introspect its own bounds; T-237 validation flagged this as a real friction point ("agent can only react to failures, can't plan"). Update skill.md to document. Test against the live endpoint via `apps/api/scripts/e2e-dashboard.ts` extension.
-### T-243 — Dodo fiat-in E2E + Standard Webhooks signature + checkout shape fix
+### T-244 — Dodo post-checkout return page + status endpoint
 - Status: in-progress @Manjeet 2026-05-05
+- Depends-on: T-214, T-215, T-243
+- OS: any
+- Scope: api + web
+- Acceptance: customer no longer stranded on Dodo's hosted "Successful" page after paying. Three pieces. (1) `apps/web/app/dashboard/fund/page.tsx` now passes `success_url: ${origin}/dashboard/fund/return` and `cancel_url: ${origin}/dashboard/fund?cancelled=1` on every `POST /v1/fund/dodo-checkout`, and stashes the returned `dodo_session_id` in `sessionStorage` so the return page has the lookup key without depending on whatever Dodo appends to the URL. (2) New `GET /v1/fund/dodo-payment/:sessionId` endpoint (dashboard-JWT, owner-scoped via `dodo_payments.userId`; same 404 for not-found and wrong-owner so existence isn't leaked) returns `{ status, amount_usd, amount_usdc, tx_signature, settled_at }` for the return page to poll. (3) New page `apps/web/app/dashboard/fund/return/page.tsx` reads the session id from URL or sessionStorage, polls the status endpoint every 2s for up to 30s, and renders four states: pending (animated dot + skeletons), settled (amount summary + tx signature + Solana explorer link + 5s auto-redirect to `/dashboard`), failed (retry CTA), and timeout (links to audit log). Falls back to a "no session" view if neither URL nor storage has it (e.g., direct nav). Replay-tested: Dodo redirects after `/checkouts` flow now lands the customer on the new page; webhook → on-chain settlement closes within ~10s and the page flips pending → settled with the on-chain signature visible.
+
+### T-243 — Dodo fiat-in E2E + Standard Webhooks signature + checkout shape fix
+- Status: done @Manjeet 2026-05-05
 - Depends-on: T-214, T-215, T-403
 - OS: any
 - Scope: api + tests
