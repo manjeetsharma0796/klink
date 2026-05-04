@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Topbar pubkey={session.pubkey} />
-        <main className="flex-1 bg-muted/20 px-6 py-8">
+        <main className="flex-1 px-8 py-8">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>

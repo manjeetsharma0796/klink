@@ -5,14 +5,18 @@ interface Props { pubkey: string; }
 
 export function Topbar({ pubkey }: Props) {
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-      <div />
-      <div className="flex items-center gap-3">
-        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-mono text-secondary-foreground">
+    <header className="flex h-20 items-center justify-end gap-3 bg-card px-8">
+      {/* Connected wallet pill, mirrors the landing nav status indicator */}
+      <div className="flex items-center gap-2 rounded-pill bg-primary/15 px-4 py-2 text-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <span className="h-2 w-2 rounded-full bg-sap-green" />
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Connected
+        </span>
+        <span className="font-mono text-xs text-olive-deep">
           {truncatePubkey(pubkey)}
         </span>
-        <SignOutButton />
       </div>
+      <SignOutButton />
     </header>
   );
 }
