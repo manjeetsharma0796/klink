@@ -125,3 +125,13 @@ export const dodoCheckoutResponseSchema = z.object({
   dodo_session_id: z.string(),
 });
 export type DodoCheckoutResponse = z.infer<typeof dodoCheckoutResponseSchema>;
+
+// T-244 — payment status query for the post-checkout return page.
+export const dodoPaymentStatusSchema = z.object({
+  status: z.enum(["pending", "settled", "failed"]),
+  amount_usd: z.number().int(), // cents
+  amount_usdc: z.number().int(), // base units (10^6)
+  tx_signature: z.string().nullable(),
+  settled_at: z.string().nullable(),
+});
+export type DodoPaymentStatus = z.infer<typeof dodoPaymentStatusSchema>;

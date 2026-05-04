@@ -3,7 +3,11 @@ import { requireApiKey } from "./auth/api-key";
 import { requireDashboardJwt } from "./auth/jwt";
 import { siwsHandlers } from "./auth/siws";
 import { getAuditHandler } from "./routes/audit";
-import { postDodoCheckoutHandler, postDodoWebhookHandler } from "./routes/dodo";
+import {
+  getDodoPaymentHandler,
+  postDodoCheckoutHandler,
+  postDodoWebhookHandler,
+} from "./routes/dodo";
 import { getFundDepositAddressHandler } from "./routes/fund";
 import {
   deleteSessionHandler,
@@ -142,6 +146,8 @@ export function createApp(): Express {
   // public + Standard-Webhooks-authed (Dodo can't carry our JWT) and is
   // mounted with its own raw-body parser at the top of this function.
   app.post("/v1/fund/dodo-checkout", requireDashboardJwt, postDodoCheckoutHandler);
+  // T-244 — status read for the return page.
+  app.get("/v1/fund/dodo-payment/:sessionId", requireDashboardJwt, getDodoPaymentHandler);
 
   return app;
 }
