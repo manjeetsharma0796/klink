@@ -2,30 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 160 84% 39%;
-    --radius: 0.75rem;
+    /* klink landing palette (T-242). Hex source of truth lives in
+       Klink-frontend/src/app/globals.css; HSL values below are derived
+       from those hexes so shadcn semantic class names keep working. */
+    --background: 85 47% 85%;            /* mint #DCEAC9 (page body) */
+    --foreground: 0 0% 11%;              /* ink #1C1C1C */
+    --card: 40 50% 98%;                  /* cream #FFFDF8 */
+    --card-foreground: 0 0% 11%;
+    --popover: 40 50% 98%;
+    --popover-foreground: 0 0% 11%;
+    --primary: 88 41% 59%;               /* sap green #9CC36B */
+    --primary-foreground: 90 30% 24%;    /* olive deep #3D4F2A */
+    --secondary: 33 11% 90%;             /* paper #E8E6E2 */
+    --secondary-foreground: 0 0% 11%;
+    --muted: 33 11% 90%;
+    --muted-foreground: 90 22% 38%;      /* olive muted (derived) */
+    --accent: 33 11% 90%;
+    --accent-foreground: 0 0% 11%;
+    --destructive: 9 75% 53%;            /* orange-bright #E54D2E */
+    --destructive-foreground: 40 50% 98%;
+    --border: 30 7% 81%;                 /* paper-2 #D2D0CC */
+    --input: 30 7% 81%;
+    --ring: 88 41% 59%;
+    --radius: 1.25rem;                   /* 20px (was 0.75rem) */
+    --radius-pill: 100px;
   }
 
   * { @apply border-border; }
