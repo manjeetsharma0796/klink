@@ -6,7 +6,7 @@ description: Why Solana transaction history is the source of truth and what off-
 
 # Audit trail
 
-Klink treats the audit trail as a first-class feature. The source of truth is **on-chain Solana transaction history** — every spend, every yield deposit, every revocation is a transaction signed by the program. The off-chain `audit_log` table enriches that with human-readable context.
+Klink treats the audit trail as a first-class feature. The source of truth is **on-chain Solana transaction history**, every spend, every yield deposit, every revocation is a transaction signed by the program. The off-chain `audit_log` table enriches that with human-readable context.
 
 ## What lives where
 
@@ -20,11 +20,11 @@ Klink treats the audit trail as a first-class feature. The source of truth is **
 ## Why on-chain is the source of truth
 
 * **Immutable.** Once a tx confirms, it's settled. The program cannot rewrite history.
-* **Free.** Solana's transaction archive is queryable via any RPC node — no per-record storage cost.
+* **Free.** Solana's transaction archive is queryable via any RPC node: no per-record storage cost.
 * **Public.** The wallet's owner, anyone they share the vault address with, and any auditor can verify the same record.
 * **Survives the backend.** If Klink's backend disappears tomorrow, the on-chain record remains. Spend, yield, and revocation history is recoverable from the chain alone.
 
-Off-chain logs are convenient but lossy — they're a derived view of what the chain already knows.
+Off-chain logs are convenient but lossy, they're a derived view of what the chain already knows.
 
 ## What the off-chain `audit_log` adds
 
@@ -40,7 +40,7 @@ tx_signature NULL,          -- present iff allowed (then submitted)
 created_at
 ```
 
-Critically, the off-chain log records **both `allow` and `deny`** decisions. This makes "the policy blocked X attempts" a queryable, presentable signal — you can see what your agent *tried* to do, not just what it succeeded at. Pure on-chain history would only show successes.
+Critically, the off-chain log records **both `allow` and `deny`** decisions. This makes "the policy blocked X attempts" a queryable, presentable signal, you can see what your agent *tried* to do, not just what it succeeded at. Pure on-chain history would only show successes.
 
 ## Audit deny reasons
 
@@ -56,15 +56,15 @@ Common `audit_log.reason` values when `decision = 'deny'`:
 
 ## Reading the audit trail
 
-* **Dashboard view** — `GET /v1/audit` returns paginated, cursor-ordered entries (filterable by `decision = allow|deny`).
-* **On-chain view** — Use any Solana explorer (Solscan, Solana Beach, Solana Explorer) on the vault address or its USDC ATA. Klink's program emits typed events you can decode against the published IDL.
+* **Dashboard view**: `GET /v1/audit` returns paginated, cursor-ordered entries (filterable by `decision = allow|deny`).
+* **On-chain view**: Use any Solana explorer (Solscan, Solana Beach, Solana Explorer) on the vault address or its USDC ATA. Klink's program emits typed events you can decode against the published IDL.
 
-Both views should agree on the on-chain set. The off-chain view is a **superset** — it includes the denials.
+Both views should agree on the on-chain set. The off-chain view is a **superset**, it includes the denials.
 
 ## What the trail does NOT show
 
 * **Read-only API calls.** A `GET /v1/wallet` doesn't write to `audit_log`. The audit covers state-changing actions.
-* **Off-chain context for on-chain ops not initiated by Klink.** If someone sends USDC directly to the vault's ATA (a fund), it's on-chain visible but doesn't have an off-chain audit row — there's no Klink HTTP request behind it.
+* **Off-chain context for on-chain ops not initiated by Klink.** If someone sends USDC directly to the vault's ATA (a fund), it's on-chain visible but doesn't have an off-chain audit row: there's no Klink HTTP request behind it.
 * **Off-chain decisions on read endpoints.** The audit log is for spend/yield decisions, not for dashboard JWT auth or session-list reads.
 
 ## Implications for the human owner
@@ -73,5 +73,5 @@ You can prove to a stakeholder, an investor, or a future you exactly what an age
 
 ## Read next
 
-* [Policies](policies.md) — the rules that produce `allow` and `deny` decisions
-* [System Overview](../architecture/overview.md) — where the audit log fits in the spend hot path
+* [Policies](policies.md): the rules that produce `allow` and `deny` decisions
+* [System Overview](../architecture/overview.md): where the audit log fits in the spend hot path

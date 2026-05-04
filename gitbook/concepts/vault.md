@@ -26,13 +26,13 @@ struct Vault {
 seeds = ["vault", owner.key()]
 ```
 
-The PDA is fully derivable from the owner's Phantom pubkey. There is no global registry — given any owner pubkey, anyone can compute the vault address.
+The PDA is fully derivable from the owner's Phantom pubkey. There is no global registry, given any owner pubkey, anyone can compute the vault address.
 
 ## Fields
 
 | Field | Type | Meaning |
 |---|---|---|
-| `owner` | `Pubkey` | Human's Phantom pubkey. Master authority — only this key can run owner-only instructions (`set_max_deployed_fraction`, `add_session`, `revoke_session`, `update_session_allowlist`). |
+| `owner` | `Pubkey` | Human's Phantom pubkey. Master authority, only this key can run owner-only instructions (`set_max_deployed_fraction`, `add_session`, `revoke_session`, `update_session_allowlist`). |
 | `max_deployed_fraction_bp` | `u16` | Basis points (0–10000). Hard cap on the fraction of total USDC that may sit in yield at any moment. Adjustable by owner via `set_max_deployed_fraction`. |
 | `deployed_amount` | `u64` | Current USDC deposited in the yield protocol, in base units (1 USDC = 1_000_000). Updated atomically on every `kamino_deposit` / `kamino_withdraw`. |
 | `bump` | `u8` | PDA bump byte. |
@@ -48,7 +48,7 @@ spl_associated_token_account.get_associated_token_address(
 )
 ```
 
-USDC sent to that ATA is owned (in the SPL-token sense) by the vault PDA, which means only the program can move it — and the program only moves it when called via one of its signed instructions.
+USDC sent to that ATA is owned (in the SPL-token sense) by the vault PDA, which means only the program can move it, and the program only moves it when called via one of its signed instructions.
 
 ## Account-creation cost
 
@@ -69,7 +69,7 @@ stateDiagram-v2
     Initialized --> Initialized: transfer_usdc\n(via session signer)
 ```
 
-The vault has no terminal state — there is no "close vault" instruction. The owner key is the master authority for the lifetime of the vault.
+The vault has no terminal state, there is no "close vault" instruction. The owner key is the master authority for the lifetime of the vault.
 
 ## What the vault does NOT contain
 
@@ -79,5 +79,5 @@ The vault has no terminal state — there is no "close vault" instruction. The o
 
 ## Read next
 
-- [Sessions](sessions.md) — the per-agent account that delegates authority
-- [Budgets](budgets.md) — how `max_deployed_fraction_bp` interacts with yield
+- [Sessions](sessions.md): the per-agent account that delegates authority
+- [Budgets](budgets.md): how `max_deployed_fraction_bp` interacts with yield

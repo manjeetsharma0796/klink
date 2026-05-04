@@ -12,7 +12,7 @@ Terms are listed alphabetically. Where a term has a deeper page, the entry links
 
 A fixed-size on-chain list (10 slots) of recipient public keys a session may pay. Any recipient not in the list is rejected by the program. See [Sessions](../concepts/sessions.md).
 
-## ATA — Associated Token Account
+## ATA: Associated Token Account
 
 The conventional address at which an SPL token (like USDC) is held for a given owner. The vault's USDC ATA is derived from the vault PDA and the USDC mint. See `spl-associated-token-account` in the Solana SPL repos.
 
@@ -28,7 +28,7 @@ A 32-bit field on the Session account where each bit gates a specific spending i
 
 A single byte appended to the seeds when deriving a PDA, chosen so the result is off the ed25519 curve. Stored on the account so the program can re-derive without searching.
 
-## CPI — Cross-Program Invocation
+## CPI: Cross-Program Invocation
 
 A Solana program calling into another program. Klink CPIs into the SPL Token Program (for `transfer_usdc`) and the configured yield protocol (for `kamino_deposit` / `kamino_withdraw`), with hardcoded program IDs at every site.
 
@@ -48,7 +48,7 @@ Solana's developer test network. Klink targets devnet during the public beta; ma
 
 Solana's built-in transaction history, treated by Klink as the source of truth for spend / yield / revocation history. See [Audit Trail](../concepts/audit-trail.md).
 
-## PDA — Program Derived Address
+## PDA: Program Derived Address
 
 A Solana account address derived from seeds + program ID, with no associated private key. The Anchor program signs for it via `invoke_signed`. Klink's Vault and Session accounts are PDAs.
 
@@ -64,7 +64,7 @@ A per-agent on-chain account that delegates a bounded slice of the vault's autho
 
 The Solana keypair the backend holds for each session. Stored encrypted (AES-256-GCM) at rest. Signs every spend tx.
 
-## SIWS — Sign-In With Solana
+## SIWS: Sign-In With Solana
 
 The human auth flow: server issues a nonce, Phantom signs a message containing the nonce, server verifies and issues a JWT. Replaces username/password.
 

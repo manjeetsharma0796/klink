@@ -1,7 +1,7 @@
 ---
 icon: key-round
 title: Sessions
-description: Per-agent on-chain Session account — delegated authority with caps, allowlists, expiry, and a typed-instruction bitmap
+description: Per-agent on-chain Session account, delegated authority with caps, allowlists, expiry, and a typed-instruction bitmap
 ---
 
 # Sessions
@@ -46,8 +46,8 @@ The session PDA is derived from the vault and the session's public key. The sess
 | 0 | `transfer_usdc` | Pay an address from `allowed_recipients` |
 | 1 | `kamino_deposit` | Deposit USDC to the curated USDC reserve |
 | 2 | `kamino_withdraw` | Withdraw USDC from the reserve back to the vault |
-| 3 | reserved (swap, future) | — |
-| 4–31 | reserved | — |
+| 3 | reserved (swap, future) |, |
+| 4–31 | reserved |, |
 
 `allowed_instructions = 0b0000_0111` enables transfer + deposit + withdraw. `allowed_instructions = 0b0000_0001` is a transfer-only session. `allowed_instructions = 0` is a read-only session that cannot move funds at all.
 
@@ -60,7 +60,7 @@ Every Klink instruction that does a CPI hardcodes the destination program ID:
 * `transfer_usdc` → SPL Token Program (hardcoded)
 * `kamino_deposit` / `kamino_withdraw` → curated yield protocol (hardcoded)
 
-The wallet program will not dispatch to any other program for these operations. Adding a new protocol requires a program upgrade, gated by the multisig upgrade authority. The bitmap therefore lists *typed instructions* rather than *program addresses*, because the program ID is structural — not data.
+The wallet program will not dispatch to any other program for these operations. Adding a new protocol requires a program upgrade, gated by the multisig upgrade authority. The bitmap therefore lists *typed instructions* rather than *program addresses*, because the program ID is structural, not data.
 
 ## Lifecycle
 
@@ -72,9 +72,9 @@ stateDiagram-v2
     Revoked --> [*]: rent refunded to owner
 ```
 
-* **add_session** (owner-signed) — registers a new session. Backend generates the keypair, encrypts the secret, builds the tx for the human's Phantom to sign.
-* **update_session_allowlist** (owner-signed) — mutates `allowed_recipients` or `allowed_instructions` post-creation via `Add | Remove | Set` actions.
-* **revoke_session** (owner-signed) — closes the session account, refunds rent. Works without the backend; the human can sign directly from Phantom in an emergency.
+* **add_session** (owner-signed): registers a new session. Backend generates the keypair, encrypts the secret, builds the tx for the human's Phantom to sign.
+* **update_session_allowlist** (owner-signed): mutates `allowed_recipients` or `allowed_instructions` post-creation via `Add | Remove | Set` actions.
+* **revoke_session** (owner-signed): closes the session account, refunds rent. Works without the backend; the human can sign directly from Phantom in an emergency.
 
 ## Daily-cap rolling window
 
@@ -92,7 +92,7 @@ This avoids the "midnight burst" attack pattern where a compromised session wait
 
 ## Recipient allowlist
 
-`allowed_recipients` is a **fixed array of 10 Pubkey slots**. Unused slots hold `Pubkey::default()`. The MVP does not support dynamic-size allowlists — adding an 11th recipient requires picking one to remove.
+`allowed_recipients` is a **fixed array of 10 Pubkey slots**. Unused slots hold `Pubkey::default()`. The MVP does not support dynamic-size allowlists, adding an 11th recipient requires picking one to remove.
 
 `allowed_recipients_count` tracks how many slots are filled; the program rejects any recipient not in the first `allowed_recipients_count` entries.
 
@@ -112,5 +112,5 @@ Sponsorable by the backend at creation time. Refunded to the vault owner on revo
 
 ## Read next
 
-* [Policies](policies.md) — how on-chain limits compose with off-chain rules
-* [Budgets](budgets.md) — `max_per_tx`, `daily_cap`, `max_deployed_fraction_bp`
+* [Policies](policies.md): how on-chain limits compose with off-chain rules
+* [Budgets](budgets.md): `max_per_tx`, `daily_cap`, `max_deployed_fraction_bp`

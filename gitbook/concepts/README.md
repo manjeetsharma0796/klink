@@ -1,6 +1,6 @@
 ---
 title: Concepts
-description: Section index for Klink's vocabulary — vault, session, policy, budgets, audit, yield
+description: Section index for Klink's vocabulary, vault, session, policy, budgets, audit, yield
 ---
 
 # Concepts

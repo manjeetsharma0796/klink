@@ -20,9 +20,9 @@ A non-custodial smart-wallet for AI agents:
 
 - The **human owner** holds a Phantom keypair. They configure policy, fund the wallet, and can revoke any session in seconds.
 - The **backend** holds a session keypair (encrypted at rest) that co-signs every spend, subject to on-chain rules.
-- The **agent** holds nothing but an HTTP API key — zero on-chain authority. Even if the agent is fully compromised, the worst it can do is operate within the session's bounds.
+- The **agent** holds nothing but an HTTP API key, zero on-chain authority. Even if the agent is fully compromised, the worst it can do is operate within the session's bounds.
 
-The rules — caps, allowlists, expiry, deployed-fraction — are enforced by an Anchor program on Solana. The chain reverts any spend that violates them. Off-chain, richer rules (URL allowlists, time-of-day windows) layer above.
+The rules, caps, allowlists, expiry, deployed-fraction, are enforced by an Anchor program on Solana. The chain reverts any spend that violates them. Off-chain, richer rules (URL allowlists, time-of-day windows) layer above.
 
 Solana transaction history is the audit trail by default. Free to query, immutable, no log files to tamper with.
 
@@ -34,7 +34,7 @@ Solana transaction history is the audit trail by default. Free to query, immutab
 | **Backend** | Session keypair | Encrypted at rest with AES-256-GCM |
 | **Agent** | Bearer API key | The agent's environment (`AGENT_API_KEY=…`) |
 
-The trust boundary is the backend. **The agent never crosses below it** — it talks HTTP to the backend, never directly to Solana, and never holds a Solana keypair.
+The trust boundary is the backend. **The agent never crosses below it**, it talks HTTP to the backend, never directly to Solana, and never holds a Solana keypair.
 
 ## Three layers
 
@@ -75,7 +75,7 @@ flowchart LR
 
 | Layer | Tech | Responsibility |
 |---|---|---|
-| **On-chain** (Anchor `agent_wallet`) | Rust, Anchor 1.0, Solana 3.x | USDC custody. Hard policy floor — reverts on cap, allowlist, expiry, or deployed-fraction violations. Hardcoded program IDs at every CPI site. |
+| **On-chain** (Anchor `agent_wallet`) | Rust, Anchor 1.0, Solana 3.x | USDC custody. Hard policy floor, reverts on cap, allowlist, expiry, or deployed-fraction violations. Hardcoded program IDs at every CPI site. |
 | **Control plane** (backend) | Node 20 / Bun, TypeScript, HTTP API, relational DB, in-memory cache | API surface, off-chain rich rules (URL allowlist, time-of-day), session-keypair signing, treasury bridge for fiat-in, audit-log enrichment. Stateless. |
 | **Edge** | Phantom (human), session keypair (backend), bearer API key (agent) | Authentication and tx-signing entry points. |
 
@@ -83,9 +83,9 @@ flowchart LR
 
 | Credential | If leaked | Recovery |
 |---|---|---|
-| Owner key (Phantom) | Total loss — same as any Solana wallet | None at protocol level (the owner is the master) |
-| Session keypair | Bounded — capped by `daily_cap × time-to-revoke`; restricted by recipient + program allowlists | Owner signs `revoke_session` from Phantom — works without the backend |
-| API key | Zero direct on-chain risk — worst case attacker operates within session bounds | Backend disables the API key (immediate) |
+| Owner key (Phantom) | Total loss, same as any Solana wallet | None at protocol level (the owner is the master) |
+| Session keypair | Bounded, capped by `daily_cap × time-to-revoke`; restricted by recipient + program allowlists | Owner signs `revoke_session` from Phantom, works without the backend |
+| API key | Zero direct on-chain risk, worst case attacker operates within session bounds | Backend disables the API key (immediate) |
 
 ## The spend hot path
 
@@ -128,13 +128,13 @@ Every owner-authority action (create vault, set deployed-fraction cap, add sessi
 | You're building | Klink gives you |
 |---|---|
 | An agent that pays for APIs | Per-tx + per-day caps, recipient allowlist, time-of-day windows. Signed by a session keypair the agent never holds. |
-| An agent that needs to be auditable | Solana tx history as source of truth — no log tampering, no selective deletion, queryable from any RPC. |
+| An agent that needs to be auditable | Solana tx history as source of truth, no log tampering, no selective deletion, queryable from any RPC. |
 | An agent with idle USDC | Manual deposits to a curated USDC reserve, with an on-chain over-deployment cap. |
 | A team that needs revoke-on-incident | Owner-signed `revoke_session` from Phantom. ~5s, ~$0.0001. Works without the backend. |
 
 ## Why Solana
 
-Klink's core idea — policy living *inside* the account — works because of how Solana is built:
+Klink's core idea, policy living *inside* the account, works because of how Solana is built:
 
 - **Account model + PDAs.** A wallet that owns its policy is the natural pattern, not a workaround.
 - **Cheap compute.** Running policy checks on every spend is feasible without per-tx fees blowing up.
@@ -143,7 +143,7 @@ Klink's core idea — policy living *inside* the account — works because of ho
 
 ## Read next
 
-- **[Quickstart](../getting-started/quickstart.md)** — hands-on walkthrough
-- **[Concepts → Overview](../concepts/overview.md)** — vocabulary you'll see across these docs
-- **[Architecture](../architecture/overview.md)** — fuller diagrams
-- **[Roadmap](../resources/roadmap.md)** — what's available today, what's next
+- **[Quickstart](../getting-started/quickstart.md)**: hands-on walkthrough
+- **[Concepts → Overview](../concepts/overview.md)**: vocabulary you'll see across these docs
+- **[Architecture](../architecture/overview.md)**: fuller diagrams
+- **[Roadmap](../resources/roadmap.md)**: what's available today, what's next

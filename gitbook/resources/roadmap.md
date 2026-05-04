@@ -40,9 +40,9 @@ Klink is in **public beta on Solana devnet**. The on-chain program enforces ever
 
 Mainnet deploy is gated on:
 
-1. **External program audit** — at least one credible reviewer signs off on the program.
-2. **Internal threat-model walkthrough** — every row of the [Risks & Disclosures](risks.md) table confirmed implemented, not just documented.
-3. **Secrets rotation runbook** — tested end-to-end.
+1. **External program audit**: at least one credible reviewer signs off on the program.
+2. **Internal threat-model walkthrough**: every row of the [Risks & Disclosures](risks.md) table confirmed implemented, not just documented.
+3. **Secrets rotation runbook**: tested end-to-end.
 4. **Treasury float at minimum viable** during the staged rollout.
 
 ## Deliberately deferred
@@ -61,7 +61,7 @@ These are explicitly **not** in the current release, listed here so it's clear t
 | **Mobile / React Native bindings** | TypeScript-first |
 | **Multi-sig recovery, social recovery** | "Owner pubkey is master" in the current release |
 | **KMS migration for secrets** | Environment-based encryption today; runbook for rotation already documented |
-| **Dynamic-size allowlists** | Fixed 10 slots in the current release — keeps account size predictable |
+| **Dynamic-size allowlists** | Fixed 10 slots in the current release, keeps account size predictable |
 
 ## Adding a new yield protocol
 
@@ -72,9 +72,9 @@ This is a structural decision worth calling out: the wallet program **hardcodes 
 3. Hardcoded program ID at the CPI invocation
 4. Program upgrade gated by the multisig upgrade authority
 
-The bitmap lists *typed instructions* rather than *program addresses* by design — the program ID is structural, not data. New protocols are a deliberate, audited change, not a runtime knob.
+The bitmap lists *typed instructions* rather than *program addresses* by design, the program ID is structural, not data. New protocols are a deliberate, audited change, not a runtime knob.
 
 ## Read next
 
-* [Risks & Disclosures](risks.md) — what's not yet in place and why
-* [FAQ](faq.md) — common questions about scope
+* [Risks & Disclosures](risks.md): what's not yet in place and why
+* [FAQ](faq.md): common questions about scope
