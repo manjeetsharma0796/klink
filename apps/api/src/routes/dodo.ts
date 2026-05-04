@@ -97,14 +97,24 @@ export interface DodoSession {
 }
 
 /**
- * Wraps a single call to Dodo's "create checkout session" endpoint. Defaulted
- * to a real `fetch` against `DODO_API_BASE_URL`; tests inject a stub. Kept
- * thin on purpose so the surface to mock is small.
+ * Wraps a single call to Dodo's checkout-create endpoint. Defaulted to a real
+ * `fetch` against `DODO_API_BASE_URL`; tests inject a stub. Kept thin on
+ * purpose so the surface to mock is small.
+ *
+ * T-243 fix: previously called `/checkout/sessions` with a flat
+ * `{ amount, currency }` body and parsed `{ id, url }` from the response —
+ * none of those exist in Dodo's actual API. The real endpoint is `/checkouts`,
+ * the body needs `product_cart` + `customer`, and the response is keyed
+ * `{ session_id, checkout_url }`. Latent since T-214 shipped — every dashboard
+ * fund-page checkout returned 502 until this landed.
  */
 export type CreateDodoSession = (input: {
   amountUsdCents: number;
   walletId: string;
   userId: string;
+  /** Synthesized from the SIWS user record; Dodo requires a customer block. */
+  customerEmail: string;
+  customerName: string;
   successUrl?: string;
   cancelUrl?: string;
 }) => Promise<DodoSession>;
@@ -112,17 +122,28 @@ export type CreateDodoSession = (input: {
 const defaultCreateDodoSession: CreateDodoSession = async (input) => {
   const apiBase = envOrThrow("DODO_API_BASE_URL").replace(/\/$/, "");
   const apiKey = envOrThrow("DODO_API_KEY");
-  const resp = await fetch(`${apiBase}/checkout/sessions`, {
+  // One canonical pay-what-you-want product; per-checkout amount lives on the
+  // cart line item. See `docs/runbooks/dodo-product-setup.md` if/when added.
+  const productId = envOrThrow("DODO_PRODUCT_ID");
+  const resp = await fetch(`${apiBase}/checkouts`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      amount: input.amountUsdCents,
-      currency: "USD",
-      success_url: input.successUrl,
-      cancel_url: input.cancelUrl,
+      product_cart: [
+        {
+          product_id: productId,
+          quantity: 1,
+          amount: input.amountUsdCents,
+        },
+      ],
+      customer: {
+        email: input.customerEmail,
+        name: input.customerName,
+      },
+      return_url: input.successUrl,
       metadata: { wallet_id: input.walletId, user_id: input.userId },
     }),
   });
@@ -130,11 +151,11 @@ const defaultCreateDodoSession: CreateDodoSession = async (input) => {
     const detail = await resp.text();
     throw new Error(`dodo session create failed: ${resp.status} ${detail.slice(0, 200)}`);
   }
-  const json = (await resp.json()) as { id?: string; url?: string };
-  if (!json.id || !json.url) {
-    throw new Error("dodo session response missing id or url");
+  const json = (await resp.json()) as { session_id?: string; checkout_url?: string | null };
+  if (!json.session_id || !json.checkout_url) {
+    throw new Error("dodo session response missing session_id or checkout_url");
   }
-  return { id: json.id, url: json.url };
+  return { id: json.session_id, url: json.checkout_url };
 };
 
 export interface MakePostDodoCheckoutDeps {
@@ -175,12 +196,24 @@ export function makePostDodoCheckoutHandler(deps: MakePostDodoCheckoutDeps = {})
     // USDC has 6 decimals; $1 == 1_000_000 base units.
     const amountUsdc = body.amount_usd * 1_000_000;
 
+    // Dodo requires a customer block on every checkout. SIWS doesn't collect
+    // email, so we synthesize one from the user id (uuid → looks like email)
+    // and use the Phantom pubkey prefix as the display name. Any real email
+    // collection (profile flow, etc.) should land later as a follow-up.
+    const userPubkey = (req.user as { pubkey?: string } | undefined)?.pubkey;
+    const customerEmail = `${userId}@klink.local`;
+    const customerName = userPubkey
+      ? `klink-${userPubkey.slice(0, 8)}`
+      : `klink-${userId.slice(0, 8)}`;
+
     let session: DodoSession;
     try {
       session = await createSession({
         amountUsdCents,
         walletId: wallet.id,
         userId,
+        customerEmail,
+        customerName,
         successUrl: body.success_url,
         cancelUrl: body.cancel_url,
       });
@@ -232,24 +265,97 @@ export interface DodoWebhookEvent {
 }
 
 /**
- * Timing-safe HMAC-SHA256 verification. `signatureHeader` is the hex digest
- * Dodo sends in the configured signature header (e.g. `X-Dodo-Signature`).
+ * Verifies a Dodo Payments webhook using the [Standard Webhooks](https://www.standardwebhooks.com/)
+ * scheme that Dodo follows (confirmed by docs + the `whsec_` prefix on the
+ * live secret).
+ *
+ * Dodo sends three headers:
+ *   `webhook-id`        — opaque event id, e.g. `msg_2pBe...`
+ *   `webhook-timestamp` — Unix seconds as a string
+ *   `webhook-signature` — one or more space-separated `v<n>,<base64>` tokens
+ *
+ * The HMAC key is the live secret with the `whsec_` prefix stripped and the
+ * remainder base64-decoded. The signed payload is the literal byte string
+ * `${webhook-id}.${webhook-timestamp}.${rawBody}`. We accept any v1 token in
+ * the multi-sig header (key-rotation cutover support); `v0`, `v2`, etc. are
+ * ignored. A ±300s replay window guards against captured-then-resent events.
+ *
+ * Found by T-236 — T-215's original tests signed-and-verified with a custom
+ * HMAC scheme that didn't match what Dodo actually sends, so live signatures
+ * were rejected on every attempt.
  */
-export function verifyDodoSignature(
-  rawBody: Buffer,
-  signatureHeader: string | undefined,
-  secret: string,
-): boolean {
-  if (!signatureHeader || typeof signatureHeader !== "string") return false;
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  // Hex strings are equal-length when the algorithm matches; if a caller sends
-  // a different-length string treat as mismatch (timingSafeEqual would throw).
-  if (signatureHeader.length !== expected.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(signatureHeader, "hex"), Buffer.from(expected, "hex"));
-  } catch {
-    return false;
+export interface VerifyDodoOpts {
+  rawBody: Buffer;
+  webhookId: string | undefined;
+  webhookTimestamp: string | undefined;
+  webhookSignature: string | undefined;
+  secret: string;
+  /** Replay window in seconds. Defaults to 300 (Standard Webhooks default). */
+  toleranceSeconds?: number;
+  /** Injectable clock; returns Unix seconds. Defaults to `Date.now()/1000`. */
+  now?: () => number;
+}
+
+const DEFAULT_TOLERANCE_SEC = 300;
+
+export function verifyDodoSignature(opts: VerifyDodoOpts): boolean {
+  const { rawBody, webhookId, webhookTimestamp, webhookSignature, secret } = opts;
+  const tolerance = opts.toleranceSeconds ?? DEFAULT_TOLERANCE_SEC;
+  const now = opts.now ?? (() => Math.floor(Date.now() / 1000));
+
+  if (!webhookId || !webhookTimestamp || !webhookSignature) return false;
+
+  const ts = Number.parseInt(webhookTimestamp, 10);
+  if (!Number.isFinite(ts)) return false;
+  if (Math.abs(now() - ts) > tolerance) return false;
+
+  const keyBytes = decodeWebhookSecret(secret);
+  if (!keyBytes) return false;
+
+  const signedPayload = Buffer.concat([
+    Buffer.from(webhookId, "utf8"),
+    Buffer.from(".", "utf8"),
+    Buffer.from(webhookTimestamp, "utf8"),
+    Buffer.from(".", "utf8"),
+    rawBody,
+  ]);
+  const expected = createHmac("sha256", keyBytes).update(signedPayload).digest();
+
+  // Header is whitespace-separated `v<n>,<b64>` tokens. Accept on first v1 match.
+  for (const token of webhookSignature.split(/\s+/).filter(Boolean)) {
+    const comma = token.indexOf(",");
+    if (comma <= 0 || comma === token.length - 1) continue;
+    const version = token.slice(0, comma);
+    const b64 = token.slice(comma + 1);
+    if (version !== "v1") continue;
+    let sig: Buffer;
+    try {
+      sig = Buffer.from(b64, "base64");
+    } catch {
+      continue;
+    }
+    if (sig.length !== expected.length) continue;
+    try {
+      if (timingSafeEqual(sig, expected)) return true;
+    } catch {
+      // fall through to next token
+    }
   }
+  return false;
+}
+
+/**
+ * Strip the `whsec_` prefix (if present) and base64-decode the remainder to
+ * produce the raw HMAC key. Returns `null` if the secret is empty or decodes
+ * to zero bytes — both indicate an unconfigured / corrupted secret rather than
+ * something we should silently HMAC against.
+ */
+function decodeWebhookSecret(secret: string): Buffer | null {
+  if (!secret) return null;
+  const stripped = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  if (!stripped) return null;
+  const buf = Buffer.from(stripped, "base64");
+  return buf.length > 0 ? buf : null;
 }
 
 export type ConnectionFactory = () => Connection;
@@ -279,17 +385,31 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
       return;
     }
 
-    // The webhook route is mounted with express.json({ verify: capture rawBody })
-    // so HMAC sees the exact bytes Dodo signed.
-    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+    // The webhook route is mounted with `express.raw({ type: () => true })`
+    // (see app.ts) so req.body is a Buffer of the exact bytes Dodo signed,
+    // regardless of Content-Type. The legacy `req.rawBody` capture still works
+    // for callers that mounted the route with the old express.json verify
+    // hook (T-215 unit tests use that path via injected fixtures).
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : (req as Request & { rawBody?: Buffer }).rawBody;
     if (!rawBody) {
       console.error("[POST /v1/webhooks/dodo] rawBody missing — middleware misconfigured");
       res.status(500).json({ error: "server misconfigured" });
       return;
     }
 
-    const sigHeader = req.header("x-dodo-signature");
-    if (!verifyDodoSignature(rawBody, sigHeader, secret)) {
+    // Standard Webhooks (Dodo Payments) — three headers carry the signature
+    // material; verifyDodoSignature handles missing/expired/mismatched cases
+    // and returns false for any auth failure.
+    const ok = verifyDodoSignature({
+      rawBody,
+      webhookId: req.header("webhook-id"),
+      webhookTimestamp: req.header("webhook-timestamp"),
+      webhookSignature: req.header("webhook-signature"),
+      secret,
+    });
+    if (!ok) {
       res.status(401).json({ error: "invalid signature" });
       return;
     }
