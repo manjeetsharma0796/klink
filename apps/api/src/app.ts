@@ -146,8 +146,10 @@ export function createApp(): Express {
   // public + Standard-Webhooks-authed (Dodo can't carry our JWT) and is
   // mounted with its own raw-body parser at the top of this function.
   app.post("/v1/fund/dodo-checkout", requireDashboardJwt, postDodoCheckoutHandler);
-  // T-244 — status read for the return page.
-  app.get("/v1/fund/dodo-payment/:sessionId", requireDashboardJwt, getDodoPaymentHandler);
+  // T-244/T-245 — payment status read for the return page (and audit). The
+  // path param can be either Dodo's checkout session id (cks_...) or its
+  // payment id (pay_...) — handler dispatches based on prefix.
+  app.get("/v1/fund/dodo-payment/:id", requireDashboardJwt, getDodoPaymentHandler);
 
   return app;
 }

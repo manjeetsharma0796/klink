@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { getDb } from "../db/client";
-import { auditLog, wallets } from "../db/schema";
+import { auditLog, dodoPayments, wallets } from "../db/schema";
 
 /**
  * `GET /v1/audit?cursor=<id>&limit=<n>&decision=allow|deny|all` — T-216.
@@ -82,6 +82,9 @@ export async function getAuditHandler(req: Request, res: Response): Promise<void
     conditions.push(eq(auditLog.decision, q.decision));
   }
 
+  // T-245 — LEFT JOIN dodo_payments so fund_dodo rows can carry the hosted
+  // invoice URL + Dodo's session/payment ids. Other action types just get
+  // null on those columns (they don't carry a dodoPaymentId FK).
   const rows = await db
     .select({
       id: auditLog.id,
@@ -94,8 +97,13 @@ export async function getAuditHandler(req: Request, res: Response): Promise<void
       reason: auditLog.reason,
       txSignature: auditLog.txSignature,
       createdAt: auditLog.createdAt,
+      dodoPaymentId: auditLog.dodoPaymentId,
+      dodoSessionId: dodoPayments.dodoSessionId,
+      dodoInvoiceUrl: dodoPayments.invoiceUrl,
+      dodoPaymentIdExternal: dodoPayments.paymentId,
     })
     .from(auditLog)
+    .leftJoin(dodoPayments, eq(auditLog.dodoPaymentId, dodoPayments.id))
     .where(and(...conditions))
     .orderBy(desc(auditLog.id))
     .limit(q.limit + 1);

@@ -95,27 +95,9 @@ export const serviceCatalog = pgTable("service_catalog", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const auditLog = pgTable("audit_log", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  walletId: uuid("wallet_id").references(() => wallets.id, { onDelete: "cascade" }),
-  // session_id null when the action wasn't session-scoped (e.g. fund_dodo)
-  sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
-  // e.g. "spend_transfer", "pay_service", "kamino_deposit", "fund_dodo"
-  action: varchar("action", { length: 64 }).notNull(),
-  // USDC base units; null for non-spend actions
-  amount: bigint("amount", { mode: "number" }),
-  recipientOrUrl: text("recipient_or_url"),
-  decision: auditDecisionEnum("decision").notNull(),
-  // short reason code (e.g. "URL_NOT_ALLOWED", "OUTSIDE_TIME_WINDOW")
-  reason: text("reason"),
-  // Solana tx signature when decision == allow and on-chain submission succeeded
-  txSignature: varchar("tx_signature", { length: 100 }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const dodoPayments = pgTable("dodo_payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // Dodo's session id — used as the idempotency key for webhooks
+  // Dodo's checkout session id (cks_...) — used as idempotency key for webhooks
   dodoSessionId: varchar("dodo_session_id", { length: 255 }).notNull().unique(),
   userId: uuid("user_id")
     .notNull()
@@ -130,8 +112,37 @@ export const dodoPayments = pgTable("dodo_payments", {
   status: dodoPaymentStatusEnum("status").notNull().default("pending"),
   // signature of the treasury → vault transfer when status = settled
   treasuryTxSignature: varchar("treasury_tx_signature", { length: 100 }),
+  // T-245 — Dodo payment id (pay_...) is what gets appended to the redirect URL
+  // and is also the lookup key for the hosted invoice. Captured from the
+  // payment.succeeded webhook event.
+  paymentId: varchar("payment_id", { length: 100 }),
+  invoiceId: varchar("invoice_id", { length: 100 }),
+  invoiceUrl: text("invoice_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true }),
+});
+
+export const auditLog = pgTable("audit_log", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  walletId: uuid("wallet_id").references(() => wallets.id, { onDelete: "cascade" }),
+  // session_id null when the action wasn't session-scoped (e.g. fund_dodo)
+  sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+  // T-245 — populated for action=fund_dodo so the audit page can join back to
+  // the dodo_payments row and surface the invoice URL.
+  dodoPaymentId: uuid("dodo_payment_id").references(() => dodoPayments.id, {
+    onDelete: "set null",
+  }),
+  // e.g. "spend_transfer", "pay_service", "kamino_deposit", "fund_dodo"
+  action: varchar("action", { length: 64 }).notNull(),
+  // USDC base units; null for non-spend actions
+  amount: bigint("amount", { mode: "number" }),
+  recipientOrUrl: text("recipient_or_url"),
+  decision: auditDecisionEnum("decision").notNull(),
+  // short reason code (e.g. "URL_NOT_ALLOWED", "OUTSIDE_TIME_WINDOW")
+  reason: text("reason"),
+  // Solana tx signature when decision == allow and on-chain submission succeeded
+  txSignature: varchar("tx_signature", { length: 100 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const treasuryDisbursements = pgTable("treasury_disbursements", {

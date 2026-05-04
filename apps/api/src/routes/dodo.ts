@@ -263,13 +263,20 @@ export function makeGetDodoPaymentHandler() {
       res.status(401).json({ error: "auth required" });
       return;
     }
-    const sessionId = req.params.sessionId;
-    if (!sessionId || typeof sessionId !== "string") {
-      res.status(400).json({ error: "session_id required" });
+    // T-245 — accept either Dodo's checkout session id (cks_...) or its
+    // payment id (pay_...). The dashboard stashes the session id in
+    // sessionStorage before redirecting to Dodo; Dodo's redirect URL appends
+    // payment_id. Either should resolve to the same dodo_payments row.
+    const id = req.params.id ?? req.params.sessionId;
+    if (!id || typeof id !== "string") {
+      res.status(400).json({ error: "id required (session_id or payment_id)" });
       return;
     }
 
     const db = getDb();
+    const matchExpr = id.startsWith("pay_")
+      ? eq(dodoPayments.paymentId, id)
+      : eq(dodoPayments.dodoSessionId, id);
     const [payment] = await db
       .select({
         status: dodoPayments.status,
@@ -277,10 +284,13 @@ export function makeGetDodoPaymentHandler() {
         amountUsdc: dodoPayments.amountUsdc,
         treasuryTxSignature: dodoPayments.treasuryTxSignature,
         settledAt: dodoPayments.settledAt,
+        paymentId: dodoPayments.paymentId,
+        invoiceId: dodoPayments.invoiceId,
+        invoiceUrl: dodoPayments.invoiceUrl,
         userId: dodoPayments.userId,
       })
       .from(dodoPayments)
-      .where(eq(dodoPayments.dodoSessionId, sessionId))
+      .where(matchExpr)
       .limit(1);
 
     // Same 404 for "not found" and "wrong owner" — don't leak existence.
@@ -294,6 +304,9 @@ export function makeGetDodoPaymentHandler() {
       amount_usd: payment.amountUsd, // cents
       amount_usdc: payment.amountUsdc, // base units (10^6)
       tx_signature: payment.treasuryTxSignature ?? null,
+      payment_id: payment.paymentId ?? null,
+      invoice_id: payment.invoiceId ?? null,
+      invoice_url: payment.invoiceUrl ?? null,
       settled_at: payment.settledAt?.toISOString() ?? null,
     });
   };
@@ -309,9 +322,17 @@ export interface DodoWebhookEvent {
   /** Event type — only "payment.succeeded" triggers disbursement. */
   type: string;
   data: {
-    /** This is the dodo_session_id used as the idempotency key. */
-    id: string;
-    /** "paid" | "open" | "expired" — only "paid" should disburse. */
+    /**
+     * Dodo's checkout-session id (`cks_...`). Present on payment.* events;
+     * this is what we match against `dodo_payments.dodoSessionId`.
+     */
+    checkout_session_id?: string;
+    /** Dodo's payment id (`pay_...`). Captured for invoice lookup + redirect URL parity. */
+    payment_id?: string;
+    /** Invoice metadata captured on settlement — surfaced via the return page + audit log. */
+    invoice_id?: string;
+    invoice_url?: string;
+    /** "paid" | "succeeded" | "open" | "expired" — only "paid"/"succeeded" should disburse. */
     status?: string;
     amount?: number;
     currency?: string;
@@ -476,15 +497,25 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
       return;
     }
 
-    if (!event?.data?.id || typeof event.data.id !== "string") {
-      res.status(400).json({ error: "event.data.id required" });
+    // T-245 — Dodo's payment.succeeded events carry `data.checkout_session_id`
+    // (the cks_... we stored as dodoSessionId), NOT a generic `data.id` field.
+    // The original handler queried by data.id and silently 0-rowed every real
+    // payment, leaving every fund_dodo flow stuck at status=pending forever.
+    const sessionId = event?.data?.checkout_session_id;
+    if (!sessionId || typeof sessionId !== "string") {
+      // Some Dodo event types (subscription.*, dispute.*, license.*) don't
+      // carry a checkout_session_id — they're outside the fund-in flow we
+      // care about. Acknowledge and move on.
+      res.status(200).json({ status: "ignored", reason: "no_checkout_session_id" });
       return;
     }
 
-    // Only process the "paid" terminal state. Other events (open, expired,
-    // failed) are acknowledged with 200 so Dodo stops retrying — but we
-    // record nothing on-chain.
-    const isPaid = event.type === "payment.succeeded" || event.data.status === "paid";
+    // Only process the terminal-paid state. Other events (open, expired,
+    // failed, processing) are acknowledged with 200 so Dodo stops retrying.
+    const isPaid =
+      event.type === "payment.succeeded" ||
+      event.data.status === "paid" ||
+      event.data.status === "succeeded";
     if (!isPaid) {
       res.status(200).json({ status: "ignored", type: event.type });
       return;
@@ -502,14 +533,12 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
         status: dodoPayments.status,
       })
       .from(dodoPayments)
-      .where(eq(dodoPayments.dodoSessionId, event.data.id))
+      .where(eq(dodoPayments.dodoSessionId, sessionId))
       .limit(1);
     if (!payment) {
       // Dodo sent us a session we never created. Treat as success-noop so
       // they stop retrying; log loud so ops can investigate.
-      console.error(
-        `[POST /v1/webhooks/dodo] unknown session id ${event.data.id} — orphan webhook`,
-      );
+      console.error(`[POST /v1/webhooks/dodo] unknown session id ${sessionId} — orphan webhook`);
       res.status(200).json({ status: "unknown_session" });
       return;
     }
@@ -579,10 +608,16 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
       // Dodo retries (we'll see the failed status and ignore on replay).
       await db
         .update(dodoPayments)
-        .set({ status: "failed" })
+        .set({
+          status: "failed",
+          paymentId: event.data.payment_id ?? null,
+          invoiceId: event.data.invoice_id ?? null,
+          invoiceUrl: event.data.invoice_url ?? null,
+        })
         .where(eq(dodoPayments.id, payment.id));
       await db.insert(auditLog).values({
         walletId: payment.walletId,
+        dodoPaymentId: payment.id,
         action: "fund_dodo",
         amount: payment.amountUsdc,
         decision: "deny",
@@ -592,13 +627,19 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
       return;
     }
 
-    // Settled. Record in three places: dodo_payments status + tx, treasury_disbursements, audit_log.
+    // Settled. Record in three places: dodo_payments status + tx + invoice
+    // metadata, treasury_disbursements, audit_log. T-245 captures payment_id /
+    // invoice_id / invoice_url so the return page + audit row can render the
+    // hosted-invoice download CTA later.
     await db
       .update(dodoPayments)
       .set({
         status: "settled",
         settledAt: new Date(),
         treasuryTxSignature: signature,
+        paymentId: event.data.payment_id ?? null,
+        invoiceId: event.data.invoice_id ?? null,
+        invoiceUrl: event.data.invoice_url ?? null,
       })
       .where(eq(dodoPayments.id, payment.id));
     await db.insert(treasuryDisbursements).values({
@@ -608,6 +649,7 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
     });
     await db.insert(auditLog).values({
       walletId: payment.walletId,
+      dodoPaymentId: payment.id,
       action: "fund_dodo",
       amount: payment.amountUsdc,
       decision: "allow",

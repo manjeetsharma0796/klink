@@ -111,6 +111,13 @@ export const auditEntrySchema = z.object({
   reason: z.string().nullable(),
   txSignature: z.string().nullable(),
   createdAt: z.string(),
+  // T-245 — populated for action=fund_dodo via the LEFT JOIN to dodo_payments.
+  // Surfaces the hosted-invoice URL on the audit page so a customer can
+  // download the invoice from the audit log later.
+  dodoPaymentId: uuid.nullable().optional(),
+  dodoSessionId: z.string().nullable().optional(),
+  dodoInvoiceUrl: z.string().nullable().optional(),
+  dodoPaymentIdExternal: z.string().nullable().optional(),
 });
 export type AuditEntry = z.infer<typeof auditEntrySchema>;
 
@@ -126,12 +133,17 @@ export const dodoCheckoutResponseSchema = z.object({
 });
 export type DodoCheckoutResponse = z.infer<typeof dodoCheckoutResponseSchema>;
 
-// T-244 — payment status query for the post-checkout return page.
+// T-244/T-245 — payment status query for the post-checkout return page.
+// invoice_url and payment_id come from the Dodo payment.succeeded webhook
+// payload; both nullable since the webhook may not have fired yet.
 export const dodoPaymentStatusSchema = z.object({
   status: z.enum(["pending", "settled", "failed"]),
   amount_usd: z.number().int(), // cents
   amount_usdc: z.number().int(), // base units (10^6)
   tx_signature: z.string().nullable(),
+  payment_id: z.string().nullable(),
+  invoice_id: z.string().nullable(),
+  invoice_url: z.string().nullable(),
   settled_at: z.string().nullable(),
 });
 export type DodoPaymentStatus = z.infer<typeof dodoPaymentStatusSchema>;
