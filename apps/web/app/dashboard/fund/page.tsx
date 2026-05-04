@@ -1,24 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import useSWR from "swr";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { useWalletData } from "@/_hooks/use-wallet";
 import { Button } from "@/app/_components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
 import { Skeleton } from "@/app/_components/ui/skeleton";
-import { api } from "@/lib/api-client";
-import { fundDepositAddressSchema, dodoCheckoutResponseSchema } from "@/lib/schemas";
-import { useWalletData } from "@/_hooks/use-wallet";
 import { useToast } from "@/app/_components/ui/use-toast";
+import { api } from "@/lib/api-client";
+import { dodoCheckoutResponseSchema, fundDepositAddressSchema } from "@/lib/schemas";
+import { useState } from "react";
+import useSWR from "swr";
 
 export default function FundPage() {
   const { wallet } = useWalletData();
   // GET /v1/fund/deposit-address requires wallet_id — see apps/api/src/routes/fund.ts.
   // Skip the fetch entirely when no wallet exists yet so we don't 400 on every load.
-  const fund = useSWR<unknown>(
-    wallet ? `/v1/fund/deposit-address?wallet_id=${wallet.id}` : null,
-  );
+  const fund = useSWR<unknown>(wallet ? `/v1/fund/deposit-address?wallet_id=${wallet.id}` : null);
   const fundParsed = fund.data ? fundDepositAddressSchema.safeParse(fund.data) : null;
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -35,8 +33,24 @@ export default function FundPage() {
     if (!wallet) return;
     setBusy(true);
     try {
-      const r = await api.post<unknown>("/v1/fund/dodo-checkout", { amount_usd: usd, wallet_id: wallet.id });
+      // T-244 — pass return URLs so Dodo redirects back to a klink-owned
+      // page after payment instead of stranding the customer on Dodo's
+      // confirmation screen. The session id is also stashed in
+      // sessionStorage as a fallback in case Dodo doesn't append it as a
+      // query param on redirect.
+      const origin = window.location.origin;
+      const r = await api.post<unknown>("/v1/fund/dodo-checkout", {
+        amount_usd: usd,
+        wallet_id: wallet.id,
+        success_url: `${origin}/dashboard/fund/return`,
+        cancel_url: `${origin}/dashboard/fund?cancelled=1`,
+      });
       const parsed = dodoCheckoutResponseSchema.parse(r);
+      try {
+        sessionStorage.setItem("klink:dodo-pending-session", parsed.dodo_session_id);
+      } catch {
+        // Private browsing / quota — return page falls back to URL param.
+      }
       window.location.assign(parsed.checkout_url);
     } catch (e) {
       toast({ title: "Checkout failed", description: String(e), variant: "destructive" });
@@ -50,7 +64,9 @@ export default function FundPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Fund</h1>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Direct deposit (free)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Direct deposit (free)</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             {!wallet ? (
               <p className="text-sm text-muted-foreground">
@@ -82,19 +98,40 @@ export default function FundPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Add card / fiat (Dodo)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Add card / fiat (Dodo)</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">
               {[10, 50, 100, 250].map((v) => (
-                <Button key={v} variant="secondary" size="sm" disabled={busy} onClick={() => dodoCheckout(v)}>${v}</Button>
+                <Button
+                  key={v}
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => dodoCheckout(v)}
+                >
+                  ${v}
+                </Button>
               ))}
             </div>
             <Label htmlFor="custom">Custom amount (USD)</Label>
             <div className="flex gap-2">
-              <Input id="custom" type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100" />
-              <Button disabled={busy || !amount} onClick={() => dodoCheckout(Number(amount))}>Add</Button>
+              <Input
+                id="custom"
+                type="number"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="100"
+              />
+              <Button disabled={busy || !amount} onClick={() => dodoCheckout(Number(amount))}>
+                Add
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Card processing fee applies. Settles to your vault on confirmation.</p>
+            <p className="text-xs text-muted-foreground">
+              Card processing fee applies. Settles to your vault on confirmation.
+            </p>
           </CardContent>
         </Card>
       </div>

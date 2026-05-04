@@ -248,6 +248,60 @@ export function makePostDodoCheckoutHandler(deps: MakePostDodoCheckoutDeps = {})
 export const postDodoCheckoutHandler = makePostDodoCheckoutHandler();
 
 // ---------------------------------------------------------------------------
+// T-244 — GET /v1/fund/dodo-payment/:sessionId
+//
+// Read-only status query for the post-checkout return page. Polled by the
+// dashboard while the customer waits for the webhook → on-chain settlement
+// loop to close. Owner-scoped (matches the wallet's userId) so one customer
+// can't see another's payment status.
+// ---------------------------------------------------------------------------
+
+export function makeGetDodoPaymentHandler() {
+  return async function getDodoPayment(req: Request, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: "auth required" });
+      return;
+    }
+    const sessionId = req.params.sessionId;
+    if (!sessionId || typeof sessionId !== "string") {
+      res.status(400).json({ error: "session_id required" });
+      return;
+    }
+
+    const db = getDb();
+    const [payment] = await db
+      .select({
+        status: dodoPayments.status,
+        amountUsd: dodoPayments.amountUsd,
+        amountUsdc: dodoPayments.amountUsdc,
+        treasuryTxSignature: dodoPayments.treasuryTxSignature,
+        settledAt: dodoPayments.settledAt,
+        userId: dodoPayments.userId,
+      })
+      .from(dodoPayments)
+      .where(eq(dodoPayments.dodoSessionId, sessionId))
+      .limit(1);
+
+    // Same 404 for "not found" and "wrong owner" — don't leak existence.
+    if (!payment || payment.userId !== userId) {
+      res.status(404).json({ error: "payment not found" });
+      return;
+    }
+
+    res.json({
+      status: payment.status, // "pending" | "settled" | "failed"
+      amount_usd: payment.amountUsd, // cents
+      amount_usdc: payment.amountUsdc, // base units (10^6)
+      tx_signature: payment.treasuryTxSignature ?? null,
+      settled_at: payment.settledAt?.toISOString() ?? null,
+    });
+  };
+}
+
+export const getDodoPaymentHandler = makeGetDodoPaymentHandler();
+
+// ---------------------------------------------------------------------------
 // T-215 — POST /v1/webhooks/dodo  (HMAC-signed by Dodo)
 // ---------------------------------------------------------------------------
 
