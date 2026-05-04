@@ -54,7 +54,7 @@ export default function FundPage() {
           <CardContent className="space-y-3">
             {!wallet ? (
               <p className="text-sm text-muted-foreground">
-                No wallet yet — create one from Overview.
+                No wallet yet. Create one from Overview.
               </p>
             ) : fund.isLoading ? (
               <Skeleton className="h-40 w-40" />
@@ -75,7 +75,7 @@ export default function FundPage() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Couldn't load deposit address — check api logs.
+                Couldn't load deposit address. Check api logs.
               </p>
             )}
           </CardContent>
