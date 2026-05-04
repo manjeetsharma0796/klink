@@ -244,6 +244,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-249 — Fund: send USDC from connected Phantom wallet (third option alongside QR + Dodo)
+- Status: in-progress @Jishnu 2026-05-05
+- Depends-on: T-217, T-225, T-248
+- OS: any
+- Scope: web
+- Acceptance: Fund page (`apps/web/app/dashboard/fund/page.tsx`) gains a third option: "Fund from connected wallet". Input takes a USDC amount; clicking the button triggers a client-side SPL token transfer from the connected Phantom owner's USDC ATA into the vault's USDC ATA. No backend round-trip (the api is uninvolved; the tx is built in-browser, signed by Phantom, submitted directly to the configured Solana RPC). Pre-flight check on the owner's USDC balance via `connection.getTokenAccountBalance(ownerAta)` so we don't send a doomed tx, with a clear toast for "no devnet USDC ATA" vs "insufficient balance" vs "user rejected" vs "rpc failure". Wires to T-248's `useProgress()` so the topbar bar shows for the entire build/sign/submit/confirm flow. On success, calls `useOnChainVault.mutate()` so the Overview balance card refreshes immediately. Layout: switched from 2-col to 3-col grid so the three options (connected wallet, direct deposit QR, card/fiat) sit side by side; on small screens the grid stacks. bun run typecheck clean, 37 web tests pass. No backend changes.
+- Notes: triggered 2026-05-05 by user. Most natural funding path for a user who already has Phantom connected, faster than copying the vault USDC ATA address and sending manually, and free vs the Dodo card processing fee. Implementation uses `createTransferCheckedInstruction` from `@solana/spl-token` (with explicit `USDC_DECIMALS` so the SPL token program rejects mismatched mint metadata, defense in depth against mint-confusion bugs).
+
 ### T-248 — Dashboard: graceful loading bar + themed confirm dialogs (replace native window.confirm)
 - Status: done @Jishnu 2026-05-05
 - Depends-on: T-242, T-247
