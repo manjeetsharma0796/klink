@@ -152,8 +152,15 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: api
 - Acceptance: new `GET /v1/session/me` returning the calling api-key's session config — `max_per_tx`, `daily_cap`, `daily_spent`, `daily_window_start`, `expiry`, `allowed_recipients`, `allowed_instructions` (decoded from the on-chain Session PDA via existing `decodeSessionAccount`). Mirrors what the dashboard sees at `GET /v1/sessions/:id` but scoped to the caller's own session via `req.session.id` from the api-key middleware. Today an agent hit `403`/on-chain-revert errors with no way to introspect its own bounds; T-237 validation flagged this as a real friction point ("agent can only react to failures, can't plan"). Update skill.md to document. Test against the live endpoint via `apps/api/scripts/e2e-dashboard.ts` extension.
-### T-245 — Dodo invoice persistence + audit-log linkage + webhook-matching bug fix
+### T-246 — Auto-run Drizzle migrations on API startup
 - Status: in-progress @Manjeet 2026-05-05
+- Depends-on: T-245
+- OS: any
+- Scope: api
+- Acceptance: surfaced minutes after T-245 deployed: every checkout-create on the live Render API 500'd with `failed to record pending payment`, backed by `PostgresError: column "payment_id" of relation "dodo_payments" does not exist` and `column audit_log.dodo_payment_id does not exist` in the logs. T-245's Drizzle migration `0001_right_bug.sql` shipped in the repo but never ran on the deployed Neon DB — Render's auto-deploy applies code, not schema migrations, and the start command (`cd apps/api && bun src/index.ts`) didn't chain a migrate step. New `apps/api/src/db/migrate.ts` exposes `runMigrations()` which uses drizzle's `migrate(drizzle(postgres(DATABASE_URL, {max:1})), { migrationsFolder: "./drizzle" })` to apply any pending migrations idempotently (drizzle's `__drizzle_migrations` table tracks applied entries; second-and-later cold-starts are one-round-trip no-ops). `apps/api/src/index.ts` calls `runMigrations()` BEFORE `app.listen` and `process.exit(1)`s on failure so Render keeps the previous deploy live rather than promoting a broken instance. No Render config change required (avoids the Render-MCP `update_web_service` not supporting `startCommand` updates). 193/193 tests still pass; tsc clean.
+
+### T-245 — Dodo invoice persistence + audit-log linkage + webhook-matching bug fix
+- Status: done @Manjeet 2026-05-05
 - Depends-on: T-214, T-215, T-243, T-244
 - OS: any
 - Scope: api + web + db
