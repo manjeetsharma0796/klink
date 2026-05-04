@@ -216,6 +216,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-242 — Port klink landing palette to apps/web dashboard
+- Status: in-progress @Jishnu 2026-05-05
+- Depends-on: T-241, T-301
+- OS: any
+- Scope: web
+- Acceptance: dashboard re-skinned to match the landing-page (Klink-frontend) visual identity. Single-source-of-truth token swap in `apps/web/app/globals.css` and `apps/web/tailwind.config.ts` so all shadcn semantic class names (`bg-card`, `text-foreground`, `bg-primary` etc.) keep working but render in klink's sap-green / cream / olive palette. Manrope wired via `next/font/google` in `apps/web/app/layout.tsx`. Three UI primitive radii adjusted to landing defaults: Button to pill (100px), Card to 20px, Input to 12px. All seven dashboard pages plus the Sidebar, Overview cards (StatCard, BalanceCard, ActivityRail), and Topbar visually swept for any hardcoded color classes that broke under the new palette. Drain card destructive variant on Settings now maps to orange-bright (`#E54D2E`) instead of generic shadcn red. 37 web tests pass, web typecheck clean, skill-sync test green. No backend changes.
+- Notes: triggered 2026-05-05 by side-by-side review of the landing page and dashboard. Hackathon submission framing benefits from the two surfaces reading as one product. Plan at `docs/superpowers/plans/2026-05-05-dashboard-theme-port.md` (13 tasks, inline execution).
+
 ### T-241 — Settings: Take-back-custody card UX polish (helpers, copy refresh, em-dash scrub)
 - Status: done @Jishnu 2026-05-05
 - Depends-on: T-235, T-238
