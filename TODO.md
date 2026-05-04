@@ -245,7 +245,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 _(newest first)_
 
 ### T-249 — Fund: send USDC from connected Phantom wallet (third option alongside QR + Dodo)
-- Status: in-progress @Jishnu 2026-05-05
+- Status: done @Jishnu 2026-05-05
 - Depends-on: T-217, T-225, T-248
 - OS: any
 - Scope: web
