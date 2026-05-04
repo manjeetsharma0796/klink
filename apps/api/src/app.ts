@@ -35,15 +35,22 @@ import {
 
 export function createApp(): Express {
   const app = express();
-  // Capture raw bytes alongside JSON parsing so the Dodo webhook (T-215) can
-  // HMAC-verify the exact payload Dodo signed. Other routes ignore rawBody.
-  app.use(
-    express.json({
-      verify: (req, _res, buf) => {
-        (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
-      },
-    }),
+
+  // Webhook route gets a raw-body parser BEFORE the global json middleware
+  // so the bytes Dodo signed survive parsing — and (important, T-236) so we
+  // capture them regardless of Content-Type. The Dodo CLI listener forwards
+  // events whose Content-Type doesn't always match express.json's default
+  // matcher (`application/json`), which previously caused the verify hook to
+  // never fire and every webhook to 500 with `rawBody missing`. `type: () =>
+  // true` accepts any Content-Type. req.body is a Buffer for this route only.
+  app.post(
+    "/v1/webhooks/dodo",
+    express.raw({ type: () => true, limit: "1mb" }),
+    postDodoWebhookHandler,
   );
+
+  // Everything else is JSON-parsed normally.
+  app.use(express.json());
 
   // Debug request/response logger. Disabled by setting KLINK_DEBUG_HTTP=0.
   if (process.env.KLINK_DEBUG_HTTP !== "0") {
@@ -132,9 +139,9 @@ export function createApp(): Express {
   app.get("/v1/fund/deposit-address", requireDashboardJwt, getFundDepositAddressHandler);
 
   // Dodo fiat-in (T-214 + T-215). Checkout is dashboard-JWT; the webhook is
-  // public + HMAC-authed (Dodo can't carry our JWT).
+  // public + Standard-Webhooks-authed (Dodo can't carry our JWT) and is
+  // mounted with its own raw-body parser at the top of this function.
   app.post("/v1/fund/dodo-checkout", requireDashboardJwt, postDodoCheckoutHandler);
-  app.post("/v1/webhooks/dodo", postDodoWebhookHandler);
 
   return app;
 }
