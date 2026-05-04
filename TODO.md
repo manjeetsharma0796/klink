@@ -245,7 +245,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 _(newest first)_
 
 ### T-247 — Sign-in: hydration error + stuck wallet screen after sign-out + reconnect with different wallet
-- Status: in-progress @Jishnu 2026-05-05
+- Status: done @Jishnu 2026-05-05
 - Depends-on: T-203, T-302
 - OS: any
 - Scope: web

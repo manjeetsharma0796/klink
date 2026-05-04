@@ -15,6 +15,16 @@ export function SignIn() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // T-247: hydration guard. WalletMultiButton renders different HTML on
+  // server vs client (server: empty button, client: button with the wallet
+  // icon `<i>` once the adapter detects Phantom via Wallet Standard). Only
+  // render the wallet UI after mount so SSR and the first client render
+  // produce identical markup.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const signIn = useCallback(async () => {
     if (!publicKey || !signMessage) {
       setError("wallet does not support message signing");
@@ -58,11 +68,31 @@ export function SignIn() {
     }
   }, [publicKey, signMessage, router]);
 
+  // T-247: reset local error/phase state when the wallet disconnects, so a
+  // failed connect (user rejected, switched wallet, etc.) doesn't leave the
+  // page stuck on a stale "error" phase.
+  useEffect(() => {
+    if (!connected) {
+      setPhase("idle");
+      setError(null);
+    }
+  }, [connected]);
+
   useEffect(() => {
     if (connected && phase === "idle") {
       void signIn();
     }
   }, [connected, phase, signIn]);
+
+  // SSR / first-render placeholder. Same height as the loaded button so the
+  // layout doesn't jump when the real button mounts.
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-12 w-48 rounded-pill bg-muted/40" aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -79,7 +109,7 @@ export function SignIn() {
               setPhase("idle");
               void signIn();
             }}
-            className="rounded-md border border-input bg-background px-3 py-1 text-sm hover:bg-secondary/50"
+            className="rounded-pill border border-input bg-card px-3 py-1 text-sm hover:bg-secondary/50"
           >
             Try again
           </button>
@@ -103,11 +133,11 @@ export function SignIn() {
 function phaseLabel(p: Phase): string {
   switch (p) {
     case "requesting-nonce":
-      return "Requesting nonce…";
+      return "Requesting nonce...";
     case "awaiting-signature":
       return "Approve the sign-in message in Phantom";
     case "exchanging":
-      return "Verifying signature…";
+      return "Verifying signature...";
     case "done":
       return "Signed in.";
     default:
