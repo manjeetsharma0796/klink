@@ -13,8 +13,12 @@ import { verifyDodoSignature } from "../../src/routes/dodo";
 // exercise the algorithm verifyDodoSignature must implement, not a
 // closed-loop replay of its own internals.
 
-/** A 24-byte secret key, base64-encoded. Mirrors the live key shape. */
-const SECRET_B64 = "xhZK+zMvZ+boCUGuyzZ0neeNFHaNQ0va";
+/**
+ * 24-byte fixture key, base64-encoded. Random ASCII bytes — NOT the live
+ * webhook secret. The verification algorithm under test is independent of
+ * the secret's actual contents, so a fixture suffices.
+ */
+const SECRET_B64 = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldY";
 const SECRET_PREFIXED = `whsec_${SECRET_B64}`;
 const KEY_BYTES = Buffer.from(SECRET_B64, "base64");
 
