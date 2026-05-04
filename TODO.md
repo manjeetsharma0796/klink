@@ -193,7 +193,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: Render selected. Service live at https://klink-api.onrender.com. Verified 2026-05-02: full structural sweep of all 26 routes returns expected codes — `/health` 200, public SIWS routes 200, every JWT-gated and API-key-gated route returns proper 401 (no 5xx anywhere). GitHub auto-deploy on push to `main` confirmed. Render service env (Redis/Upstash, Dodo, treasury, Kamino, Solana RPC, DB) configured via Render API; no `render.yaml` checked in (dashboard-only config — flag for follow-up if reproducibility matters). `apps/api/.env.example` carries the canonical env-var list. Free-tier cold start ~40s on first hit; warm requests ~400ms.
 
 ### T-240 — Populate Kamino env vars on Render so yield endpoints stop 500ing
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-04
 - Depends-on: T-403, T-213
 - OS: any
 - Scope: api + ops
