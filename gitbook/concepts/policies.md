@@ -8,8 +8,8 @@ description: How Klink composes on-chain hard limits with off-chain rich rules
 
 Policy in Klink is **two layers, evaluated in order**:
 
-1. **Off-chain rich rules** — URL allowlist, time-of-day window. Evaluated by the backend before any tx is built.
-2. **On-chain hard limits** — caps, recipient allowlist, expiry, deployed-fraction. Evaluated by the Anchor program; reverts the entire tx on any violation.
+1. **Off-chain rich rules**: URL allowlist, time-of-day window. Evaluated by the backend before any tx is built.
+2. **On-chain hard limits**: caps, recipient allowlist, expiry, deployed-fraction. Evaluated by the Anchor program; reverts the entire tx on any violation.
 
 The off-chain layer is enrichment. The on-chain layer is the trustless guarantee.
 
@@ -41,17 +41,17 @@ These live in the off-chain policy store, keyed by wallet:
 
 ### URL allowlist
 
-Wildcards are restricted to **path segments only**. No host wildcards — `*.example.com` is rejected at insertion. This is the mitigation for the `*.evil.com` attack pattern: a user enters a permissive host pattern, an attacker registers a matching subdomain.
+Wildcards are restricted to **path segments only**. No host wildcards, `*.example.com` is rejected at insertion. This is the mitigation for the `*.evil.com` attack pattern: a user enters a permissive host pattern, an attacker registers a matching subdomain.
 
 Patterns look like `https://api.example.com/v1/*`. Curated services short-circuit the allowlist check (the proxy already constrains what the agent can hit).
 
 ### Time-of-day window
 
-* **timezone** — the wallet's preferred timezone (DST-correct conversion).
-* **day-of-week bitmask** — bit 0 = Monday, bit 6 = Sunday. Both endpoints inclusive.
-* **start / end** — minute-of-day in the wallet's timezone.
+* **timezone**: the wallet's preferred timezone (DST-correct conversion).
+* **day-of-week bitmask**: bit 0 = Monday, bit 6 = Sunday. Both endpoints inclusive.
+* **start / end**: minute-of-day in the wallet's timezone.
 
-A spend at 22:00 IST when the window is 09:00–18:00 IST is denied — even if every on-chain check would pass.
+A spend at 22:00 IST when the window is 09:00–18:00 IST is denied, even if every on-chain check would pass.
 
 ### Order of evaluation
 
@@ -81,5 +81,5 @@ Hybrid keeps the safety floor trustless and adds rich rules above it. **The wors
 
 ## Read next
 
-* [Budgets](budgets.md) — caps and the deployed-fraction limit, in detail
-* [Audit Trail](audit-trail.md) — both `allow` and `deny` decisions are recorded
+* [Budgets](budgets.md): caps and the deployed-fraction limit, in detail
+* [Audit Trail](audit-trail.md): both `allow` and `deny` decisions are recorded

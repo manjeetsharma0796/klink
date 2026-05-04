@@ -1,14 +1,14 @@
 ---
 icon: circle-help
 title: FAQ
-description: Frequently asked questions about Klink — custody, fees, audit, scope
+description: Frequently asked questions about Klink, custody, fees, audit, scope
 ---
 
 # FAQ
 
 ## Is Klink custodial?
 
-No. The human owner's Phantom keypair is the master authority and never leaves the device. The backend holds session keypairs that have **delegated** authority bounded by on-chain rules — they can't drain the wallet, can't change its policy, and can be revoked by the owner from Phantom in seconds.
+No. The human owner's Phantom keypair is the master authority and never leaves the device. The backend holds session keypairs that have **delegated** authority bounded by on-chain rules, they can't drain the wallet, can't change its policy, and can be revoked by the owner from Phantom in seconds.
 
 ## What chain does Klink run on?
 
@@ -20,7 +20,7 @@ Klink's core idea is putting policy directly inside the wallet account so the ch
 
 ## What if my session keypair leaks?
 
-The blast radius is bounded by `daily_cap × time-to-revoke` and restricted by the recipient + program allowlists. The owner signs `revoke_session` from Phantom (~5s, ~$0.0001) — works even if the backend is offline.
+The blast radius is bounded by `daily_cap × time-to-revoke` and restricted by the recipient + program allowlists. The owner signs `revoke_session` from Phantom (~5s, ~$0.0001), works even if the backend is offline.
 
 ## What if my owner key leaks?
 
@@ -28,7 +28,7 @@ Total loss, same as any Solana wallet. The owner is the master authority by desi
 
 ## What if the backend goes down?
 
-Spending, fiat-in, and dashboard reads stop working. **The wallet itself is still functional via direct Phantom interaction** — the human can run `revoke_session` or move funds in an emergency without the backend. The on-chain audit trail also remains queryable from any RPC.
+Spending, fiat-in, and dashboard reads stop working. **The wallet itself is still functional via direct Phantom interaction**, the human can run `revoke_session` or move funds in an emergency without the backend. The on-chain audit trail also remains queryable from any RPC.
 
 ## Has the program been audited?
 
@@ -36,7 +36,7 @@ Spending, fiat-in, and dashboard reads stop working. **The wallet itself is stil
 
 ## How much does it cost to use?
 
-Account creation is one-time on-chain rent (~$1.20 per active wallet, all refundable on close). Per-transaction fees are sub-cent on Solana. Klink itself is free during the public beta — see [Roadmap](roadmap.md) for the plan beyond beta.
+Account creation is one-time on-chain rent (~$1.20 per active wallet, all refundable on close). Per-transaction fees are sub-cent on Solana. Klink itself is free during the public beta, see [Roadmap](roadmap.md) for the plan beyond beta.
 
 ## Does Klink hold my funds?
 
@@ -44,7 +44,7 @@ No. USDC sits in your Vault PDA's ATA on Solana. Only the program can move it, a
 
 ## Can I use Klink without yield?
 
-Yes. Set `allowed_instructions` bits 1 and 2 to 0 for any session — that session can `transfer_usdc` but cannot deposit to or withdraw from the yield protocol. Or never call `/v1/yield/*` and the wallet behaves as a pure spend-controlled wallet.
+Yes. Set `allowed_instructions` bits 1 and 2 to 0 for any session, that session can `transfer_usdc` but cannot deposit to or withdraw from the yield protocol. Or never call `/v1/yield/*` and the wallet behaves as a pure spend-controlled wallet.
 
 ## What's the max number of allowed recipients per session?
 
@@ -60,7 +60,7 @@ Out of scope for the current release. Currently session secrets are AES-256-GCM-
 
 ## How is this different from a multisig wallet?
 
-Multisig wallets are designed around m-of-n human approvals — great for treasury management. Klink is a **session-delegated wallet for agents**: one human approves a bounded session, the agent operates within it autonomously, the human can revoke at any time. Different shape for a different problem.
+Multisig wallets are designed around m-of-n human approvals, great for treasury management. Klink is a **session-delegated wallet for agents**: one human approves a bounded session, the agent operates within it autonomously, the human can revoke at any time. Different shape for a different problem.
 
 ## Why isn't auto-yield in the current release?
 

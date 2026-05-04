@@ -40,7 +40,7 @@ const pos = await klink.yield.position();
 
 ## Status
 
-🛠️ **Coming soon.** Until the SDK ships, you can integrate against the HTTP API directly — see the [Quickstart](../getting-started/quickstart.md) and the [Agent Skill](../skill.md) page for ready-to-paste `curl` examples covering every endpoint.
+🛠️ **Coming soon.** Until the SDK ships, you can integrate against the HTTP API directly, see the [Quickstart](../getting-started/quickstart.md) and the [Agent Skill](../skill.md) page for ready-to-paste `curl` examples covering every endpoint.
 
 ## Get notified
 

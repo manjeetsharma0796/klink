@@ -17,7 +17,7 @@ Klink has four numeric caps. The first three live on the [Session](sessions.md) 
 
 USDC base units: 1 USDC = 1_000_000.
 
-## `max_per_tx` — single-transaction ceiling
+## `max_per_tx`: single-transaction ceiling
 
 Highest amount this session may spend in a single `transfer_usdc` call. Set it to the largest plausible per-call value the agent will hit; tighter is better.
 
@@ -25,9 +25,9 @@ Highest amount this session may spend in a single `transfer_usdc` call. Set it t
 assert amount <= session.max_per_tx
 ```
 
-## `daily_cap` — rolling 24-hour budget
+## `daily_cap`: rolling 24-hour budget
 
-Total amount this session may spend in a 24-hour rolling window. **Not** a calendar day — the window is per-session and resets the first time a transfer fires after `now ≥ daily_window_start + 86400`:
+Total amount this session may spend in a 24-hour rolling window. **Not** a calendar day, the window is per-session and resets the first time a transfer fires after `now ≥ daily_window_start + 86400`:
 
 ```
 if now >= daily_window_start + 86400:
@@ -37,22 +37,22 @@ assert daily_spent + amount <= daily_cap
 daily_spent += amount
 ```
 
-The rolling window is the mitigation for the "midnight burst" pattern — a calendar-day reset would let a compromised session wait for the date to flip and drain another full day's worth.
+The rolling window is the mitigation for the "midnight burst" pattern, a calendar-day reset would let a compromised session wait for the date to flip and drain another full day's worth.
 
 ### Concurrency
 
-Two concurrent spends from the same session can both pass the backend's pre-flight check on a stale snapshot. **The on-chain `daily_spent` update is atomic per transaction**, so the second tx fails on-chain even if the first hadn't yet been confirmed. The backend's pre-flight is for UX latency only — Solana is the source of truth.
+Two concurrent spends from the same session can both pass the backend's pre-flight check on a stale snapshot. **The on-chain `daily_spent` update is atomic per transaction**, so the second tx fails on-chain even if the first hadn't yet been confirmed. The backend's pre-flight is for UX latency only, Solana is the source of truth.
 
-## `expiry` — session lifetime
+## `expiry`: session lifetime
 
-Unix-seconds at which the session can no longer spend. `0` means never expires. Setting expiry to a near-future timestamp gives you a trustless dead-man switch — even if the session keypair is leaked, the blast radius is bounded by `daily_cap × hours-to-expiry`.
+Unix-seconds at which the session can no longer spend. `0` means never expires. Setting expiry to a near-future timestamp gives you a trustless dead-man switch, even if the session keypair is leaked, the blast radius is bounded by `daily_cap × hours-to-expiry`.
 
 ```
 if session.expiry != 0:
     assert now < session.expiry
 ```
 
-## `max_deployed_fraction_bp` — yield exposure ceiling
+## `max_deployed_fraction_bp`: yield exposure ceiling
 
 Hard cap on the fraction of total USDC the wallet may have deposited in the [yield reserve](yield.md) at any given moment. Stored in basis points: `8000` = 80%.
 
@@ -86,9 +86,9 @@ Practical starting points (tighten or loosen based on agent risk profile):
 | Power-user agent | $10 | $500 | 90 days | 8000 (80%) |
 | One-shot debugging session | $0.05 | $1 | 1 hour | 0 |
 
-Values are illustrative — pick what fits the agent's worst-case, not its median.
+Values are illustrative, pick what fits the agent's worst-case, not its median.
 
 ## Read next
 
-* [Sessions](sessions.md) — the account these caps live on
-* [Yield](yield.md) — how `max_deployed_fraction_bp` interacts with deposits
+* [Sessions](sessions.md): the account these caps live on
+* [Yield](yield.md): how `max_deployed_fraction_bp` interacts with deposits

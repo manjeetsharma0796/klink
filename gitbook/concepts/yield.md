@@ -1,7 +1,7 @@
 ---
 icon: trending-up
 title: Yield
-description: How Klink puts idle USDC to work — manual deposit/withdraw, on-chain over-deployment cap, no background workers
+description: How Klink puts idle USDC to work, manual deposit/withdraw, on-chain over-deployment cap, no background workers
 ---
 
 # Yield
@@ -9,7 +9,7 @@ description: How Klink puts idle USDC to work — manual deposit/withdraw, on-ch
 Klink integrates with a curated USDC reserve as the initial yield source. Two design choices distinguish it from naïve "auto-yield wallets":
 
 1. **Manual only.** No background workers move user funds. Every deposit and every withdrawal is initiated by an explicit call from the human (dashboard JWT) or the agent (API key, if `allowed_instructions` bit 1/2 are set).
-2. **On-chain deployment cap.** The vault enforces `max_deployed_fraction_bp` at the program level. No caller — not the human, not the agent, not an attacker with a leaked session — can over-deploy funds beyond that cap.
+2. **On-chain deployment cap.** The vault enforces `max_deployed_fraction_bp` at the program level. No caller: not the human, not the agent, not an attacker with a leaked session, can over-deploy funds beyond that cap.
 
 ## Why manual
 
@@ -41,7 +41,7 @@ if liquid < amount:
     return 402 INSUFFICIENT_LIQUID { liquid, deployed, deficit }
 ```
 
-The caller — agent or human — has to explicitly call `/v1/yield/withdraw` first if deployed funds are needed. This is documented behavior, not a bug.
+The caller, agent or human, has to explicitly call `/v1/yield/withdraw` first if deployed funds are needed. This is documented behavior, not a bug.
 
 ```mermaid
 sequenceDiagram
@@ -82,12 +82,12 @@ GET /v1/yield/position
 
 ## What yield does NOT include
 
-* **No auto-deposit** — idle USDC stays idle until you explicitly deposit it.
-* **No auto-rebalance across markets** — single hardcoded reserve in the current release.
-* **No multi-protocol allocation** — one well-tested integration first; additional protocols are on the [Roadmap](../resources/roadmap.md).
-* **No yield split between users** — the deployed amount is per-vault; accrued yield belongs to the vault's owner.
+* **No auto-deposit**: idle USDC stays idle until you explicitly deposit it.
+* **No auto-rebalance across markets**: single hardcoded reserve in the current release.
+* **No multi-protocol allocation**: one well-tested integration first; additional protocols are on the [Roadmap](../resources/roadmap.md).
+* **No yield split between users**: the deployed amount is per-vault; accrued yield belongs to the vault's owner.
 
 ## Read next
 
-* [Vault](vault.md) — `max_deployed_fraction_bp` lives here
-* [Roadmap](../resources/roadmap.md) — when auto-yield and multi-protocol arrive
+* [Vault](vault.md): `max_deployed_fraction_bp` lives here
+* [Roadmap](../resources/roadmap.md): when auto-yield and multi-protocol arrive

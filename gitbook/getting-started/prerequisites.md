@@ -1,7 +1,7 @@
 ---
 icon: list-checks
 title: Prerequisites
-description: What you need before integrating Klink — wallet, RPC, devnet funds, toolchain
+description: What you need before integrating Klink, wallet, RPC, devnet funds, toolchain
 ---
 
 # Prerequisites
@@ -14,7 +14,7 @@ To integrate Klink, you'll need three things on your machine and one thing on So
 |---|---|---|
 | **[Phantom](https://phantom.app/)** browser extension | Sign in to the dashboard, sign owner-authority operations | Owner key never leaves the extension |
 | **Node 20+** or **[Bun](https://bun.sh/)** | Run the SDK once it's released, or run your agent code | Bun is the project's preferred toolchain |
-| A Solana **RPC endpoint** | Read on-chain state, submit transactions | Any reliable provider works — [Helius](https://helius.dev), [QuickNode](https://www.quicknode.com), [Triton](https://triton.one), or the public devnet RPC for testing |
+| A Solana **RPC endpoint** | Read on-chain state, submit transactions | Any reliable provider works, [Helius](https://helius.dev), [QuickNode](https://www.quicknode.com), [Triton](https://triton.one), or the public devnet RPC for testing |
 
 ## On Solana devnet
 
@@ -25,11 +25,11 @@ To integrate Klink, you'll need three things on your machine and one thing on So
 
 ## You do NOT need
 
-- **A custodial provider account.** Klink is non-custodial — there's no Klink account to register for.
+- **A custodial provider account.** Klink is non-custodial: there's no Klink account to register for.
 - **A backend service.** Point your code at the hosted Klink API (`https://klink-api.onrender.com` during beta), or run your own.
-- **A mainnet wallet.** Mainnet support arrives after the program audit completes — see [Roadmap](../resources/roadmap.md).
+- **A mainnet wallet.** Mainnet support arrives after the program audit completes: see [Roadmap](../resources/roadmap.md).
 
 ## Read next
 
-- **[Quickstart](quickstart.md)** — the hands-on devnet walkthrough
-- **[Concepts → Overview](../concepts/overview.md)** — the mental model
+- **[Quickstart](quickstart.md)**: the hands-on devnet walkthrough
+- **[Concepts → Overview](../concepts/overview.md)**: the mental model
