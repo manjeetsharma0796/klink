@@ -244,6 +244,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 _(newest first)_
 
+### T-250 — Re-enable wallet autoConnect (post T-247) so dashboard pages don't show disconnected wallet on reload
+- Status: done @Jishnu 2026-05-05
+- Depends-on: T-247
+- OS: any
+- Scope: web
+- Acceptance: surfaced 2026-05-05 by user. The Fund page (T-249) showed "Connect a wallet to fund directly" even though the topbar showed `CONNECTED H55H...MCUF`. The mismatch is by design but bad UX: the topbar reads the JWT cookie server-side (`verifyKlinkJwt(session.pubkey)`), the Fund card reads `useWallet().connected` from the wallet adapter. T-247 removed `autoConnect` from `WalletProvider` to fix a post-sign-out reconnect loop, with the side effect that on every fresh page load with a valid JWT but no live adapter connection (browser restart, second tab, hard refresh), `connected === false` and tx-dependent UI flips to its disconnected branch. Two-part fix: (a) `apps/web/app/providers.tsx` re-enables `autoConnect` on `WalletProvider`. (b) `apps/web/app/dashboard/sign-out-button.tsx` calls `select(null)` after `disconnect()` to clear the cached wallet name from the adapter (not just the active connection), so the next mount has nothing to autoConnect to and the user gets a clean wallet picker if they want to switch wallets. Combined: dashboard pages stay connected after reload (autoConnect rehydrates from cache), and the original T-247 reconnect-loop bug stays fixed because sign-out properly clears the cache. bun run typecheck clean, 37 web tests pass.
+
 ### T-249 — Fund: send USDC from connected Phantom wallet (third option alongside QR + Dodo)
 - Status: done @Jishnu 2026-05-05
 - Depends-on: T-217, T-225, T-248

@@ -18,11 +18,15 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionProvider endpoint={SOLANA_RPC_URL}>
-      {/* T-247: autoConnect removed. The SIWS flow is always a deliberate
-          user action and autoConnect re-prompted Phantom on every mount,
-          which produced WalletConnectionError: User rejected when the user
-          tried to switch wallets after signing out. */}
-      <WalletProvider wallets={wallets}>
+      {/* T-250: autoConnect re-enabled. T-247 originally turned this off to
+          fix a post-sign-out reconnect loop, but that broke dashboard pages
+          on reload where the user has a valid JWT but a fresh adapter
+          state. The reconnect-loop is now mitigated by sign-out also
+          clearing the cached wallet name via select(null) (see
+          sign-out-button.tsx), so autoConnect has nothing to reconnect to
+          after the user signs out and they get a clean wallet picker on
+          the SignIn page. */}
+      <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <SWRConfig
             value={{
