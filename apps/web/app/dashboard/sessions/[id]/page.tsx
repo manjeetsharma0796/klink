@@ -43,14 +43,14 @@ export default function SessionAllowlistPage() {
         <p className="font-mono text-xs text-muted-foreground">{session.sessionPubkey}</p>
       </div>
       {!onChain && (
-        <Card className="border-amber-300 bg-amber-50/50">
+        <Card className="border-yellow bg-[#FFFFC4]/60">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base text-amber-900">
+            <CardTitle className="flex items-center gap-2 text-base text-olive-deep">
               <AlertCircle className="h-4 w-4" />
               On-chain state unavailable
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-amber-900/80">
+          <CardContent className="text-sm text-olive-deep/80">
             {onChainError ?? "session PDA not yet on-chain"}. Recipient and instruction-bitmap edits are disabled until the session is committed on-chain.
           </CardContent>
         </Card>
