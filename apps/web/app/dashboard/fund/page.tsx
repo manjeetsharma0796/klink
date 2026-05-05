@@ -14,7 +14,7 @@ import useSWR from "swr";
 
 export default function FundPage() {
   const { wallet } = useWalletData();
-  // GET /v1/fund/deposit-address requires wallet_id — see apps/api/src/routes/fund.ts.
+  // GET /v1/fund/deposit-address requires wallet_id  see apps/api/src/routes/fund.ts.
   // Skip the fetch entirely when no wallet exists yet so we don't 400 on every load.
   const fund = useSWR<unknown>(wallet ? `/v1/fund/deposit-address?wallet_id=${wallet.id}` : null);
   const fundParsed = fund.data ? fundDepositAddressSchema.safeParse(fund.data) : null;
@@ -33,7 +33,7 @@ export default function FundPage() {
     if (!wallet) return;
     setBusy(true);
     try {
-      // T-244 — pass return URLs so Dodo redirects back to a klink-owned
+      // T-244  pass return URLs so Dodo redirects back to a klink-owned
       // page after payment instead of stranding the customer on Dodo's
       // confirmation screen. The session id is also stashed in
       // sessionStorage as a fallback in case Dodo doesn't append it as a
@@ -49,7 +49,7 @@ export default function FundPage() {
       try {
         sessionStorage.setItem("klink:dodo-pending-session", parsed.dodo_session_id);
       } catch {
-        // Private browsing / quota — return page falls back to URL param.
+        // Private browsing / quota  return page falls back to URL param.
       }
       window.location.assign(parsed.checkout_url);
     } catch (e) {

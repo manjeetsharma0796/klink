@@ -65,7 +65,7 @@ export function NewSessionModal({ onCreated }: Props) {
 
     try {
       // wallet_id is required by the backend (apps/api/src/routes/session.ts:65)
-      // — without it the POST returns 400 before building the tx.
+      //  without it the POST returns 400 before building the tx.
       const result = await run("/v1/session", "POST", {
         wallet_id: wallet.id,
         label: values.label,

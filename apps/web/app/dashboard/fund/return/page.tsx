@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 
 /**
- * T-244 — post-checkout return page.
+ * T-244  post-checkout return page.
  *
  * Customer lands here after paying on Dodo's hosted checkout. We read the
  * dodo session id either from a query param (if Dodo appends one) or from
@@ -37,7 +37,7 @@ export default function FundReturnPage() {
       // ignore
     }
     setLookupId(fromUrl || fromStorage);
-    // T-245 — Dodo includes status=succeeded in the redirect URL the moment
+    // T-245  Dodo includes status=succeeded in the redirect URL the moment
     // payment authorizes. We can show an optimistic "Payment received,
     // settling on-chain..." state immediately while still polling the
     // backend for the real on-chain settlement. Saves the customer ~5-15s
@@ -137,7 +137,7 @@ function titleFor(
   if (status === "settled") return "Funded";
   if (status === "failed") return "Payment didn't go through";
   if (stopped) return "Still processing";
-  if (optimistic) return "Payment received — settling on-chain";
+  if (optimistic) return "Payment received  settling on-chain";
   return "Processing your payment...";
 }
 
@@ -154,7 +154,7 @@ function PendingState({ optimistic }: { optimistic: boolean }) {
         />
         <p className="text-sm text-muted-foreground">
           {optimistic
-            ? "Your payment authorized successfully. We're disbursing USDC to your vault now — usually 5-15 seconds."
+            ? "Your payment authorized successfully. We're disbursing USDC to your vault now  usually 5-15 seconds."
             : "We're confirming your payment with Dodo and disbursing USDC to your vault. This usually takes 5-15 seconds."}
         </p>
       </div>

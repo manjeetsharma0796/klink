@@ -62,7 +62,7 @@ export default function YieldPage() {
           <CardContent>
             <div className="text-3xl font-semibold">{formatUsdc(deployed)}</div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {total > 0 ? `${Number((deployed * BigInt(10000)) / total) / 100}% of total` : "—"} · cap {maxBp / 100}%
+              {total > 0 ? `${Number((deployed * BigInt(10000)) / total) / 100}% of total` : ""} · cap {maxBp / 100}%
             </p>
           </CardContent>
         </Card>

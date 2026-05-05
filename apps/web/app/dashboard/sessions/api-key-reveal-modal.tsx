@@ -14,7 +14,7 @@ export function ApiKeyRevealModal({ apiKey, onClose }: Props) {
   return (
     <Dialog open={apiKey !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>API key — copy now</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>API key  copy now</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">
           We will not show this again. Copy it and store it in your agent's environment.
         </p>

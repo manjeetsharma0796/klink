@@ -17,7 +17,7 @@ interface Props {
  * any previously-active api_keys for this session in the same DB
  * transaction, so the displayed key is the only valid one going forward.
  *
- * Threat model is "you saved the key when you minted it" — backend never
+ * Threat model is "you saved the key when you minted it"  backend never
  * sees plaintext after this modal closes, so the only path to recover a
  * lost key is another rotation (which invalidates the old one again).
  */

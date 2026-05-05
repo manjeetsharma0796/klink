@@ -35,7 +35,7 @@ export function RevokeConfirm({ sessionId, label, onRevoked }: Props) {
                 if (result.buildResponse.alreadyExists) {
                   // T-232 self-heal: backend found no on-chain Session PDA
                   // (DB-only ghost or already-closed) and soft-revoked the
-                  // DB rows in this same call. Nothing more to do — Phantom
+                  // DB rows in this same call. Nothing more to do  Phantom
                   // was never prompted.
                   toast({
                     title: "Session marked revoked",

@@ -63,7 +63,7 @@ export function StatCard({ title, rows, loading }: Props) {
                     aria-label={`Copy ${row.label}`}
                     className="text-xs font-medium text-olive-deep hover:underline"
                     onClick={async () => {
-                      // row.value is a string here — the outer guard rules out null.
+                      // row.value is a string here  the outer guard rules out null.
                       const v = row.value as string;
                       await navigator.clipboard.writeText(v);
                       setCopiedLabel(row.label);

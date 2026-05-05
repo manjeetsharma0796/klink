@@ -37,12 +37,12 @@ export function CreateWalletCta() {
                 toast({
                   title: "Wallet linked",
                   description:
-                    "An on-chain vault already existed for this Phantom — linked it to your account.",
+                    "An on-chain vault already existed for this Phantom  linked it to your account.",
                 });
               } else {
                 // Build-tx branch only returns the unsigned tx; it does NOT
                 // INSERT a wallets row. After Phantom signed and the on-chain
-                // init_vault confirmed, POST /v1/wallet again — this time the
+                // init_vault confirmed, POST /v1/wallet again  this time the
                 // backend sees the on-chain vault, takes the alreadyExists
                 // branch, and backfills the DB row. Without this second call,
                 // GET /v1/wallet stays 404 forever and the CTA renders

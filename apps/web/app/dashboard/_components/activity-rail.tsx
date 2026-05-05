@@ -24,7 +24,7 @@ export function ActivityRail() {
         <CardHeader><CardTitle className="text-base">Active Sessions</CardTitle></CardHeader>
         <CardContent className="flex items-center justify-between">
           {sessions.isLoading ? <Skeleton className="h-5 w-20" /> : (
-            <span className="text-2xl font-semibold">{activeCount ?? "—"}</span>
+            <span className="text-2xl font-semibold">{activeCount ?? ""}</span>
           )}
           <Link href="/dashboard/sessions" className="text-xs font-medium text-olive-deep hover:underline">
             Manage
@@ -44,7 +44,7 @@ export function ActivityRail() {
               {auditParsed.data.entries.slice(0, 5).map((row) => (
                 <li key={row.id} className="flex items-center justify-between">
                   <span className="truncate text-muted-foreground">{row.action}</span>
-                  <span className="font-mono text-xs">{row.amount ? formatUsdc(row.amount) : "—"}</span>
+                  <span className="font-mono text-xs">{row.amount ? formatUsdc(row.amount) : ""}</span>
                 </li>
               ))}
             </ul>

@@ -75,10 +75,10 @@ export default function AuditPage() {
                     </TableCell>
                     <TableCell>{e.action}</TableCell>
                     <TableCell className="font-mono text-xs">
-                      {e.amount ? formatUsdc(e.amount) : "—"}
+                      {e.amount ? formatUsdc(e.amount) : ""}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
-                      {e.recipientOrUrl ? truncatePubkey(e.recipientOrUrl) : "—"}
+                      {e.recipientOrUrl ? truncatePubkey(e.recipientOrUrl) : ""}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -90,7 +90,7 @@ export default function AuditPage() {
                         {e.decision}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{e.reason ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{e.reason ?? ""}</TableCell>
                     <TableCell className="font-mono text-xs">
                       <div className="flex flex-col gap-1">
                         {e.txSignature ? (
@@ -103,7 +103,7 @@ export default function AuditPage() {
                             {truncatePubkey(e.txSignature)}
                           </a>
                         ) : null}
-                        {/* T-245 — invoice download for fund_dodo rows. Falls through silently when invoice_url isn't populated yet (e.g. webhook hasn't fired). */}
+                        {/* T-245  invoice download for fund_dodo rows. Falls through silently when invoice_url isn't populated yet (e.g. webhook hasn't fired). */}
                         {e.dodoInvoiceUrl ? (
                           <a
                             className="text-olive-deep hover:underline"
@@ -114,7 +114,7 @@ export default function AuditPage() {
                             invoice
                           </a>
                         ) : null}
-                        {!e.txSignature && !e.dodoInvoiceUrl ? "—" : null}
+                        {!e.txSignature && !e.dodoInvoiceUrl ? "" : null}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const w = useWalletData();
   const onChain = useOnChainVault(w.wallet?.ownerPubkey ?? null);
   const sessions = useSessions();
-  // GET /v1/fund/deposit-address requires wallet_id — see apps/api/src/routes/fund.ts.
+  // GET /v1/fund/deposit-address requires wallet_id  see apps/api/src/routes/fund.ts.
   // Without it the backend returns 400 and the QR card stays empty.
   const fund = useSWR<unknown>(
     w.wallet ? `/v1/fund/deposit-address?wallet_id=${w.wallet.id}` : null,
@@ -31,7 +31,7 @@ export default function DashboardPage() {
   }
 
   if (w.error) {
-    // Real failure — backend down, RPC dead, JWT invalid. T-224 itself is
+    // Real failure  backend down, RPC dead, JWT invalid. T-224 itself is
     // shipped; a 404 would be caught by w.notFound (CreateWalletCta branch).
     return (
       <div className="space-y-6">
@@ -59,7 +59,7 @@ export default function DashboardPage() {
             },
             {
               label: "Active Sessions",
-              // Live count from GET /v1/sessions — only un-revoked rows.
+              // Live count from GET /v1/sessions  only un-revoked rows.
               value: sessions.sessions
                 ? String(sessions.sessions.filter((s) => !s.revokedAt).length)
                 : null,
