@@ -16,7 +16,7 @@ Group entries by section. Keep alphabetical within sections.
 
 ## Operations
 
-- [Team task board](TODO.md) — async, file-based task board for the 4-person team; claim/lock/dependency rules and seed task list [updated 2026-04-28]
+- [Team task board](TODO.md) — async, file-based task board for the 4-person team; claim/lock/dependency rules and seed task list [updated 2026-05-10]
 
 ## Architecture & Design
 
