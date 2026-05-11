@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 ---
 
 # TODO
@@ -163,13 +163,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: surfaced 2026-05-11 by a real $50 Dodo card payment that landed in production and failed disbursement with `TREASURY_SUBMIT_FAILED: invalid account data for instruction` from the SPL Token Program (audit row visible at `app.klinkdotfun.live/dashboard/audit`, timestamp 2026-05-11 08:32:25, `action=fund_dodo decision=deny amount=$50.00`). Root cause: the treasury's USDC ATA `DBRYhuJUmEzcqpS2WabaHKxwCJBz5QSvuSMoys66vQVB` (the env-configured `TREASURY_USDC_ATA`, deterministically derived from treasury pubkey `9muAwR8a4LEgFGLNPfoUHhJrfLmtkXFBvpBQCx2GLVTU` + USDC mint `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`) was never initialized on-chain on devnet; SPL Token rejected the transfer ix because the source account doesn't exist. Three-part patch in `apps/api/src/routes/dodo.ts`: (1) prepend `createAssociatedTokenAccountIdempotentInstruction` for the **source** ATA (treasury → USDC) so a fresh deployment never traps a payment in this failure mode; (2) prepend the same for the **destination** ATA (vault → USDC) mirroring T-256's fix for spend handlers, so fresh user wallets whose USDC ATA hasn't been physically created don't crash the disbursement; (3) change the missing-wallet-row branch (currently returns `500 {"error":"wallet missing"}` causing infinite Dodo retries and no audit row) to `200 + deny audit row` with reason `WALLET_MISSING_AT_DISBURSEMENT_TIME` so Dodo stops retrying and operators get a deny row to alert on. Switch the SPL ix from plain `Transfer` to `TransferChecked` for defense-in-depth (parity with T-252's spend handler migration, mint+decimals on-wire so SPL Token reverts on decimals mismatch). Tests: update any dodo handler tests that snapshot the tx shape; add a deny-path test for the WALLET_MISSING case. Out of scope: moving tx submission off the webhook response window (the race window where slow RPC causes Dodo retries); that's a separate `T-2xx` follow-up. Full audit at `docs/superpowers/plans/2026-05-11-dodo-treasury-audit.md`.
 - Notes: this only fixes the CODE side. Initializing the treasury USDC ATA on devnet + funding it with test USDC is a separate one-time ops step that has to happen via the treasury keypair; documented in the audit plan file. The stuck $50 payment from 2026-05-11 08:32:25 can be recovered manually via a one-shot replay script after the treasury ATA is funded; tracked implicitly as a 30-min ops task.
 
-### T-312 — Serve `skill.md` from the api at `GET /skill.md`
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-311
-- OS: any
-- Scope: api
-- Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked.
-
 ### T-239 — Agent-readable session metadata endpoint (`GET /v1/session/me`)
 - Status: in-progress @Jishnu 2026-05-11
 - Depends-on: T-204, T-206
@@ -275,6 +268,13 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-312 — Serve `skill.md` from the api at `GET /skill.md`
+- Status: done @Jishnu 2026-05-11
+- Depends-on: T-311
+- OS: any
+- Scope: api
+- Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked. **Implemented:** new `apps/api/src/routes/skill.ts` reads `apps/web/public/skill.md` once at module load via `readFileSync` (relative path from `import.meta.dir`, no third copy created — the existing sync test keeps gitbook + web in lockstep). `apps/api/src/app.ts` mounts `getSkillMdHandler` at both `/skill.md` and `/.well-known/skill.md` BEFORE any auth middleware. Response sets `Content-Type: text/markdown; charset=utf-8`, `Cache-Control: public, max-age=300, s-maxage=300`, `Access-Control-Allow-Origin: *`. New `apps/api/tests/routes/skill.test.ts` pins both paths, header values, and byte-equal body. 207/207 api tests pass; tsc clean.
 
 ### T-256 — Spend handlers auto-create recipient USDC ATA (`createAssociatedTokenAccountIdempotent`)
 - Status: done @Jishnu 2026-05-11

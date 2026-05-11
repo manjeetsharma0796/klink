@@ -17,6 +17,7 @@ import {
   postRotateSessionKeyHandler,
   postSessionHandler,
 } from "./routes/session";
+import { getSkillMdHandler } from "./routes/skill";
 import {
   postSpendMppHandler,
   postSpendServiceHandler,
@@ -93,6 +94,13 @@ export function createApp(): Express {
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
+
+  // T-312 — public, unauthenticated skill.md so an agent given only the api
+  // URL + a bearer token can self-discover the skill from the same origin.
+  // Mounted BEFORE any auth wiring; both paths serve the same bytes (the
+  // `.well-known` path is for forward compat with discovery convention).
+  app.get("/skill.md", getSkillMdHandler);
+  app.get("/.well-known/skill.md", getSkillMdHandler);
 
   // SIWS auth (T-203)
   app.post("/v1/auth/siws/nonce", siwsHandlers.nonce);
