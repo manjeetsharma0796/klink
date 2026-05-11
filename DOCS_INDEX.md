@@ -38,6 +38,7 @@ Group entries by section. Keep alphabetical within sections.
 
 - [Pricing model](docs/memos/2026-04-28-pricing-model.md) — flat fee vs % volume vs free+enterprise; recommend free+enterprise staged rollout [updated 2026-04-28]
 - [RPC provider](docs/memos/2026-04-28-rpc-provider.md) — Helius vs QuickNode vs Triton; recommend Helius for dev/staging [updated 2026-04-28]
+- [Autoswap (USDC↔SOL) feasibility for mpp.dev](docs/memos/2026-05-11-autoswap-mpp-feasibility.md) — Jupiter vs Kora vs Phantom vs sponsor-PDA; recommend defer (treasury fee-paying covers it) [updated 2026-05-11]
 
 ## Public documentation (GitBook)
 
