@@ -9,6 +9,7 @@ import { StatCard } from "./_components/stat-card";
 import { BalanceCard } from "./_components/balance-card";
 import { ActivityRail } from "./_components/activity-rail";
 import { CreateWalletCta } from "./_components/create-wallet-cta";
+import { PageHeader } from "./_components/page-header";
 
 export default function DashboardPage() {
   const w = useWalletData();
@@ -23,8 +24,8 @@ export default function DashboardPage() {
 
   if (w.notFound) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+      <div className="space-y-8">
+        <PageHeader eyebrow="Dashboard" title="Overview" subtitle="Spin up your non-custodial agent wallet to get started." />
         <CreateWalletCta />
       </div>
     );
@@ -34,21 +35,26 @@ export default function DashboardPage() {
     // Real failure — backend down, RPC dead, JWT invalid. T-224 itself is
     // shipped; a 404 would be caught by w.notFound (CreateWalletCta branch).
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+      <div className="space-y-8">
+        <PageHeader eyebrow="Dashboard" title="Overview" />
         <p className="text-sm text-destructive">
-          Couldn't load wallet info. Check the api logs and retry.
+          Couldn&apos;t load wallet info. Check the api logs and retry.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Dashboard"
+        title="Overview"
+        subtitle="A live snapshot of your klink agent wallet — balance, sessions, and recent activity."
+      />
       <div className="grid gap-6 lg:grid-cols-3">
         <StatCard
-          title="Wallet Settings"
+          eyebrow="Wallet"
+          title="Wallet settings"
           loading={w.isLoading}
           rows={[
             {

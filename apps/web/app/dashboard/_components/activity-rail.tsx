@@ -19,32 +19,53 @@ export function ActivityRail() {
     : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle className="text-base">Active Sessions</CardTitle></CardHeader>
-        <CardContent className="flex items-center justify-between">
-          {sessions.isLoading ? <Skeleton className="h-5 w-20" /> : (
-            <span className="text-2xl font-semibold">{activeCount ?? "—"}</span>
+        <CardHeader>
+          <span className="klink-eyebrow">Sessions</span>
+          <CardTitle>Active Sessions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-end justify-between gap-4">
+          {sessions.isLoading ? (
+            <Skeleton className="h-9 w-16" />
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+                {activeCount ?? "—"}
+              </span>
+              <span className="text-[12px] text-muted-foreground">active</span>
+            </div>
           )}
-          <Link href="/dashboard/sessions" className="text-xs font-medium text-olive-deep hover:underline">
+          <Link
+            href="/dashboard/sessions"
+            className="rounded-pill px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
+          >
             Manage
           </Link>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Recent Activity</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardHeader>
+          <span className="klink-eyebrow">Audit</span>
+          <CardTitle>Recent activity</CardTitle>
+        </CardHeader>
+        <CardContent>
           {audit.isLoading ? (
             <Skeleton className="h-16 w-full" />
           ) : !auditParsed?.success || auditParsed.data.entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
+            <p className="py-2 text-[13px] text-muted-foreground">No activity yet.</p>
           ) : (
-            <ul className="space-y-2 text-sm">
+            <ul className="-mx-2 divide-y divide-olive-deep/[0.06]">
               {auditParsed.data.entries.slice(0, 5).map((row) => (
-                <li key={row.id} className="flex items-center justify-between">
-                  <span className="truncate text-muted-foreground">{row.action}</span>
-                  <span className="font-mono text-xs">{row.amount ? formatUsdc(row.amount) : "—"}</span>
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 px-2 py-2.5"
+                >
+                  <span className="truncate text-[13px] text-olive-deep/80">{row.action}</span>
+                  <span className="klink-num font-mono text-[12px] font-medium text-olive-deep">
+                    {row.amount ? formatUsdc(row.amount) : "—"}
+                  </span>
                 </li>
               ))}
             </ul>

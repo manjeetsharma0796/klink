@@ -15,29 +15,54 @@ interface Props {
 export function BalanceCard({ liquid, deployed, vaultPda, qrDataUrl, loading }: Props) {
   const total = (liquid ?? BigInt(0)) + (deployed ?? BigInt(0));
   return (
-    <Card className="flex flex-col items-center justify-center gap-4 p-8">
-      <CardContent className="flex flex-col items-center gap-4 p-0">
+    <Card className="overflow-hidden">
+      <CardContent className="flex flex-col items-center gap-5 p-7">
+        <span className="klink-eyebrow self-start">Total balance</span>
+
+        <div className="flex w-full flex-col items-center gap-1">
+          {loading ? (
+            <Skeleton className="h-9 w-32" />
+          ) : (
+            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+              {formatUsdc(total)}
+            </div>
+          )}
+          <div className="text-[12px] text-muted-foreground">
+            <span className="klink-num font-medium text-olive-deep/80">{formatUsdc(liquid ?? BigInt(0))}</span> liquid
+            <span className="px-1.5 text-muted-foreground/40">·</span>
+            <span className="klink-num font-medium text-olive-deep/80">{formatUsdc(deployed ?? BigInt(0))}</span> deployed
+          </div>
+        </div>
+
         {loading ? (
-          <Skeleton className="h-40 w-40" />
+          <Skeleton className="h-36 w-36 rounded-2xl" />
         ) : qrDataUrl ? (
-          <img src={qrDataUrl} alt="Vault USDC ATA QR" className="h-40 w-40 rounded-md border" />
+          <div className="rounded-2xl bg-cream p-2 shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]">
+            <img
+              src={qrDataUrl}
+              alt="Vault USDC ATA QR"
+              className="h-36 w-36 rounded-xl"
+            />
+          </div>
         ) : (
-          <div className="flex h-40 w-40 items-center justify-center rounded-md border bg-muted/40 text-xs text-muted-foreground">
+          <div className="flex h-36 w-36 items-center justify-center rounded-2xl border border-dashed border-olive-deep/15 bg-secondary/40 text-[11px] text-muted-foreground">
             No address yet
           </div>
         )}
-        <div className="text-center">
-          <div className="text-3xl font-semibold">{formatUsdc(total)}</div>
-          <div className="text-xs text-muted-foreground">
-            liquid {formatUsdc(liquid ?? BigInt(0))} · deployed {formatUsdc(deployed ?? BigInt(0))}
-          </div>
-        </div>
+
         {vaultPda && (
-          <span className="font-mono text-xs text-muted-foreground">{truncatePubkey(vaultPda)}</span>
+          <span className="font-mono text-[11px] text-muted-foreground">
+            {truncatePubkey(vaultPda)}
+          </span>
         )}
-        <div className="flex gap-2">
-          <Button asChild size="sm"><Link href="/dashboard/fund">Fund</Link></Button>
-          <Button asChild size="sm" variant="secondary"><Link href="/dashboard/yield">Yield</Link></Button>
+
+        <div className="flex w-full gap-2 pt-1">
+          <Button asChild size="sm" className="flex-1">
+            <Link href="/dashboard/fund">Fund</Link>
+          </Button>
+          <Button asChild size="sm" variant="secondary" className="flex-1">
+            <Link href="/dashboard/yield">Yield</Link>
+          </Button>
         </div>
       </CardContent>
     </Card>

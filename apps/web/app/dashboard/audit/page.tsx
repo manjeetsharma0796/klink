@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/cn";
 import { formatTimestamp, formatUsdc, truncatePubkey } from "@/lib/formatters";
 import { useState } from "react";
+import { PageHeader } from "../_components/page-header";
 
 const FILTERS = [
   { v: "all", label: "All" },
@@ -31,13 +32,17 @@ export default function AuditPage() {
   const hasMore = last?.next_cursor !== null && last?.next_cursor !== undefined;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Audit log</h1>
-      <div className="flex gap-2">
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Activity"
+        title="Audit log"
+        subtitle="Every allow / deny decision the agent triggered, with the on-chain tx signature when one was submitted."
+      />
+      <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Button
             key={f.v}
-            variant={filter === f.v ? "default" : "secondary"}
+            variant={filter === f.v ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter(f.v)}
           >
@@ -47,7 +52,8 @@ export default function AuditPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{entries.length} entries</CardTitle>
+          <span className="klink-eyebrow">Entries</span>
+          <CardTitle className="klink-num">{entries.length} {entries.length === 1 ? "entry" : "entries"}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading && entries.length === 0 ? (

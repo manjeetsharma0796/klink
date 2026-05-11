@@ -12,6 +12,7 @@ import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { formatUsdc, parseUsdcInput } from "@/lib/formatters";
 import { MAX_BP } from "@/lib/constants";
+import { PageHeader } from "../_components/page-header";
 
 export default function YieldPage() {
   const { publicKey } = useWallet();
@@ -45,24 +46,42 @@ export default function YieldPage() {
     }
   }
 
+  const deployedPct = total > BigInt(0) ? Number((deployed * BigInt(10000)) / total) / 100 : 0;
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Yield</h1>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Kamino"
+        title="Yield"
+        subtitle="Idle USDC earns yield through Kamino. The on-chain max-deployed cap stays enforced by the program."
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Liquid</CardTitle></CardHeader>
+          <CardHeader>
+            <span className="klink-eyebrow">Available</span>
+            <CardTitle>Liquid</CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold">{formatUsdc(liquid)}</div>
-            <p className="mt-2 text-xs text-muted-foreground">Available for spend.</p>
+            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+              {formatUsdc(liquid)}
+            </div>
+            <p className="mt-3 text-[13px] text-muted-foreground">Available for spend.</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Deployed</CardTitle></CardHeader>
+          <CardHeader>
+            <span className="klink-eyebrow">Earning yield</span>
+            <CardTitle>Deployed</CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold">{formatUsdc(deployed)}</div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {total > 0 ? `${Number((deployed * BigInt(10000)) / total) / 100}% of total` : "—"} · cap {maxBp / 100}%
+            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+              {formatUsdc(deployed)}
+            </div>
+            <p className="mt-3 text-[13px] text-muted-foreground">
+              <span className="klink-num font-medium text-olive-deep">{total > BigInt(0) ? `${deployedPct.toFixed(2)}%` : "—"}</span> of total
+              <span className="px-1.5 text-muted-foreground/40">·</span>
+              cap <span className="klink-num font-medium text-olive-deep">{maxBp / 100}%</span>
             </p>
           </CardContent>
         </Card>
@@ -70,7 +89,10 @@ export default function YieldPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Deposit to Kamino</CardTitle></CardHeader>
+          <CardHeader>
+            <span className="klink-eyebrow">Deploy</span>
+            <CardTitle>Deposit to Kamino</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <Label htmlFor="dep">Amount (USDC)</Label>
             <Input id="dep" inputMode="decimal" value={depositInput} onChange={(e) => setDepositInput(e.target.value)} placeholder="100.00" />
@@ -80,7 +102,10 @@ export default function YieldPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Withdraw from Kamino</CardTitle></CardHeader>
+          <CardHeader>
+            <span className="klink-eyebrow">Recall</span>
+            <CardTitle>Withdraw from Kamino</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <Label htmlFor="wd">Amount (USDC)</Label>
             <Input id="wd" inputMode="decimal" value={withdrawInput} onChange={(e) => setWithdrawInput(e.target.value)} placeholder="100.00" />

@@ -6,33 +6,97 @@
 
 @layer base {
   :root {
-    /* klink landing palette (T-242). Hex source of truth lives in
-       Klink-frontend/src/app/globals.css; HSL values below are derived
-       from those hexes so shadcn semantic class names keep working. */
-    --background: 85 47% 85%;            /* mint #DCEAC9 (page body) */
-    --foreground: 0 0% 11%;              /* ink #1C1C1C */
-    --card: 40 50% 98%;                  /* cream #FFFDF8 */
-    --card-foreground: 0 0% 11%;
+    /* klink landing palette (T-242 / T-251 polish). Hex source of truth
+       lives in Klink-frontend/src/app/globals.css; HSL values below are
+       derived from those hexes so shadcn semantic class names keep working. */
+    --background: 40 50% 98%;            /* cream #FFFDF8 (page body — matches landing main canvas) */
+    --foreground: 90 30% 14%;            /* deeper olive for body text */
+    --card: 0 0% 100%;                   /* pure white card surface for crisper shadows on cream */
+    --card-foreground: 90 30% 14%;
     --popover: 40 50% 98%;
-    --popover-foreground: 0 0% 11%;
+    --popover-foreground: 90 30% 14%;
     --primary: 88 41% 59%;               /* sap green #9CC36B */
     --primary-foreground: 90 30% 24%;    /* olive deep #3D4F2A */
-    --secondary: 33 11% 90%;             /* paper #E8E6E2 */
-    --secondary-foreground: 0 0% 11%;
-    --muted: 33 11% 90%;
-    --muted-foreground: 90 22% 38%;      /* olive muted (derived) */
-    --accent: 33 11% 90%;
-    --accent-foreground: 0 0% 11%;
+    --secondary: 78 31% 86%;             /* mint #DCEAC9 — subtle sage chip for secondary actions */
+    --secondary-foreground: 90 30% 24%;
+    --muted: 33 11% 95%;                 /* lighter paper, less noisy on cream */
+    --muted-foreground: 90 18% 40%;      /* olive muted */
+    --accent: 78 31% 92%;                /* very light sage for accent chips */
+    --accent-foreground: 90 30% 24%;
     --destructive: 9 75% 53%;            /* orange-bright #E54D2E */
     --destructive-foreground: 40 50% 98%;
-    --border: 30 7% 81%;                 /* paper-2 #D2D0CC */
-    --input: 30 7% 81%;
+    --border: 90 18% 88%;                /* faint olive-tinted border */
+    --input: 90 18% 88%;
     --ring: 88 41% 59%;
-    --radius: 1.25rem;                   /* 20px (was 0.75rem) */
+    --radius: 1.25rem;                   /* 20px */
     --radius-pill: 100px;
+
+    /* Surface tokens for layered cards and decorative blobs. */
+    --shadow-card: 0 1px 2px rgba(61, 79, 42, 0.04), 0 4px 12px rgba(61, 79, 42, 0.04);
+    --shadow-card-hover: 0 2px 4px rgba(61, 79, 42, 0.05), 0 12px 32px rgba(61, 79, 42, 0.08);
+    --shadow-pill: 0 1px 2px rgba(61, 79, 42, 0.04), 0 2px 8px rgba(61, 79, 42, 0.04);
   }
 
   * { @apply border-border; }
-  body { @apply bg-background text-foreground font-sans antialiased; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+  }
   code, .mono { @apply font-mono text-[0.9em]; }
+}
+
+@layer components {
+  /* Soft elevated card — used by Card primitive and ad-hoc surfaces. */
+  .klink-card {
+    @apply rounded-[var(--radius)] bg-card text-card-foreground border border-[hsl(var(--border))]/60;
+    box-shadow: var(--shadow-card);
+  }
+  .klink-card-interactive {
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .klink-card-interactive:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Mini uppercase eyebrow label, mirrors landing's tracking-[0.18em] motif. */
+  .klink-eyebrow {
+    @apply text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground;
+  }
+
+  /* Numeric-heavy values — tabular alignment so columns of figures don't jitter. */
+  .klink-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Decorative ambient glow used behind dashboard hero areas (matches landing's
+     blurred sage blobs). Pure CSS, no extra DOM, pointer-events:none. */
+  .klink-glow-bg {
+    position: relative;
+    isolation: isolate;
+  }
+  .klink-glow-bg::before,
+  .klink-glow-bg::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    z-index: -1;
+    border-radius: 9999px;
+    filter: blur(120px);
+  }
+  .klink-glow-bg::before {
+    top: -10%;
+    left: -8%;
+    width: 420px;
+    height: 420px;
+    background: rgba(156, 195, 107, 0.18); /* sap-green @ 18% */
+  }
+  .klink-glow-bg::after {
+    bottom: -12%;
+    right: -8%;
+    width: 360px;
+    height: 360px;
+    background: rgba(182, 212, 151, 0.22); /* sap-green-soft @ 22% */
+  }
 }

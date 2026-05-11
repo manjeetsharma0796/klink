@@ -35,11 +35,11 @@ const NAV_EASE = "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)]";
 export function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="hidden h-screen w-60 shrink-0 flex-col bg-card md:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-olive-deep/[0.08] bg-card md:flex">
       {/* Brand mark, logo + wordmark, mirrors landing Navbar */}
       <Link
         href="/dashboard"
-        className="flex h-20 items-center gap-2.5 px-6 group"
+        className="flex h-20 items-center gap-2.5 border-b border-olive-deep/[0.08] px-6 group"
       >
         <img
           src="/logo.png"
@@ -56,10 +56,10 @@ export function Sidebar() {
         </span>
       </Link>
 
-      <nav className="flex-1 space-y-7 px-3 pb-6 pt-2">
+      <nav className="flex-1 space-y-6 px-3 pb-6 pt-5">
         {SECTIONS.map((section) => (
           <div key={section.title}>
-            <div className="px-3 pb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
               {section.title}
             </div>
             <ul className="space-y-0.5">
@@ -73,14 +73,14 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "relative flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-sm",
+                        "relative flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-[13px]",
                         NAV_EASE,
                         active
-                          ? "bg-primary/20 font-semibold text-olive-deep"
+                          ? "bg-primary/20 font-semibold text-olive-deep shadow-[inset_0_0_0_1px_rgba(61,79,42,0.06)]"
                           : "text-muted-foreground hover:bg-primary/10 hover:text-olive-deep",
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-olive-deep" : "text-muted-foreground")} />
                       <span>{item.label}</span>
                     </Link>
                   </li>
@@ -92,9 +92,12 @@ export function Sidebar() {
       </nav>
 
       {/* Soft footer pill, devnet status indicator */}
-      <div className="px-6 pb-6">
-        <div className="flex items-center gap-2 rounded-pill bg-primary/10 px-3 py-2 text-xs">
-          <span className="h-2 w-2 rounded-full bg-sap-green animate-pulse" />
+      <div className="px-4 pb-6">
+        <div className="flex items-center gap-2 rounded-pill bg-primary/10 px-3.5 py-2 text-xs shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inset-0 animate-ping rounded-full bg-sap-green opacity-60" />
+            <span className="relative inline-block h-2 w-2 rounded-full bg-sap-green" />
+          </span>
           <span className="font-medium text-olive-deep">Devnet</span>
           <span className="text-muted-foreground">live</span>
         </div>

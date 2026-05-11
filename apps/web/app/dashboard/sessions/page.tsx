@@ -7,6 +7,7 @@ import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Badge } from "@/app/_components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
 import { truncatePubkey, formatTimestamp } from "@/lib/formatters";
+import { PageHeader } from "../_components/page-header";
 import { NewSessionModal } from "./new-session-modal";
 import { RevokeConfirm } from "./revoke-confirm";
 import { RotateKeyButton } from "./rotate-key-button";
@@ -15,21 +16,26 @@ export default function SessionsPage() {
   const { sessions, error, isLoading, mutate } = useSessions();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Sessions</h1>
-        <NewSessionModal onCreated={() => mutate()} />
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Agent keys"
+        title="Sessions"
+        subtitle="Each session is one API key bound to one on-chain Session PDA, with its own caps, allowlist, and audit trail."
+        action={<NewSessionModal onCreated={() => mutate()} />}
+      />
 
       {error && (
         <p className="text-sm text-destructive">
-          Couldn't load sessions. Check the api logs and retry.
+          Couldn&apos;t load sessions. Check the api logs and retry.
         </p>
       )}
 
       {!error && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Active and historical sessions</CardTitle></CardHeader>
+          <CardHeader>
+            <span className="klink-eyebrow">All sessions</span>
+            <CardTitle>Active and historical sessions</CardTitle>
+          </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-32 w-full" />

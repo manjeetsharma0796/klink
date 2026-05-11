@@ -17,6 +17,7 @@ import { getRpcConnection } from "@/lib/on-chain";
 import { dodoCheckoutResponseSchema, fundDepositAddressSchema } from "@/lib/schemas";
 import { useState } from "react";
 import useSWR from "swr";
+import { PageHeader } from "../_components/page-header";
 
 export default function FundPage() {
   const { wallet } = useWalletData();
@@ -165,15 +166,20 @@ export default function FundPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Fund</h1>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Top up"
+        title="Fund"
+        subtitle="Move USDC into the vault — from your connected Phantom, by direct deposit, or with a card."
+      />
       <div className="grid gap-6 lg:grid-cols-3">
         {/* T-249: connected-wallet path. Most-natural option for a user
             who is already signed in via Phantom; sits first so it's the
             default path the eye lands on. */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">From connected wallet</CardTitle>
+            <span className="klink-eyebrow">Phantom</span>
+            <CardTitle>From connected wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {!wallet ? (
@@ -215,7 +221,8 @@ export default function FundPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Direct deposit (QR)</CardTitle>
+            <span className="klink-eyebrow">On-chain</span>
+            <CardTitle>Direct deposit (QR)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {!wallet ? (
@@ -226,16 +233,20 @@ export default function FundPage() {
               <Skeleton className="h-40 w-40" />
             ) : fundParsed?.success ? (
               <>
-                <img
-                  src={fundParsed.data.qr_data_url}
-                  alt="Vault USDC ATA QR"
-                  className="h-40 w-40 rounded-md border"
-                />
-                <p className="font-mono text-xs">{fundParsed.data.usdc_ata}</p>
+                <div className="rounded-2xl bg-cream p-2 shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]">
+                  <img
+                    src={fundParsed.data.qr_data_url}
+                    alt="Vault USDC ATA QR"
+                    className="h-40 w-40 rounded-xl"
+                  />
+                </div>
+                <p className="break-all font-mono text-[11px] text-muted-foreground">
+                  {fundParsed.data.usdc_ata}
+                </p>
                 <Button variant="secondary" size="sm" onClick={copyAta}>
                   Copy address
                 </Button>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[12px] text-muted-foreground">
                   Send USDC on Solana to this address. Confirms in ~400ms.
                 </p>
               </>
@@ -249,7 +260,8 @@ export default function FundPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Add card / fiat (Dodo)</CardTitle>
+            <span className="klink-eyebrow">Fiat</span>
+            <CardTitle>Add card / fiat (Dodo)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">

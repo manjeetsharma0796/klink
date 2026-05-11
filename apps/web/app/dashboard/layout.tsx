@@ -21,12 +21,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <ProgressProvider>
       <ConfirmProvider>
         <RouteProgressFlash />
-        <div className="flex min-h-screen">
+        <div className="relative flex min-h-screen">
           <Sidebar />
           <div className="flex flex-1 flex-col">
             <Topbar pubkey={session.pubkey} />
-            <main className="flex-1 px-8 py-8">
-              <div className="mx-auto max-w-7xl">{children}</div>
+            <main className="klink-glow-bg relative flex-1 px-6 py-10 md:px-10 md:py-12">
+              <div className="relative mx-auto max-w-7xl">{children}</div>
             </main>
           </div>
           <Toaster />

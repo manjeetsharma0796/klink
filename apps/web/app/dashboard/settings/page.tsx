@@ -13,6 +13,7 @@ import { useOnChainVault } from "@/_hooks/use-on-chain-vault";
 import { useConfirm } from "@/app/_components/confirm-dialog";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { MAX_BP } from "@/lib/constants";
+import { PageHeader } from "../_components/page-header";
 
 function formatUsdcFromBaseUnits(baseUnits: bigint): string {
   if (baseUnits === BigInt(0)) return "0";
@@ -46,16 +47,25 @@ export default function SettingsPage() {
   const drainBusy = drain.phase !== "idle" && drain.phase !== "done" && drain.phase !== "error";
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Configuration"
+        title="Settings"
+        subtitle="Tune the on-chain policy, inspect your vault metadata, and use the emergency drain if you ever need to take custody back."
+      />
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Max Deployed Fraction</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+        <CardHeader>
+          <span className="klink-eyebrow">Policy</span>
+          <CardTitle>Max deployed fraction</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="text-[13px] text-muted-foreground">
             Maximum percentage of total balance that can be deployed to yield. Enforced on-chain.
           </p>
-          <div className="text-3xl font-semibold">{value / 100}%</div>
+          <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+            {value / 100}%
+          </div>
           <Slider min={0} max={MAX_BP} step={100} value={[value]} onValueChange={(v) => setBp(v[0])} />
           <Button
             disabled={(phase !== "idle" && phase !== "done") || bp === null || bp === wallet.maxDeployedFractionBp}
@@ -76,18 +86,33 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Wallet info</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div><span className="text-muted-foreground">Owner pubkey:</span> <span className="font-mono">{wallet.ownerPubkey}</span></div>
-          <div><span className="text-muted-foreground">Vault PDA:</span> <span className="font-mono">{wallet.vaultPda}</span></div>
-          <div><span className="text-muted-foreground">USDC ATA:</span> <span className="font-mono">{wallet.usdcAta}</span></div>
-          <div><span className="text-muted-foreground">Created:</span> {wallet.createdAt}</div>
+        <CardHeader>
+          <span className="klink-eyebrow">On-chain</span>
+          <CardTitle>Wallet info</CardTitle>
+        </CardHeader>
+        <CardContent className="divide-y divide-olive-deep/[0.06]">
+          {[
+            { label: "Owner pubkey", value: wallet.ownerPubkey, mono: true },
+            { label: "Vault PDA", value: wallet.vaultPda, mono: true },
+            { label: "USDC ATA", value: wallet.usdcAta, mono: true },
+            { label: "Created", value: wallet.createdAt, mono: false },
+          ].map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-4 py-3 first:pt-1">
+              <span className="text-[13px] text-muted-foreground">{row.label}</span>
+              <span className={`text-[13px] font-medium text-olive-deep ${row.mono ? "font-mono" : ""}`}>
+                {row.mono && row.value.length > 24
+                  ? `${row.value.slice(0, 6)}…${row.value.slice(-6)}`
+                  : row.value}
+              </span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/40">
+      <Card className="border-destructive/30">
         <CardHeader>
-          <CardTitle className="text-base text-destructive">Take back custody</CardTitle>
+          <span className="klink-eyebrow text-destructive/70">Recovery</span>
+          <CardTitle className="text-destructive">Danger zone — emergency drain</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -179,7 +204,7 @@ export default function SettingsPage() {
             }}
           >
             {drain.phase === "idle" || drain.phase === "done" || drain.phase === "error"
-              ? "Withdraw"
+              ? "Drain to recipient"
               : `${drain.phase}…`}
           </Button>
         </CardContent>

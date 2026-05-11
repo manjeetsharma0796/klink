@@ -25,21 +25,24 @@ interface Row {
 
 interface Props {
   title: string;
+  /** Optional small uppercase eyebrow rendered above the title. */
+  eyebrow?: string;
   rows: Row[];
   loading?: boolean;
 }
 
-export function StatCard({ title, rows, loading }: Props) {
+export function StatCard({ title, eyebrow, rows, loading }: Props) {
   const { toast } = useToast();
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+        {eyebrow && <span className="klink-eyebrow">{eyebrow}</span>}
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {rows.map((row) => {
+      <CardContent className="divide-y divide-olive-deep/[0.06]">
+        {rows.map((row, idx) => {
           const display =
             row.value === null
               ? null
@@ -47,23 +50,33 @@ export function StatCard({ title, rows, loading }: Props) {
                 ? truncatePubkey(row.value)
                 : row.value;
           return (
-            <div key={row.label} className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">{row.label}</span>
-              <div className="flex items-center gap-2">
+            <div
+              key={row.label}
+              className={cn(
+                "flex items-center justify-between gap-4 py-3",
+                idx === 0 && "pt-1",
+              )}
+            >
+              <span className="text-[13px] text-muted-foreground">{row.label}</span>
+              <div className="flex items-center gap-3">
                 {loading ? (
                   <Skeleton className="h-4 w-24" />
                 ) : (
-                  <span className={cn("text-sm", row.mono && "font-mono")}>
-                    {display ?? "Not set"}
+                  <span
+                    className={cn(
+                      "text-[13px] font-medium text-olive-deep",
+                      row.mono && "font-mono klink-num",
+                    )}
+                  >
+                    {display ?? <span className="text-muted-foreground/70 font-normal">Not set</span>}
                   </span>
                 )}
                 {row.copy && row.value && !loading && (
                   <button
                     type="button"
                     aria-label={`Copy ${row.label}`}
-                    className="text-xs font-medium text-olive-deep hover:underline"
+                    className="rounded-pill px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
                     onClick={async () => {
-                      // row.value is a string here — the outer guard rules out null.
                       const v = row.value as string;
                       await navigator.clipboard.writeText(v);
                       setCopiedLabel(row.label);
@@ -80,7 +93,7 @@ export function StatCard({ title, rows, loading }: Props) {
                 {row.href && (
                   <Link
                     href={row.href}
-                    className="text-xs font-medium text-olive-deep hover:underline"
+                    className="rounded-pill px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
                   >
                     {row.cta ?? "Configure"}
                   </Link>
