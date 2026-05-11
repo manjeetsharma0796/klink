@@ -138,6 +138,25 @@ POST https://service.example/api/inference
 X-Payment-Proof: 5K3...
 ```
 
+### `POST /v1/spend/mpp`: MPP-protocol proxy
+
+Use for services that speak the [paymentauth.org MPP](https://www.npmjs.com/package/@solana/mpp) dialect — the merchant returns `402 + WWW-Authenticate: Payment id="…", request="<base64url>"`, demands a specific `recentBlockhash` baked into the on-chain tx, and only reads `Authorization: Payment <token>` on retry (not `X-Payment-Proof`). klink probes the URL, decodes the challenge, signs the spend with the merchant's blockhash, builds the right Authorization header, retries server-side, and forwards the upstream response back to you. **One call, one paid result.** The URL must be in your off-chain allowlist.
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "url": "https://service.example/echo",
+    "max_amount": 100000,
+    "method": "GET"
+  }' \
+  https://klink-api.onrender.com/v1/spend/mpp
+```
+
+`max_amount: 100000` is **0.10 USDC** — klink refuses to pay more than this even if the merchant quotes higher. The HTTP status + body + `payment-receipt` header are passthrough from the upstream service. The `x-tx-signature` response header carries the on-chain proof of payment.
+
+When to use `/v1/spend/mpp` vs `/v1/spend/sign-payment`: pick `mpp` when the 402 response carries a `WWW-Authenticate: Payment …` header (paymentauth.org / `@solana/mpp` services). Pick `sign-payment` for older x402 services that expect the agent to retry with `X-Payment-Proof`. If unsure, probe the URL — if `WWW-Authenticate` starts with `Payment `, use `/v1/spend/mpp`.
+
 ### `POST /v1/spend/service`: curated proxy
 
 Use for services in the curated catalog. klink probes the service, verifies the quoted price is under your `max_amount`, signs + submits, retries with proof, and forwards the service response back to you. **One call, one paid result.**

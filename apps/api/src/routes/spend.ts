@@ -821,3 +821,482 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
 }
 
 export const postSpendServiceHandler = makePostSpendServiceHandler();
+
+// ---------------------------------------------------------------------------
+// /v1/spend/mpp — T-253 full MPP-protocol proxy
+//
+// Differs from /v1/spend/service (catalog x402) and /v1/spend/sign-payment
+// (agent-retries-with-X-Payment-Proof) in two ways MPP demands:
+//   1. The on-chain tx must use the challenge-supplied `recentBlockhash`
+//      so the merchant can prove the payment is fresh for *this* challenge.
+//      We honor that here instead of calling `getLatestBlockhash`.
+//   2. The retry header is `Authorization: Payment <base64url(...)>` per
+//      paymentauth.org spec; merchants explicitly ignore X-Payment-Proof.
+//      We build that header server-side and retry within the same handler.
+// ---------------------------------------------------------------------------
+
+interface SpendMppBody {
+  url: string;
+  max_amount: number;
+  method?: "GET" | "POST";
+  body?: unknown;
+}
+
+function parseSpendMppBody(raw: unknown): { ok: true; body: SpendMppBody } | ValidationError {
+  if (!raw || typeof raw !== "object") return fail(400, "request body must be JSON object");
+  const b = raw as Record<string, unknown>;
+  if (typeof b.url !== "string" || !b.url) return fail(400, "url required");
+  try {
+    new URL(b.url);
+  } catch {
+    return fail(400, "url must be a valid URL");
+  }
+  if (typeof b.max_amount !== "number" || !Number.isFinite(b.max_amount) || b.max_amount <= 0) {
+    return fail(400, "max_amount must be a positive number (USDC base units)");
+  }
+  if (b.method !== undefined && b.method !== "GET" && b.method !== "POST") {
+    return fail(400, "method must be 'GET' | 'POST' if provided");
+  }
+  return {
+    ok: true,
+    body: {
+      url: b.url,
+      max_amount: b.max_amount,
+      method: b.method as "GET" | "POST" | undefined,
+      body: b.body,
+    },
+  };
+}
+
+/** WWW-Authenticate `Payment …` challenge fields after parse. */
+interface MppChallenge {
+  id: string;
+  realm: string;
+  method: string;
+  intent: string;
+  request: string;
+  expires: string;
+  opaque?: string;
+  digest?: string;
+  description?: string;
+  [k: string]: string | undefined;
+}
+
+/** Decoded `request` payload from inside the challenge. */
+interface MppRequestPayload {
+  amount: string;
+  currency: string;
+  recipient: string;
+  methodDetails: {
+    network: string;
+    decimals: number;
+    tokenProgram: string;
+    recentBlockhash: string;
+  };
+}
+
+export function parseMppChallenge(wwwAuthenticate: string): MppChallenge | null {
+  const trimmed = wwwAuthenticate.trim();
+  if (!trimmed.toLowerCase().startsWith("payment")) return null;
+  const after = trimmed.slice("payment".length).trim();
+  const out: Record<string, string> = {};
+  // Matches `key="value"` pairs (RFC 7235-style with quoted-string values).
+  const re = /([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*"((?:[^"\\]|\\.)*)"/g;
+  for (const m of after.matchAll(re)) {
+    const k = m[1];
+    const v = m[2];
+    if (k && v !== undefined) out[k] = v.replace(/\\(.)/g, "$1");
+  }
+  for (const req of ["id", "realm", "method", "intent", "request", "expires"]) {
+    if (!out[req]) return null;
+  }
+  return out as unknown as MppChallenge;
+}
+
+export function decodeMppRequestPayload(requestB64url: string): MppRequestPayload | null {
+  try {
+    const json = Buffer.from(requestB64url, "base64url").toString("utf8");
+    const obj = JSON.parse(json) as MppRequestPayload;
+    if (
+      typeof obj?.amount !== "string" ||
+      typeof obj?.currency !== "string" ||
+      typeof obj?.recipient !== "string" ||
+      typeof obj?.methodDetails?.recentBlockhash !== "string"
+    ) {
+      return null;
+    }
+    return obj;
+  } catch {
+    return null;
+  }
+}
+
+export function buildMppAuthorizationHeader(challenge: MppChallenge, signature: string): string {
+  const token = Buffer.from(
+    JSON.stringify({
+      challenge,
+      payload: { type: "signature", signature },
+    }),
+  ).toString("base64url");
+  return `Payment ${token}`;
+}
+
+export type MakePostSpendMppDeps = MakePostSpendSignPaymentDeps & {
+  fetchFn?: FetchFn;
+};
+
+export function makePostSpendMppHandler(deps: MakePostSpendMppDeps = {}) {
+  const newConn =
+    deps.connection ?? (() => new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed"));
+  const readLiquidity = deps.liquidity ?? defaultLiquidity;
+  const loadPolicy = deps.loadPolicy ?? defaultLoadPolicy;
+  const doSubmit = deps.submit ?? sendAndConfirmTransaction;
+  const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
+  const getTreasury = deps.loadTreasury ?? defaultLoadTreasury;
+  const doFetch = deps.fetchFn ?? fetch;
+
+  return async function postSpendMpp(req: Request, res: Response) {
+    const session = req.session;
+    const wallet = req.wallet;
+    if (!session || !wallet) {
+      res.status(401).json({ error: "api key required" });
+      return;
+    }
+
+    const parsed = parseSpendMppBody(req.body);
+    if (!parsed.ok) {
+      res.status(parsed.status).json(parsed.body);
+      return;
+    }
+    const body = parsed.body;
+
+    const masterKey = process.env.SESSION_SECRET_MASTER_KEY;
+    if (!masterKey) {
+      console.error("[POST /v1/spend/mpp] SESSION_SECRET_MASTER_KEY not set");
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    const db = getDb();
+
+    // Off-chain URL allowlist (T-209) — same gate as sign-payment.
+    const policyDecision = await checkOffChainPolicy({
+      walletId: wallet.id,
+      url: body.url,
+      loadPolicy,
+      isCurated: deps.isCurated,
+    });
+    if (!policyDecision.allowed) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: policyDecision.reason,
+      });
+      res.status(403).json({ error: policyDecision.reason });
+      return;
+    }
+
+    // 1. Probe — expect 402 + WWW-Authenticate: Payment.
+    let probeResp: globalThis.Response;
+    try {
+      probeResp = (await doFetch(body.url, {
+        method: body.method ?? "GET",
+        headers:
+          body.body !== undefined ? { "content-type": "application/json" } : undefined,
+        body: body.body !== undefined ? JSON.stringify(body.body) : undefined,
+      })) as globalThis.Response;
+    } catch (err) {
+      console.error("[POST /v1/spend/mpp] probe failed:", err);
+      res.status(502).json({ error: "service probe failed", detail: String(err) });
+      return;
+    }
+
+    if (probeResp.status !== 402) {
+      // Service didn't ask for payment — passthrough.
+      const passthroughBody = await probeResp.text();
+      res
+        .status(probeResp.status)
+        .type(probeResp.headers.get("content-type") ?? "text/plain")
+        .send(passthroughBody);
+      return;
+    }
+
+    const wwwAuth = probeResp.headers.get("www-authenticate");
+    if (!wwwAuth) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: "BAD_CHALLENGE: 402 missing WWW-Authenticate",
+      });
+      res.status(502).json({ error: "BAD_CHALLENGE", detail: "402 missing WWW-Authenticate" });
+      return;
+    }
+
+    const challenge = parseMppChallenge(wwwAuth);
+    if (!challenge) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: "BAD_CHALLENGE: unparseable WWW-Authenticate",
+      });
+      res.status(502).json({ error: "BAD_CHALLENGE", detail: "unparseable WWW-Authenticate" });
+      return;
+    }
+
+    const payment = decodeMppRequestPayload(challenge.request);
+    if (!payment) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: "BAD_CHALLENGE: undecodable request payload",
+      });
+      res.status(502).json({ error: "BAD_CHALLENGE", detail: "undecodable request payload" });
+      return;
+    }
+
+    // Freshness — server time vs challenge.expires.
+    const expiresMs = Date.parse(challenge.expires);
+    if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: "EXPIRED_CHALLENGE",
+      });
+      res.status(402).json({ error: "EXPIRED_CHALLENGE", expires: challenge.expires });
+      return;
+    }
+
+    // Currency match — only USDC supported.
+    const usdcMint = getUsdcMint();
+    if (payment.currency !== usdcMint.toBase58()) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: 0,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: `WRONG_CURRENCY: ${payment.currency}`,
+      });
+      res.status(402).json({
+        error: "WRONG_CURRENCY",
+        expected: usdcMint.toBase58(),
+        got: payment.currency,
+      });
+      return;
+    }
+
+    const amountNum = Number(payment.amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      res.status(502).json({ error: "BAD_CHALLENGE", detail: "amount not numeric" });
+      return;
+    }
+    if (amountNum > body.max_amount) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: amountNum,
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: `QUOTED_OVER_MAX: ${amountNum} > ${body.max_amount}`,
+      });
+      res
+        .status(402)
+        .json({ error: "QUOTED_OVER_MAX", quoted: amountNum, max_amount: body.max_amount });
+      return;
+    }
+
+    let recipient: PublicKey;
+    let vault: PublicKey;
+    let vaultUsdcAta: PublicKey;
+    let sessionPubkey: PublicKey;
+    try {
+      recipient = new PublicKey(payment.recipient);
+      vault = new PublicKey(wallet.vaultPda);
+      vaultUsdcAta = new PublicKey(wallet.usdcAta);
+      sessionPubkey = new PublicKey(session.sessionPubkey);
+    } catch {
+      res.status(502).json({ error: "BAD_CHALLENGE", detail: "invalid base58 in challenge" });
+      return;
+    }
+
+    const amount = BigInt(amountNum);
+    const conn = newConn();
+
+    // Liquidity check.
+    let liquid: bigint;
+    try {
+      liquid = await readLiquidity(conn, vaultUsdcAta);
+    } catch (err) {
+      console.error("[POST /v1/spend/mpp] liquidity read failed:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+    if (liquid < amount) {
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: Number(amount),
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: "INSUFFICIENT_LIQUID",
+      });
+      res
+        .status(402)
+        .json({ error: "INSUFFICIENT_LIQUID", liquid: liquid.toString(), amount: amount.toString() });
+      return;
+    }
+
+    // Decrypt session keypair.
+    const [encryptedRow] = await db
+      .select({ secret: sessions.encryptedSessionSecret })
+      .from(sessions)
+      .where(eq(sessions.id, session.id))
+      .limit(1);
+    if (!encryptedRow) {
+      res.status(500).json({ error: "session row missing" });
+      return;
+    }
+    const signer = Keypair.fromSecretKey(decryptSessionSecret(encryptedRow.secret, masterKey));
+
+    let treasury: Keypair;
+    try {
+      treasury = getTreasury();
+    } catch (err) {
+      console.error("[POST /v1/spend/mpp] treasury load failed:", err);
+      res.status(500).json({ error: "server misconfigured" });
+      return;
+    }
+
+    const recipientUsdcAta = getAssociatedTokenAddressSync(usdcMint, recipient);
+    const ix = buildTransferUsdcIx({
+      sessionSigner: signer.publicKey,
+      vault,
+      mint: usdcMint,
+      vaultUsdcAta,
+      recipient,
+      recipientUsdcAta,
+      amount,
+      tokenProgramId: TOKEN_PROGRAM_ID,
+      sessionPubkey,
+    });
+
+    const tx = new Transaction({ feePayer: treasury.publicKey });
+    tx.add(ix);
+    // The whole point of this handler: use the merchant's blockhash so the
+    // on-chain tx binds to *this* challenge, not a fresh blockhash of our own.
+    tx.recentBlockhash = payment.methodDetails.recentBlockhash;
+
+    let signature: string;
+    try {
+      signature = await doSubmit(conn, tx, [treasury, signer]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "unknown";
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: Number(amount),
+        recipientOrUrl: body.url,
+        decision: "deny",
+        reason: `ON_CHAIN_REVERT: ${msg.slice(0, 200)}`,
+      });
+      res.status(402).json({ error: "on-chain submission failed", detail: msg });
+      return;
+    }
+
+    // Retry the URL with the MPP-shaped Authorization header.
+    const authHeader = buildMppAuthorizationHeader(challenge, signature);
+    let serviceResp: globalThis.Response;
+    try {
+      serviceResp = (await doFetch(body.url, {
+        method: body.method ?? "GET",
+        headers: {
+          Authorization: authHeader,
+          ...(body.body !== undefined ? { "content-type": "application/json" } : {}),
+        },
+        body: body.body !== undefined ? JSON.stringify(body.body) : undefined,
+      })) as globalThis.Response;
+    } catch (err) {
+      console.error("[POST /v1/spend/mpp] retry-with-proof failed:", err);
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: Number(amount),
+        recipientOrUrl: body.url,
+        decision: "allow",
+        reason: `RETRY_FAILED: ${String(err).slice(0, 200)}`,
+        txSignature: signature,
+      });
+      res.status(502).json({
+        error: "service retry failed after payment",
+        tx_signature: signature,
+        detail: String(err),
+      });
+      return;
+    }
+
+    // Audit allow; pin VERIFICATION_FAILED if the merchant still rejects.
+    if (serviceResp.status >= 400) {
+      const upstreamBody = await serviceResp.text();
+      await db.insert(auditLog).values({
+        walletId: wallet.id,
+        sessionId: session.id,
+        action: "spend_mpp",
+        amount: Number(amount),
+        recipientOrUrl: body.url,
+        decision: "allow",
+        reason: `VERIFICATION_FAILED: status=${serviceResp.status} body=${upstreamBody.slice(0, 200)}`,
+        txSignature: signature,
+      });
+      res
+        .status(serviceResp.status)
+        .type(serviceResp.headers.get("content-type") ?? "application/json")
+        .setHeader("x-tx-signature", signature)
+        .send(upstreamBody);
+      return;
+    }
+
+    await db.insert(auditLog).values({
+      walletId: wallet.id,
+      sessionId: session.id,
+      action: "spend_mpp",
+      amount: Number(amount),
+      recipientOrUrl: body.url,
+      decision: "allow",
+      txSignature: signature,
+    });
+
+    const passthroughBody = await serviceResp.text();
+    const contentType = serviceResp.headers.get("content-type") ?? "application/json";
+    const paymentReceipt = serviceResp.headers.get("payment-receipt");
+    res.status(serviceResp.status).type(contentType).setHeader("x-tx-signature", signature);
+    if (paymentReceipt) res.setHeader("payment-receipt", paymentReceipt);
+    res.send(passthroughBody);
+  };
+}
+
+export const postSpendMppHandler = makePostSpendMppHandler();

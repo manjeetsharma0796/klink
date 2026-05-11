@@ -18,6 +18,7 @@ import {
   postSessionHandler,
 } from "./routes/session";
 import {
+  postSpendMppHandler,
   postSpendServiceHandler,
   postSpendSignPaymentHandler,
   postSpendTransferHandler,
@@ -124,6 +125,7 @@ export function createApp(): Express {
   app.post("/v1/spend/transfer", requireApiKey, postSpendTransferHandler);
   app.post("/v1/spend/sign-payment", requireApiKey, postSpendSignPaymentHandler);
   app.post("/v1/spend/service", requireApiKey, postSpendServiceHandler);
+  app.post("/v1/spend/mpp", requireApiKey, postSpendMppHandler);
 
   // Yield (T-213): kamino_deposit / kamino_withdraw via session signer + read.
   app.post("/v1/yield/deposit", requireApiKey, postYieldDepositHandler);
