@@ -211,13 +211,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 5 — Docs + design
 
-### T-503 — Demo replay script
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-309
-- OS: any
-- Scope: docs
-- Acceptance: 3-min devnet happy-path script: create wallet → fund → manual deposit → agent spend → audit review. Runnable end-to-end.
-
 ### T-504 — Pick 3 reference integrations for demo
 - Status: in-progress @Jishnu 2026-05-11
 - Depends-on: T-309
@@ -230,6 +223,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-503 — Demo replay script
+- Status: done @Jishnu 2026-05-11
+- Depends-on: T-309
+- OS: any
+- Scope: docs
+- Acceptance: 3-min devnet happy-path script at `apps/api/scripts/demo-replay.ts` (Bun + raw fetch, no SDK dep) drives the public klink devnet flow end-to-end: SIWS sign-in (prereq) then six numbered steps — (1) create wallet via POST /v1/wallet + sign init_vault + self-heal POST so the DB row exists, (2) fund the vault USDC ATA with a 5 USDC SPL TransferChecked from the funded `.devnet-test-keypair.json` (idempotently creates the vault ATA if missing), (3) mint API key via POST /v1/session + sign add_session, (4) POST /v1/yield/deposit which on devnet returns the documented 503 YIELD_DISABLED gate (script detects + gracefully continues, treats it as a passing step on devnet but as a real success on yield-enabled envs), (5) POST /v1/spend/mpp against the verified MPP echo service `service01-kep9.onrender.com/echo` capturing the on-chain `x-tx-signature` and the upstream JSON body, (6) GET /v1/audit?limit=5 (JWT-authed) showing the spend row + a printed dashboard URL `https://klinkdotfun.vercel.app/dashboard/audit` for visual verification. Each step prints a `▶ step N:` header, the request URL + payload (api keys + JWT redacted to first 8 chars), the response status + truncated body, and a `✓ step N done in <ms>ms` footer. Cold-start tolerant via a warm-up GET /health with up to 5 exponential-backoff retries before counting any step. Fails loud on any non-2xx (other than the documented YIELD_DISABLED gate). Companion `apps/api/scripts/README.md` documents the full env layout (KLINK_API_BASE, SOLANA_RPC_URL, USDC_MINT, ECHO_SERVICE_URL, .devnet-test-keypair.json), an example output trace, four caveat sections (cold-start, YIELD_DISABLED is the happy path on devnet, manual wallet/session signing flow, devnet USDC requirement), and a "why raw fetch instead of @klink/sdk" rationale (the demo touches three dashboard-JWT-authed endpoints the SDK intentionally doesn't expose). DOCS_INDEX.md gains a Reference material entry pointing at the new README. Path (a) chosen over (b) because the script reuses the env-loading pattern of `e2e-dashboard.ts` and the SDK is not a current dep of `@klink/api` (adding it just for one of six steps would be scope creep). Test baseline preserved: 235/235 `bun --filter @klink/api test` green (no new tests — the script IS the e2e).
+- Notes: triggered 2026-05-11 by T-503 ticket as part of the docs+design rollup. Companion to gitbook/getting-started/quickstart.md (human walkthrough); this is the runnable replay. Out of scope: per-step retries (failures are loud), Dodo card-pay funding (script can't drive a hosted checkout), Phantom popup automation (signing is delegated to .devnet-test-keypair.json).
 
 ### T-259 — Public `/services` page on dashboard, rendering gitbook MPP services table
 - Status: done @Jishnu 2026-05-11
