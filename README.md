@@ -2,7 +2,7 @@
 
 A non-custodial Solana smart-wallet for AI agents, with on-chain policy DSL for budget controls and audit. Targeting the Solana Frontier hackathon (Colosseum), 60-day MVP.
 
-## Status
+## Status   
 
 Pre-implementation. Design spec is frozen; code scaffolding has not started.
 
