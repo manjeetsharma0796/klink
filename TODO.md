@@ -139,6 +139,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-257 — Dodo disbursement handler self-heals on missing ATAs + handles missing-wallet-row gracefully
+- Status: in-progress @Jishnu 2026-05-11
+- Depends-on: T-215, T-245, T-256
+- OS: any
+- Scope: api + tests
+- Acceptance: surfaced 2026-05-11 by a real $50 Dodo card payment that landed in production and failed disbursement with `TREASURY_SUBMIT_FAILED: invalid account data for instruction` from the SPL Token Program (audit row visible at `app.klinkdotfun.live/dashboard/audit`, timestamp 2026-05-11 08:32:25, `action=fund_dodo decision=deny amount=$50.00`). Root cause: the treasury's USDC ATA `DBRYhuJUmEzcqpS2WabaHKxwCJBz5QSvuSMoys66vQVB` (the env-configured `TREASURY_USDC_ATA`, deterministically derived from treasury pubkey `9muAwR8a4LEgFGLNPfoUHhJrfLmtkXFBvpBQCx2GLVTU` + USDC mint `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`) was never initialized on-chain on devnet; SPL Token rejected the transfer ix because the source account doesn't exist. Three-part patch in `apps/api/src/routes/dodo.ts`: (1) prepend `createAssociatedTokenAccountIdempotentInstruction` for the **source** ATA (treasury → USDC) so a fresh deployment never traps a payment in this failure mode; (2) prepend the same for the **destination** ATA (vault → USDC) mirroring T-256's fix for spend handlers, so fresh user wallets whose USDC ATA hasn't been physically created don't crash the disbursement; (3) change the missing-wallet-row branch (currently returns `500 {"error":"wallet missing"}` causing infinite Dodo retries and no audit row) to `200 + deny audit row` with reason `WALLET_MISSING_AT_DISBURSEMENT_TIME` so Dodo stops retrying and operators get a deny row to alert on. Switch the SPL ix from plain `Transfer` to `TransferChecked` for defense-in-depth (parity with T-252's spend handler migration, mint+decimals on-wire so SPL Token reverts on decimals mismatch). Tests: update any dodo handler tests that snapshot the tx shape; add a deny-path test for the WALLET_MISSING case. Out of scope: moving tx submission off the webhook response window (the race window where slow RPC causes Dodo retries); that's a separate `T-2xx` follow-up. Full audit at `docs/superpowers/plans/2026-05-11-dodo-treasury-audit.md`.
+- Notes: this only fixes the CODE side. Initializing the treasury USDC ATA on devnet + funding it with test USDC is a separate one-time ops step that has to happen via the treasury keypair; documented in the audit plan file. The stuck $50 payment from 2026-05-11 08:32:25 can be recovered manually via a one-shot replay script after the treasury ATA is funded; tracked implicitly as a 30-min ops task.
+
 ### T-312 — Serve `skill.md` from the api at `GET /skill.md`
 - Status: pending
 - Depends-on: T-311
