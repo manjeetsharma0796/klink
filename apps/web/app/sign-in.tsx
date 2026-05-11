@@ -135,7 +135,7 @@ function phaseLabel(p: Phase): string {
     case "requesting-nonce":
       return "Requesting nonce...";
     case "awaiting-signature":
-      return "Approve the sign-in message in Phantom";
+      return "Approve the sign-in message in your wallet";
     case "exchanging":
       return "Verifying signature...";
     case "done":

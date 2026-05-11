@@ -26,7 +26,7 @@ The api dev server runs on `:3000`; web on `:3030`.
 
 | Path | Owner task | Status |
 |---|---|---|
-| `/` | T-302 sign-in (Phantom SIWS) | done |
+| `/` | T-302 sign-in (wallet SIWS) | done |
 | `/dashboard` | T-303, overview, create wallet | done |
 | `/dashboard/sessions` | T-304, list, create, revoke | done |
 | `/dashboard/sessions/[id]` | T-305, recipients + bitmap + URLs + time window | done |
@@ -53,7 +53,7 @@ When each lands, the dashboard activates that screen automatically, no UI change
 ## Architecture
 
 - **Read** SWR + `swrFetcher` from `lib/api-client.ts`. Client components only.
-- **Owner-write** build-tx-then-sign via `_hooks/use-build-and-sign-tx.ts`: backend returns `{ txBase64 }`, Phantom signs, web3.js submits.
+- **Owner-write** build-tx-then-sign via `_hooks/use-build-and-sign-tx.ts`: backend returns `{ txBase64 }`, the connected wallet signs, web3.js submits.
 - **On-chain reads** (Vault `deployed_amount`, USDC ATA balance) go directly through web3.js Connection: no backend round-trip needed for plain reads.
 
 ## Layout
@@ -63,7 +63,7 @@ app/
   layout.tsx                  root: <Providers>
   providers.tsx               ConnectionProvider + WalletProvider + WalletModalProvider + SWRConfig
   page.tsx                    sign-in landing
-  sign-in.tsx                 Phantom SIWS flow
+  sign-in.tsx                 wallet SIWS flow
   api/auth/...                SIWS proxy + JWT cookie management
 
   dashboard/
@@ -81,7 +81,7 @@ app/
   _components/ui/             shadcn primitives (button, card, dialog, input, label, slider, tabs, table, skeleton, badge, toast, toaster)
 
 _hooks/
-  use-build-and-sign-tx.ts    Phantom roundtrip
+  use-build-and-sign-tx.ts    wallet roundtrip
   use-wallet.ts               SWR /v1/wallet
   use-sessions.ts             SWR /v1/sessions
   use-session.ts              SWR /v1/sessions/:id
@@ -125,11 +125,11 @@ tests/
 
 ```
 [browser]                                 [next route handler]                 [api]
- connect Phantom
+ connect wallet
  POST /api/auth/siws/nonce ───────────────▶ proxyNonce ─────────────────────▶ POST /v1/auth/siws/nonce
                                             ◀────────────────────────────── { nonce }
  ◀── { nonce }
- phantom.signMessage("Sign in to klink: <nonce>")
+ wallet.signMessage("Sign in to klink: <nonce>")
  POST /api/auth/siws { pubkey, signature, nonce }
                                             proxySiws ────────────────────▶ POST /v1/auth/siws
                                             ◀────────────────────────── { token, userId }

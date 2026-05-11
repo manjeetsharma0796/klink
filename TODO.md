@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-05-11
+last_updated: 2026-05-12
 ---
 
 # TODO
@@ -188,6 +188,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - OS: any
 - Scope: docs
 - Acceptance: `packages/sdk/README.md` — install (workspace-internal + vendor option), 5-line quickstart against the live Render endpoint, per-method usage block for all 6 endpoints (`spendTransfer`, `spendSignPayment`, `spendService`, `yieldDeposit`, `yieldWithdraw`, `yieldPosition`) with realistic args + sample responses, error-handling section keyed off `KlinkApiError.status` + `KlinkDenyReason`, testing section showing the injectable `FetchLike` pattern (no global fetch mocking needed), and references back to the design spec, api-surface doc, `gitbook/skill.md`, and `HANDOVER.md`. Type shapes in examples cross-checked against `packages/sdk/src/types.ts`. T-234 caveat about empty `service_catalog` called out inline so agents reading the doc don't hit a silent 404.
+
+### T-314 — "Add to session" deep-link button on `/services` page
+- Status: pending
+- Depends-on: T-259, T-304, T-305, T-223
+- OS: any
+- Scope: web
+- Acceptance: each row of the curated MPP services table at `apps/web/app/services/page.tsx` (rendered from `gitbook/services/mpp.md` per T-259) gains an "Add to session" button next to the existing name/url/network/price/recipient/status/last-verified columns. Clicking it deep-links into the dashboard's session-edit flow at `/dashboard/sessions/[id]` with a query-param contract `?add_url=<urlPattern>&add_recipient=<base58>&suggest_max_per_call=<baseUnits>` that the allowlist editor (T-305) reads on mount and pre-fills the URL allowlist input + recipient allowlist input + per-call cap suggestion accordingly. When the user has multiple sessions, the button opens a small dropdown listing each session by label so they pick which one to add to before navigation. When the user has zero sessions, the button text changes to "Create session" and the same three params carry through into the new-session flow under T-304. The two-step flow stays separate so a user can opt into just the off-chain URL whitelist (single `PATCH /v1/wallet/off-chain-policy` call from T-223, no signature) without committing to the on-chain recipient add (which still requires a wallet signature on `add_recipient` — unchanged). Reduces friction from ~5 manual steps to ~2 (pick session, sign tx). 47/47 web tests still pass plus new unit coverage for the query-param parser; no new server endpoints needed.
+- Notes: triggered 2026-05-12 by Jishnu. Lowers the "demo-ready agent" friction bar significantly. The on-chain tx step still requires wallet sign but the rest is one-click.
 
 ---
 
