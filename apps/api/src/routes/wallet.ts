@@ -17,6 +17,7 @@ import type { Request, Response } from "express";
 import { getDb } from "../db/client";
 import { offChainPolicies, users, wallets } from "../db/schema";
 import {
+  PROGRAM_ID,
   buildOwnerTransferUsdcIx,
   buildSetMaxDeployedFractionIx,
   serializeUnsignedTx,
@@ -79,7 +80,6 @@ async function resolveUserIdFromPubkey(
  */
 
 const MAX_BP = 10_000;
-const DEFAULT_PROGRAM_ID = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv";
 
 /**
  * Anchor instruction discriminator: first 8 bytes of `sha256("global:<name>")`.
@@ -237,8 +237,12 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
       const { blockhash } = await conn.getLatestBlockhash("finalized");
       return blockhash;
     });
-  const getProgramId =
-    deps.programId ?? (() => new PublicKey(process.env.KLINK_PROGRAM_ID ?? DEFAULT_PROGRAM_ID));
+  // T-252: was env-driven via KLINK_PROGRAM_ID with a hardcoded fallback that
+  // outlived the program-id rotation, so a stale env on Render silently
+  // produced wallets under the abandoned program. Now bound to the same
+  // hardcoded const every other route uses (agent-wallet.ts:24). Tests still
+  // inject via deps.programId.
+  const getProgramId = deps.programId ?? (() => PROGRAM_ID);
   const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
   const fetchAccountInfo: AccountInfoFetcher =
     deps.accountInfo ??
@@ -396,7 +400,8 @@ export function makePostWalletHandler(deps: MakePostWalletDeps = {}) {
         recentBlockhash,
       });
     } catch (err) {
-      // Most likely a missing/invalid env var (USDC_MINT, KLINK_PROGRAM_ID).
+      // Most likely a missing/invalid USDC_MINT env. PROGRAM_ID is no longer
+      // env-driven (T-252) and uses the hardcoded const from agent-wallet.ts.
       // Log the underlying error so ops can see *which* config is wrong;
       // return a generic 500 to the caller (no internal details leaked).
       console.error("[POST /v1/wallet] build tx failed:", err);
