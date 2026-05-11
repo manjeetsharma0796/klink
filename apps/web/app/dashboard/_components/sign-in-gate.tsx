@@ -18,8 +18,16 @@ import { SignIn } from "@/app/sign-in";
  * and the gate falls away automatically.
  */
 export function SignInGate() {
+  // modal={false} on purpose: with modal={true} the radix Dialog traps focus
+  // and the @solana/wallet-adapter-react-ui modal (which portals separately
+  // to body when the user clicks "Select wallet") gets its pointer events
+  // swallowed, so the Phantom / MetaMask / Glow buttons look enabled but
+  // don't respond to clicks. Going non-modal lets the wallet picker be
+  // fully interactive; the gate stays undismissable via the explicit
+  // preventDefault handlers below + the topbar/sidebar pointer-events
+  // disabling done in the dashboard layout when signedIn=false.
   return (
-    <Dialog open modal>
+    <Dialog open modal={false}>
       <DialogContent
         hideClose
         onPointerDownOutside={(e) => e.preventDefault()}

@@ -6,12 +6,21 @@ interface Props {
   /** Null when the user is not signed in (the dashboard layout still renders
    *  the chrome behind a sign-in gate modal in that case). */
   pubkey: string | null;
+  /** When true, the topbar is dimmed and non-interactive (used while the
+   *  sign-in gate modal is up so the user can't sign-out / interact behind
+   *  the modal — which uses radix Dialog modal={false} so wallet picker
+   *  clicks pass through). */
+  disabled?: boolean;
 }
 
-export function Topbar({ pubkey }: Props) {
+export function Topbar({ pubkey, disabled }: Props) {
   const connected = pubkey !== null;
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center justify-end gap-3 border-b border-olive-deep/[0.08] bg-card/80 px-6 backdrop-blur-md md:px-10">
+    <header
+      className={`sticky top-0 z-30 flex h-20 items-center justify-end gap-3 border-b border-olive-deep/[0.08] bg-card/80 px-6 backdrop-blur-md md:px-10 ${
+        disabled ? "pointer-events-none select-none opacity-60" : ""
+      }`}
+    >
       {/* Status pill — sage when connected, muted-amber when waiting on sign-in. */}
       <div className="group flex items-center gap-2.5 rounded-pill bg-card px-4 py-2 text-sm shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06] transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)] hover:-translate-y-[1px] hover:shadow-[0_4px_12px_rgba(61,79,42,0.08)]">
         <span className="relative flex h-2 w-2">

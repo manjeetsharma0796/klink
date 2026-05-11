@@ -22,9 +22,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <ConfirmProvider>
         <RouteProgressFlash />
         <div className="relative flex min-h-screen">
-          <Sidebar />
+          <Sidebar disabled={!signedIn} />
           <div className="flex flex-1 flex-col">
-            <Topbar pubkey={session?.pubkey ?? null} />
+            <Topbar pubkey={session?.pubkey ?? null} disabled={!signedIn} />
             <main className="klink-glow-bg relative flex-1 px-6 py-10 md:px-10 md:py-12">
               <div className="relative mx-auto max-w-7xl">
                 {signedIn ? (

@@ -20,10 +20,22 @@ const ITEMS: Item[] = [
 
 const NAV_EASE = "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)]";
 
-export function Sidebar() {
+interface SidebarProps {
+  /** When true (set by the dashboard layout while the sign-in gate is up),
+   *  the whole sidebar is non-interactive so the user can't navigate behind
+   *  the modal. The chrome stays visible for visual context. */
+  disabled?: boolean;
+}
+
+export function Sidebar({ disabled }: SidebarProps = {}) {
   const pathname = usePathname();
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-olive-deep/[0.08] bg-card md:flex">
+    <aside
+      className={cn(
+        "sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-olive-deep/[0.08] bg-card md:flex",
+        disabled && "pointer-events-none select-none opacity-60",
+      )}
+    >
       {/* Brand mark, logo + wordmark, mirrors landing Navbar */}
       <Link
         href="/dashboard"
