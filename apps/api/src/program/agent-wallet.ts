@@ -249,6 +249,9 @@ export interface BuildTransferUsdcIxOpts {
   sessionSigner: PublicKey;
   /** Vault PDA. From DB `wallets.vault_pda`. */
   vault: PublicKey;
+  /** USDC mint pubkey. Required by SPL `TransferChecked`; on-chain
+   *  decimals are read from this account so callers do not pass them. */
+  mint: PublicKey;
   /** Vault's USDC ATA. From DB `wallets.usdc_ata`. */
   vaultUsdcAta: PublicKey;
   /** Recipient pubkey (allowlist-checked off-chain + on-chain). */
@@ -281,16 +284,18 @@ export function buildTransferUsdcIx(opts: BuildTransferUsdcIxOpts): TransactionI
   return new TransactionInstruction({
     programId: PROGRAM_ID,
     keys: [
-      // Order matches TransferUsdc<'info>:
+      // Order matches TransferUsdc<'info> (T-252 — TransferChecked):
       // 1. session_signer (signer, NOT writable)
       // 2. session (writable; daily_spent + window updated)
       // 3. vault (read-only)
-      // 4. vault_usdc_ata (writable; CPI source)
-      // 5. recipient_usdc_ata (writable; CPI destination)
-      // 6. token_program
+      // 4. mint (read-only; decimals read on-chain by SPL TransferChecked)
+      // 5. vault_usdc_ata (writable; CPI source)
+      // 6. recipient_usdc_ata (writable; CPI destination)
+      // 7. token_program
       { pubkey: opts.sessionSigner, isSigner: true, isWritable: false },
       { pubkey: session, isSigner: false, isWritable: true },
       { pubkey: opts.vault, isSigner: false, isWritable: false },
+      { pubkey: opts.mint, isSigner: false, isWritable: false },
       { pubkey: opts.vaultUsdcAta, isSigner: false, isWritable: true },
       { pubkey: opts.recipientUsdcAta, isSigner: false, isWritable: true },
       { pubkey: opts.tokenProgramId, isSigner: false, isWritable: false },

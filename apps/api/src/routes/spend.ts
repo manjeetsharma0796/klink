@@ -222,6 +222,7 @@ export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
       vault,
+      mint: getUsdcMint(),
       vaultUsdcAta,
       recipient,
       recipientUsdcAta,
@@ -442,6 +443,7 @@ export function makePostSpendSignPaymentHandler(deps: MakePostSpendSignPaymentDe
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
       vault,
+      mint: getUsdcMint(),
       vaultUsdcAta,
       recipient,
       recipientUsdcAta,
@@ -732,6 +734,7 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
     const ix = buildTransferUsdcIx({
       sessionSigner: signer.publicKey,
       vault,
+      mint: getUsdcMint(),
       vaultUsdcAta,
       recipient,
       recipientUsdcAta,
