@@ -176,7 +176,7 @@ export default function ServicesPage() {
               </a>
               . Full walkthrough in the{" "}
               <a
-                href="https://klinkdotfun.vercel.app/services/mpp.md"
+                href="https://app.klinkdotfun.live/services/mpp.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="klink-underline text-olive-deep"

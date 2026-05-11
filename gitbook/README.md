@@ -31,4 +31,4 @@ The agent never crosses the trust boundary. The session keypair stays in the bac
 
 ## Status
 
-Klink is in **beta on Solana devnet**. The on-chain program enforces every policy described in these docs. The dashboard is live at [`klinkdotfun.vercel.app`](https://klinkdotfun.vercel.app), the HTTP API at `klink-api.onrender.com`, and the agent skill at [skill.md](skill.md). The SDK and CLI are on the way, see [Roadmap](resources/roadmap.md). For mainnet readiness, see [Risks & Disclosures](resources/risks.md).
+Klink is in **beta on Solana devnet**. The on-chain program enforces every policy described in these docs. The dashboard is live at [`app.klinkdotfun.live`](https://app.klinkdotfun.live), the HTTP API at `api.klinkdotfun.live`, and the agent skill at [skill.md](skill.md). The SDK and CLI are on the way, see [Roadmap](resources/roadmap.md). For mainnet readiness, see [Risks & Disclosures](resources/risks.md).
