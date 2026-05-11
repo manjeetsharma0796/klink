@@ -25,6 +25,11 @@
 * [CLI](developer-resources/cli.md)
 * [Agent Skill](skill.md)
 
+## Services
+
+* [Services overview](services/README.md)
+* [MPP services on Solana](services/mpp.md)
+
 ## Reference
 
 * [Glossary](resources/glossary.md)

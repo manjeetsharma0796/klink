@@ -145,6 +145,8 @@ That's the whole loop: klink probes the service, sees the 402 challenge, signs a
 
 > **Want to pay an arbitrary recipient directly (no service)?** Use `POST /v1/spend/transfer` with `{ "recipient": "<base58>", "amount": <base-units> }`. See [Agent Skill](../skill.md) for the full reference.
 
+> **Looking for more MPP services to pay?** See [Services → MPP](../services/mpp.md) for the curated list, plus a guide to building your own MPP merchant on Solana.
+
 ## What just happened (audit)
 
 Click **Audit log** in the sidebar. Every allow + deny is there with:
