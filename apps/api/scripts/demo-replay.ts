@@ -70,6 +70,13 @@ const ECHO_SERVICE_URL = process.env.ECHO_SERVICE_URL ?? "https://service01-kep9
 
 const SECRET_PATH = resolve(import.meta.dir, "..", "..", "..", ".devnet-test-keypair.json");
 
+// USDC has 6 decimals; all amounts below are in base units (lamports of USDC).
+const FUND_AMOUNT_BASE_UNITS = 5_000_000n; // 5 USDC, 6 decimals
+const SESSION_MAX_PER_TX_BASE_UNITS = 1_000_000; // 1 USDC per-spend ceiling for the demo session
+const SESSION_DAILY_CAP_BASE_UNITS = 5_000_000; // 5 USDC daily cap for the demo session
+const SPEND_MAX_AMOUNT_BASE_UNITS = 100_000; // 0.10 USDC ceiling; echo charges 0.01 USDC
+const AUDIT_READ_SETTLE_MS = 500; // brief delay so the audit row is committed before we read it
+
 // ---------------------------------------------------------------------------
 // Output helpers
 // ---------------------------------------------------------------------------
@@ -103,6 +110,17 @@ function done(n: number, ms: number, note?: string): void {
 
 function fail(n: number, ms: number, why: string): never {
   console.log(`✗ step ${n} FAILED after ${fmtMs(ms)} — ${why}`);
+  console.log("");
+  console.log("Demo halted. The earlier on-chain steps (if any) are still real.");
+  process.exit(1);
+}
+
+/**
+ * Same ✗/footer format as fail(), but for prereq steps that aren't numbered
+ * (SIWS sign-in, post-init wallet read). Keeps operator output consistent.
+ */
+function failPrereq(name: string, why: string): never {
+  console.log(`✗ prereq (${name}) FAILED — ${why}`);
   console.log("");
   console.log("Demo halted. The earlier on-chain steps (if any) are still real.");
   process.exit(1);
@@ -229,8 +247,10 @@ console.log("(prereq) SIWS sign-in");
 const siwsStart = Date.now();
 const nonceR = await http("POST", "/v1/auth/siws/nonce");
 if (nonceR.status !== 200) {
-  console.error(`SIWS nonce failed: ${nonceR.status} ${nonceR.text}`);
-  process.exit(1);
+  failPrereq(
+    "SIWS nonce",
+    `${nonceR.status} ${nonceR.text} — verify the keypair has SOL and KLINK_API_BASE (${API_BASE}) is reachable`,
+  );
 }
 const nonce = (nonceR.json as { nonce: string }).nonce;
 const message = new TextEncoder().encode(`Sign in to klink: ${nonce}`);
@@ -243,8 +263,10 @@ const siwsR = await http("POST", "/v1/auth/siws", {
   },
 });
 if (siwsR.status !== 200) {
-  console.error(`SIWS verify failed: ${siwsR.status} ${siwsR.text}`);
-  process.exit(1);
+  failPrereq(
+    "SIWS verify",
+    `${siwsR.status} ${siwsR.text} — verify the keypair signature path and that KLINK_API_BASE (${API_BASE}) is reachable`,
+  );
 }
 const jwt = (siwsR.json as { token: string }).token;
 console.log(`  signed in (jwt len=${jwt.length}) in ${fmtMs(Date.now() - siwsStart)}`);
@@ -305,8 +327,10 @@ if (initBody.alreadyExists) {
 // Read /v1/wallet to get the wallet uuid (needed for fund + sessions endpoints).
 const walletR = await http("GET", "/v1/wallet", { jwt });
 if (walletR.status !== 200) {
-  console.error(`GET /v1/wallet failed after init: ${walletR.status} ${walletR.text}`);
-  process.exit(1);
+  failPrereq(
+    "GET /v1/wallet (post-init)",
+    `${walletR.status} ${walletR.text} — init_vault landed on-chain but the api can't read the wallets row; check api logs`,
+  );
 }
 const wallet = walletR.json as { id: string; vaultPda: string; usdcAta: string };
 
@@ -335,7 +359,14 @@ const t2 = Date.now();
     ),
   );
   tx.add(
-    createTransferCheckedInstruction(ownerAta, USDC_MINT, vaultAta, owner.publicKey, 5_000_000n, 6),
+    createTransferCheckedInstruction(
+      ownerAta,
+      USDC_MINT,
+      vaultAta,
+      owner.publicKey,
+      FUND_AMOUNT_BASE_UNITS,
+      6,
+    ),
   );
   const { blockhash } = await conn.getLatestBlockhash("finalized");
   tx.recentBlockhash = blockhash;
@@ -373,8 +404,8 @@ const sessR = await http("POST", "/v1/session", {
   body: {
     wallet_id: wallet.id,
     label: `demo-replay-${Date.now()}`,
-    max_per_tx: 1_000_000,
-    daily_cap: 5_000_000,
+    max_per_tx: SESSION_MAX_PER_TX_BASE_UNITS,
+    daily_cap: SESSION_DAILY_CAP_BASE_UNITS,
     allowed_recipients: [],
     allowed_instructions: 0b001,
     expiry: 0,
@@ -440,7 +471,7 @@ const spendR = await http("POST", "/v1/spend/mpp", {
   apiKey,
   body: {
     url: ECHO_SERVICE_URL,
-    max_amount: 100_000, // 0.10 USDC ceiling; echo charges 0.01 USDC
+    max_amount: SPEND_MAX_AMOUNT_BASE_UNITS,
     method: "GET",
   },
 });
@@ -460,7 +491,7 @@ done(s5, Date.now() - t5, `paid + got upstream response (tx=${redact(txSig)})`);
 const s6 = header("audit review (GET /v1/audit, JWT-authed)");
 const t6 = Date.now();
 // Brief delay so the audit row is committed before we read.
-await new Promise((res) => setTimeout(res, 500));
+await new Promise((res) => setTimeout(res, AUDIT_READ_SETTLE_MS));
 const auditR = await http("GET", "/v1/audit?limit=5", { jwt });
 if (auditR.status !== 200) fail(s6, Date.now() - t6, `${auditR.status} ${auditR.text}`);
 const auditBody = auditR.json as {
