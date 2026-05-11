@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, KeySquare, TrendingUp, Wallet, ScrollText, Settings,
+  LayoutDashboard, KeySquare, TrendingUp, Wallet, ScrollText, Settings, Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -13,6 +13,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/audit", label: "Audit log", icon: ScrollText },
   { href: "/dashboard/sessions", label: "Sessions", icon: KeySquare },
+  { href: "/services", label: "Services", icon: Boxes },
   { href: "/dashboard/yield", label: "Yield", icon: TrendingUp },
   { href: "/dashboard/fund", label: "Fund", icon: Wallet },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
