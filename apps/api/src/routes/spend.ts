@@ -1,4 +1,8 @@
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import {
   Connection,
   Keypair,
@@ -231,6 +235,17 @@ export function makePostSpendTransferHandler(deps: MakePostSpendTransferDeps = {
       sessionPubkey,
     });
     const tx = new Transaction({ feePayer: treasury.publicKey });
+    // T-256: idempotent create of recipient USDC ATA so brand-new wallets
+    // work. Treasury pays the ~0.002 SOL rent; no-op if the ATA already
+    // exists (no extra RPC roundtrip, no branch).
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        recipientUsdcAta,
+        recipient,
+        getUsdcMint(),
+      ),
+    );
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
@@ -453,6 +468,17 @@ export function makePostSpendSignPaymentHandler(deps: MakePostSpendSignPaymentDe
     });
     // T-226: treasury pays the fee, session signs the instruction.
     const tx = new Transaction({ feePayer: treasury.publicKey });
+    // T-256: idempotent create of recipient USDC ATA so brand-new wallets
+    // work. Treasury pays the ~0.002 SOL rent; no-op if the ATA already
+    // exists (no extra RPC roundtrip, no branch).
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        recipientUsdcAta,
+        recipient,
+        getUsdcMint(),
+      ),
+    );
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
@@ -744,6 +770,17 @@ export function makePostSpendServiceHandler(deps: MakePostSpendServiceDeps = {})
     });
     // T-226: treasury pays the fee, session signs the instruction.
     const tx = new Transaction({ feePayer: treasury.publicKey });
+    // T-256: idempotent create of recipient USDC ATA so brand-new wallets
+    // work. Treasury pays the ~0.002 SOL rent; no-op if the ATA already
+    // exists (no extra RPC roundtrip, no branch).
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        recipientUsdcAta,
+        recipient,
+        getUsdcMint(),
+      ),
+    );
     tx.add(ix);
     const { blockhash } = await conn.getLatestBlockhash("finalized");
     tx.recentBlockhash = blockhash;
@@ -1204,6 +1241,17 @@ export function makePostSpendMppHandler(deps: MakePostSpendMppDeps = {}) {
     });
 
     const tx = new Transaction({ feePayer: treasury.publicKey });
+    // T-256: idempotent create of recipient USDC ATA so brand-new wallets
+    // work. Treasury pays the ~0.002 SOL rent; no-op if the ATA already
+    // exists (no extra RPC roundtrip, no branch).
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        recipientUsdcAta,
+        recipient,
+        getUsdcMint(),
+      ),
+    );
     tx.add(ix);
     // The whole point of this handler: use the merchant's blockhash so the
     // on-chain tx binds to *this* challenge, not a fresh blockhash of our own.
