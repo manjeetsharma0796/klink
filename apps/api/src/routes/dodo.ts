@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { TOKEN_PROGRAM_ID, createTransferInstruction } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
+} from "@solana/spl-token";
 import {
   Connection,
   Keypair,
@@ -443,6 +447,8 @@ export interface MakePostDodoWebhookDeps {
   loadTreasury?: () => Keypair;
   /** Test seam: override the treasury USDC ATA pubkey. */
   loadTreasuryAta?: () => PublicKey;
+  /** Test seam: override the USDC mint pubkey. */
+  usdcMint?: () => PublicKey;
 }
 
 export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
@@ -451,6 +457,7 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
   const doSubmit = deps.submit ?? sendAndConfirmTransaction;
   const loadTreasury = deps.loadTreasury ?? defaultLoadTreasury;
   const loadTreasuryAta = deps.loadTreasuryAta ?? defaultLoadTreasuryAta;
+  const getUsdcMint = deps.usdcMint ?? (() => new PublicKey(envOrThrow("USDC_MINT")));
 
   return async function postDodoWebhook(req: Request, res: Response): Promise<void> {
     const secret = process.env.DODO_WEBHOOK_SECRET;
@@ -554,23 +561,50 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
     }
 
     const [wallet] = await db
-      .select({ usdcAta: wallets.usdcAta })
+      .select({ usdcAta: wallets.usdcAta, vaultPda: wallets.vaultPda })
       .from(wallets)
       .where(eq(wallets.id, payment.walletId))
       .limit(1);
     if (!wallet) {
-      console.error(`[POST /v1/webhooks/dodo] wallet ${payment.walletId} missing`);
-      res.status(500).json({ error: "wallet missing" });
+      // T-257: was `500 {error: "wallet missing"}` which caused Dodo to retry
+      // forever and never wrote an audit row. Now: mark the dodo_payment as
+      // failed, write a deny audit row so operators can alert, and ack 200
+      // so Dodo stops retrying. A real customer-paid-but-no-wallet case is
+      // a manual recovery (operator creates the wallet then runs a replay
+      // script), not something the webhook can self-heal.
+      console.error(`[POST /v1/webhooks/dodo] wallet ${payment.walletId} missing — refusing disbursement`);
+      await db
+        .update(dodoPayments)
+        .set({
+          status: "failed",
+          paymentId: event.data.payment_id ?? null,
+          invoiceId: event.data.invoice_id ?? null,
+          invoiceUrl: event.data.invoice_url ?? null,
+        })
+        .where(eq(dodoPayments.id, payment.id));
+      await db.insert(auditLog).values({
+        walletId: payment.walletId,
+        dodoPaymentId: payment.id,
+        action: "fund_dodo",
+        amount: payment.amountUsdc,
+        decision: "deny",
+        reason: "WALLET_MISSING_AT_DISBURSEMENT_TIME",
+      });
+      res.status(200).json({ status: "wallet_missing" });
       return;
     }
 
     let vaultUsdcAta: PublicKey;
+    let vaultPda: PublicKey;
     let treasury: Keypair;
     let treasuryAta: PublicKey;
+    let usdcMint: PublicKey;
     try {
       vaultUsdcAta = new PublicKey(wallet.usdcAta);
+      vaultPda = new PublicKey(wallet.vaultPda);
       treasury = loadTreasury();
       treasuryAta = loadTreasuryAta();
+      usdcMint = getUsdcMint();
     } catch (err) {
       console.error("[POST /v1/webhooks/dodo] keypair/ata load failed:", err);
       res.status(500).json({ error: "server misconfigured" });
@@ -578,16 +612,46 @@ export function makePostDodoWebhookHandler(deps: MakePostDodoWebhookDeps = {}) {
     }
 
     const conn = newConn();
-    const ix = createTransferInstruction(
-      treasuryAta,
-      vaultUsdcAta,
-      treasury.publicKey,
-      BigInt(payment.amountUsdc),
-      [],
-      TOKEN_PROGRAM_ID,
-    );
     const tx = new Transaction({ feePayer: treasury.publicKey });
-    tx.add(ix);
+    // T-257: idempotent-create both the source (treasury) and destination
+    // (vault) USDC ATAs before transferring. Treasury pays the ~0.002 SOL
+    // rent on each; CTAI no-ops if the ATA already exists. This makes the
+    // disbursement self-heal:
+    //  - fresh deployments don't trap payments because the treasury USDC
+    //    ATA wasn't initialized
+    //  - users whose vault USDC ATA hasn't been physically created (rare
+    //    but seen at fresh-wallet edge) don't crash the disbursement
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        treasuryAta,
+        treasury.publicKey,
+        usdcMint,
+      ),
+    );
+    tx.add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        treasury.publicKey,
+        vaultUsdcAta,
+        vaultPda,
+        usdcMint,
+      ),
+    );
+    // T-257: use TransferChecked (mint + decimals on-wire) instead of plain
+    // Transfer for defense-in-depth — SPL Token reverts on decimals mismatch
+    // so a wrong-mint substitution attack is impossible. USDC is 6 decimals.
+    tx.add(
+      createTransferCheckedInstruction(
+        treasuryAta,
+        usdcMint,
+        vaultUsdcAta,
+        treasury.publicKey,
+        BigInt(payment.amountUsdc),
+        6,
+        [],
+        TOKEN_PROGRAM_ID,
+      ),
+    );
     try {
       const { blockhash } = await conn.getLatestBlockhash("finalized");
       tx.recentBlockhash = blockhash;
