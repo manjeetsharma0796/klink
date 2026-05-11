@@ -139,6 +139,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-256 — Spend handlers auto-create recipient USDC ATA (`createAssociatedTokenAccountIdempotent`)
+- Status: in-progress @Jishnu 2026-05-11
+- Depends-on: T-226, T-252
+- OS: any
+- Scope: api + tests + docs
+- Acceptance: surfaced 2026-05-11 during T-253 follow-up. The 3 session-signed spend handlers (`postSpendTransfer`, `postSpendSignPayment`, `postSpendMpp` in `apps/api/src/routes/spend.ts`) currently require the recipient's USDC ATA to already exist on-chain — if it doesn't, `transfer_usdc` reverts with `0xbc4 / AccountNotInitialized`, surfaces to the agent as a 402, and skill.md tells the agent it cannot self-resolve. **Breaks every hackathon-judge demo** where the agent pays into a brand-new wallet that has never received an SPL token before (the ATA address is mathematically derivable but doesn't physically exist). Concretely encountered today: sending USDC to `Dxq75kmC…UpYf`'s direct ATA `ALJ82DhB…Jicy` failed because the ATA wasn't initialized; sending to `GLCosA5y…RXP2`'s personal ATA `Eocxpdvp…rvp9R` same. Standard Solana fix: prepend `createAssociatedTokenAccountIdempotentInstruction` (already used in `apps/api/src/routes/wallet.ts` for vault creation) before `buildTransferUsdcIx` in the same Transaction. Treasury keypair (T-226 fee payer) covers the ~0.002 SOL ATA rent. Idempotent flavor means no branch / RPC roundtrip — no-op if the ATA already exists. `postSpendService` out of scope because catalog recipients are pre-vetted. Tests updated for the new 2-ix tx shape. skill.md "Beta caveats" updated to drop the agent-cannot-create-ATA warning. End-to-end smoke: send 0.01 USDC from the agent to a fresh wallet whose ATA does NOT exist; confirm 200 + tx_signature + recipient ATA was created in the same tx.
+- Notes: triggered by hackathon-judge concern 2026-05-11 — fresh Phantom wallets that haven't held any SPL token yet are exactly the demo target and exactly the case that fails today. Cost: ~0.002 SOL per first-time recipient, out of treasury (same wallet that already pays Solana tx fees). Recipients can later close their ATA to reclaim rent; until that happens it's a small honeypot a malicious recipient could grief by close-and-recreate. Monitoring of treasury SOL is a separate concern.
+
 ### T-253 — `POST /v1/spend/mpp` — full MPP-protocol proxy handler
 - Status: in-progress @Jishnu 2026-05-11
 - Depends-on: T-252

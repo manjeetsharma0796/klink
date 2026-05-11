@@ -109,7 +109,7 @@ curl -s -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
 { "tx_signature": "5K3...", "status": "confirmed" }
 ```
 
-The recipient's USDC ATA must already exist on chain. If it doesn't, the on-chain program rejects with `0xbc4 / AccountNotInitialized` (mapped to a 402 here). **You as an agent cannot create the ATA yourself**, you don't hold a Solana keypair to sign + pay rent. When you hit this, surface to the human; they (or the recipient) need to create the ATA before you retry.
+The recipient's USDC ATA is **auto-created if missing**. klink prepends an idempotent `createAssociatedTokenAccountIdempotent` instruction before the transfer; klink's treasury pays the ~0.002 SOL ATA rent (no-op + zero extra fee if the ATA already exists). You can pay any wallet pubkey for the first time — no human handoff needed for ATA setup.
 
 ### `POST /v1/spend/sign-payment`: x402 sign-only
 
@@ -221,7 +221,7 @@ The `detail` field on a 402 `"on-chain submission failed"` is a free-text Solana
 
 | Substring in `detail` | Anchor error | Meaning | What to do |
 |---|---|---|---|
-| `0xbc4` or `AccountNotInitialized` | 3012 | A required on-chain account (usually `recipient_usdc_ata` or `session`) doesn't exist. For recipient ATA: it's never been used to receive this token. For session: the `add_session` tx was never confirmed on-chain. | Surface to human. Recipient ATA needs creation; or session needs re-creation if the PDA isn't initialized. |
+| `0xbc4` or `AccountNotInitialized` | 3012 | A required on-chain account doesn't exist. Recipient USDC ATA is now auto-created by klink, so this almost always means the `session` PDA isn't initialized (its `add_session` tx never confirmed). | Re-create the session via the dashboard. |
 | `RecipientNotAllowed` | (custom) | Recipient not in the on-chain allowlist | Tell the human to add this recipient via the dashboard. |
 | `AmountExceedsMaxPerTx` | (custom) | Single tx exceeds `max_per_tx` cap | Reduce the amount, or human raises the cap. |
 | `DailyCapExceeded` | (custom) | Rolling-24h cap hit | Wait until the window resets (the response doesn't tell you when, surface to human). |
@@ -238,7 +238,7 @@ INSUFFICIENT_LIQUID         → /v1/yield/position now exposes `liquid` directly
 OUTSIDE_TIME_WINDOW         → wait until window opens; don't tight-loop
 URL_NOT_ALLOWED             → tell the human; they edit the off-chain policy
 QUOTED_OVER_MAX             → either negotiate cheaper service or escalate to human
-on-chain "AccountNotInitialized" → see "On-chain 402 substrings" — could be recipient_usdc_ata missing (most common) OR session PDA uninitialized. Inspect the `detail` for which account name is named. Both surface to human; the remediation differs (ATA-create vs session re-create).
+on-chain "AccountNotInitialized" → see "On-chain 402 substrings" — recipient ATA is now auto-created by klink so this typically means the session PDA itself is uninitialized. Inspect `detail` for the named account; re-create session via dashboard if it's `session`.
 RPC unavailable             → exponential backoff (1s, 2s, 4s, 8s, cap 30s)
 ```
 
