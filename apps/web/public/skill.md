@@ -103,13 +103,12 @@ The on-chain Anchor program enforces every limit. The HTTP layer fast-fails some
 
 ## Service discovery
 
-Looking for HTTP services your klink wallet can actually pay? Fetch the curated list:
+Looking for HTTP services your klink wallet can actually pay?
 
-```bash
-curl -s https://klinkdotfun.vercel.app/services/mpp.md
-```
+- **Agent-readable list** (markdown table you can fetch + parse): `curl -s https://klinkdotfun.vercel.app/services/mpp.md`
+- **Human-readable view** (rendered table with brand chrome): https://app.klinkdotfun.live/services
 
-The page lists MPP-protocol services on Solana that klink agents are verified to pay end to end, including the canonical test merchant `https://service01-kep9.onrender.com/echo` (0.01 USDC per call) you can use to smoke your integration. The same page documents how to add new services (PR to the markdown file) and how to spin up your own MPP-on-Solana merchant in five steps.
+Both surfaces are backed by the same gitbook source, so they never drift. The list contains MPP-protocol services on Solana that klink agents are verified to pay end to end, including the canonical test merchant `https://service01-kep9.onrender.com/echo` (0.01 USDC per call). The same page documents how to add new services (PR to the markdown file) and how to spin up your own MPP-on-Solana merchant in five steps.
 
 ## Capabilities
 
