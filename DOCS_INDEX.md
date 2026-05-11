@@ -47,4 +47,4 @@ Group entries by section. Keep alphabetical within sections.
 
 ## Reference material
 
-- [apps/api scripts index](apps/api/scripts/README.md) — index of operational scripts under `apps/api/scripts/`; documents the T-503 demo replay (`demo-replay.ts`), the dashboard e2e harness, the dodo webhook smoke, and the catalog updater [updated 2026-05-11]
+_(none yet)_
