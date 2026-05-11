@@ -51,7 +51,6 @@ export default function YieldPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Kamino"
         title="Yield"
         subtitle="Idle USDC earns yield through Kamino. The on-chain max-deployed cap stays enforced by the program."
       />

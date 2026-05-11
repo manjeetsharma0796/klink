@@ -8,26 +8,14 @@ import {
 import { cn } from "@/lib/cn";
 
 interface Item { href: string; label: string; icon: React.ComponentType<{ className?: string }>; }
-interface Section { title: string; items: Item[]; }
 
-const SECTIONS: Section[] = [
-  {
-    title: "Main",
-    items: [{ href: "/dashboard", label: "Overview", icon: LayoutDashboard }],
-  },
-  {
-    title: "Activity",
-    items: [{ href: "/dashboard/audit", label: "Audit log", icon: ScrollText }],
-  },
-  {
-    title: "Config",
-    items: [
-      { href: "/dashboard/sessions", label: "Sessions", icon: KeySquare },
-      { href: "/dashboard/yield", label: "Yield", icon: TrendingUp },
-      { href: "/dashboard/fund", label: "Fund", icon: Wallet },
-      { href: "/dashboard/settings", label: "Settings", icon: Settings },
-    ],
-  },
+const ITEMS: Item[] = [
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/audit", label: "Audit log", icon: ScrollText },
+  { href: "/dashboard/sessions", label: "Sessions", icon: KeySquare },
+  { href: "/dashboard/yield", label: "Yield", icon: TrendingUp },
+  { href: "/dashboard/fund", label: "Fund", icon: Wallet },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 const NAV_EASE = "transition-all duration-200 ease-[cubic-bezier(.22,1,.36,1)]";
@@ -56,14 +44,9 @@ export function Sidebar() {
         </span>
       </Link>
 
-      <nav className="flex-1 space-y-6 px-3 pb-6 pt-5">
-        {SECTIONS.map((section) => (
-          <div key={section.title}>
-            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
-              {section.title}
-            </div>
-            <ul className="space-y-0.5">
-              {section.items.map((item) => {
+      <nav className="flex-1 px-3 pb-6 pt-5">
+        <ul className="space-y-1">
+          {ITEMS.map((item) => {
                 const active =
                   pathname === item.href ||
                   (item.href !== "/dashboard" && pathname?.startsWith(item.href));
@@ -73,7 +56,7 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-[13px]",
+                        "group relative flex items-center gap-3 rounded-pill px-3.5 py-3 text-[15px]",
                         NAV_EASE,
                         active
                           ? "bg-primary/20 font-semibold text-olive-deep shadow-[inset_0_0_0_1px_rgba(61,79,42,0.06)]"
@@ -82,7 +65,7 @@ export function Sidebar() {
                     >
                       <Icon
                         className={cn(
-                          "h-4 w-4 shrink-0 transition-transform duration-[var(--dur-base)] ease-[var(--ease-klink)] group-hover:scale-110",
+                          "h-[18px] w-[18px] shrink-0 transition-transform duration-[var(--dur-base)] ease-[var(--ease-klink)] group-hover:scale-110",
                           active ? "text-olive-deep" : "text-muted-foreground",
                         )}
                       />
@@ -97,9 +80,7 @@ export function Sidebar() {
                   </li>
                 );
               })}
-            </ul>
-          </div>
-        ))}
+        </ul>
       </nav>
 
       {/* Soft footer pill, devnet status indicator */}

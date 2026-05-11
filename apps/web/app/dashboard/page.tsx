@@ -25,7 +25,7 @@ export default function DashboardPage() {
   if (w.notFound) {
     return (
       <div className="space-y-8">
-        <PageHeader eyebrow="Dashboard" title="Overview" subtitle="Spin up your non-custodial agent wallet to get started." />
+        <PageHeader title="Overview" subtitle="Spin up your non-custodial agent wallet to get started." />
         <CreateWalletCta />
       </div>
     );
@@ -36,7 +36,7 @@ export default function DashboardPage() {
     // shipped; a 404 would be caught by w.notFound (CreateWalletCta branch).
     return (
       <div className="space-y-8">
-        <PageHeader eyebrow="Dashboard" title="Overview" />
+        <PageHeader title="Overview" />
         <p className="text-sm text-destructive">
           Couldn&apos;t load wallet info. Check the api logs and retry.
         </p>
@@ -47,9 +47,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Dashboard"
         title="Overview"
-        subtitle="A live snapshot of your klink agent wallet — balance, sessions, and recent activity."
+        subtitle="A live snapshot of your klink agent wallet: balance, sessions, and recent activity."
       />
       <div className="klink-stagger grid gap-6 lg:grid-cols-3">
         <StatCard

@@ -168,9 +168,8 @@ export default function FundPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Top up"
         title="Fund"
-        subtitle="Move USDC into the vault — from your connected Phantom, by direct deposit, or with a card."
+        subtitle="Move USDC into the vault from your connected Phantom, by direct deposit, or with a card."
       />
       <div className="klink-stagger grid gap-6 lg:grid-cols-3">
         {/* T-249: connected-wallet path. Most-natural option for a user

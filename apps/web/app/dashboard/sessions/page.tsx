@@ -18,7 +18,6 @@ export default function SessionsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Agent keys"
         title="Sessions"
         subtitle="Each session is one API key bound to one on-chain Session PDA, with its own caps, allowlist, and audit trail."
         action={<NewSessionModal onCreated={() => mutate()} />}

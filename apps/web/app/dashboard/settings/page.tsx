@@ -49,7 +49,6 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Configuration"
         title="Settings"
         subtitle="Tune the on-chain policy, inspect your vault metadata, and use the emergency drain if you ever need to take custody back."
       />
