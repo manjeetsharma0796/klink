@@ -6,15 +6,14 @@ description: Give your AI agent a Solana wallet under policy you control, in abo
 
 # Quickstart: Give your agent a wallet
 
-In about **five minutes** you'll go from a fresh Phantom wallet to **"my agent just paid for an HTTP service under a policy I configured."** No backend to run, no curl, no custodial signup. Just the dashboard at [`klinkdotfun.vercel.app`](https://klinkdotfun.vercel.app) and one final copy-paste so your agent can spend.
+In about **five minutes** you'll go from a fresh Phantom wallet to **"my agent just paid for an HTTP service under a policy I configured."** No backend to run, no custodial signup. Just five clicks on the dashboard at [`klinkdotfun.vercel.app`](https://klinkdotfun.vercel.app), then one line you paste to your agent.
 
-> **What your agent will be doing in one line, once you're set up:**
-> ```bash
-> curl -H "Authorization: Bearer $AGENT_API_KEY" \
->   https://klink-api.onrender.com/v1/yield/position
-> # → {"liquid":"19790000","deployed":"0","accrued":null,"total_balance":"19790000"}
+> **The whole on-ramp in one paste, once you have an API key:**
 > ```
-> That's 19.79 USDC under policy, ready for your agent to spend. Let's get you there.
+> Read https://klinkdotfun.vercel.app/skill.md and follow the instructions
+> to set up the Klink agent wallet. I'll give you the API key when you ask.
+> ```
+> Paste that to your agent (Claude / Cursor / your own LLM script). It reads the skill, asks for your key, saves it, runs a sanity-check curl, and from there it knows how to spend USDC, pay 402/MPP services, and stay inside the policy you set. Steps 1-4 below get you the key.
 
 > **Beta.** Klink is on Solana **devnet** today. Mainnet ships after the program audit; see [Roadmap](../resources/roadmap.md).
 
@@ -95,11 +94,26 @@ Save it where your agent can read it:
 export AGENT_API_KEY="klink_dev_AbCd1234XyZ_..."
 ```
 
-## Step 5: Let your agent pay something
+## Step 5: Connect your agent
 
-Time to spend. We'll point your agent at a real **MPP-protocol** echo service (`service01-kep9.onrender.com/echo`) that charges 0.01 USDC per call. The agent only needs the API key from Step 4, klink handles signing, blockhash binding, payment-proof header construction, retry, and the audit log.
+You now have everything your agent needs: an API key bounded by the policy you set. The fastest way to hand it off is to **tell the agent to read the skill and figure the rest out itself**.
+
+**Paste this to your agent** (Claude, Cursor, ChatGPT with tool use, your own LLM script, anything that can fetch a URL and run shell):
+
+```
+Read https://klinkdotfun.vercel.app/skill.md and follow the instructions
+to set up the Klink agent wallet. I'll give you the API key when you ask.
+```
+
+The agent reads SKILL.md, sees it needs a key, asks you for the `klink_dev_…` token you copied in Step 4, saves it (env var or `~/.config/klink/credentials.json`), and runs the verification curl. From that point on it knows how to spend, how to pay 402/MPP services, the full error taxonomy, and what it can and can't do.
+
+### Or use the API directly
+
+If you'd rather drive the API yourself, here's a working call that pays a real MPP service (`service01-kep9.onrender.com/echo`, charges 0.01 USDC per call):
 
 ```bash
+export AGENT_API_KEY="klink_dev_..."   # the key from Step 4
+
 curl -X POST -H "Authorization: Bearer $AGENT_API_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -125,11 +139,11 @@ Response headers carry the on-chain proof:
 - `x-tx-signature: XDPFH7Z3uZ5djZBoidUr2kaGCnqzucojRyxwAAL…`: the Solana tx your agent's session keypair just signed
 - `payment-receipt: eyJtZXRob2Q…`: base64 receipt issued by the merchant after they verified the on-chain payment
 
-That's the whole loop: agent calls klink, klink probes the service, sees the 402 challenge, signs and submits a TransferChecked tx using the merchant's required blockhash, retries the service with the proof, forwards the merchant's response back to your agent. One HTTP call from your agent's perspective. Subject to **every** policy you set in Step 4.
+That's the whole loop: klink probes the service, sees the 402 challenge, signs and submits a TransferChecked tx using the merchant's required blockhash, retries the service with the proof, forwards the merchant's response back. One HTTP call from your agent's perspective. Subject to **every** policy you set in Step 4.
 
 > **What if the recipient's wallet has never received USDC before?** klink auto-creates the recipient's USDC ATA on the fly; the treasury covers the ~0.002 SOL rent. Fresh wallets just work.
 
-> **Want to pay an arbitrary recipient directly (no service)?** Use `POST /v1/spend/transfer` instead with `{ "recipient": "<base58>", "amount": <base-units> }`. See [Agent Skill](../skill.md) for the full reference.
+> **Want to pay an arbitrary recipient directly (no service)?** Use `POST /v1/spend/transfer` with `{ "recipient": "<base58>", "amount": <base-units> }`. See [Agent Skill](../skill.md) for the full reference.
 
 ## What just happened (audit)
 
