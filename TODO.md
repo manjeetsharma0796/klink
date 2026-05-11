@@ -134,7 +134,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: surfaced 2026-05-02 by an audit of the non-custodial claim. **Fixes a real gap, not just a polish task.** Touch surface is small (~50 LOC of rust), but on-chain so it needs `anchor build` + redeploy via the current single-keypair authority (still T-114 territory for the multisig migration).
 
 ### T-252 — `transfer_usdc` migration to SPL `TransferChecked` for MPP / x402 verifier compatibility
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-11
 - Depends-on: T-105, T-211, T-212
 - OS: any
 - Scope: anchor-program + api + tests + ops
