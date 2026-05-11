@@ -1,7 +1,7 @@
 ---
 title: Devnet program deployments
 purpose: Append-only log of every `agent_wallet` deploy to Solana devnet — program id, slot, authority, deployer, build commit
-last_updated: 2026-05-02 (T-116 redeploy landed)
+last_updated: 2026-05-11 (T-252 redeploy under new program id after upgrade authority loss)
 ---
 
 # Devnet deploys
@@ -25,6 +25,22 @@ upgrades + audits can be traced back to a specific build.
 ```
 
 ## Log
+
+### 2026-05-11-1 — TransferChecked migration **+ new program id** (T-252)
+
+- **Program ID**: `DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L` ← **NEW** (old `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv` is abandoned and unreachable forever; see note below)
+- **ProgramData**: `8rDdv1ee9PwTTnaFNrLZKNq42WZyDhCj5gHkyUfNpYpP` (new — fresh deploy, not an upgrade)
+- **Authority**: `3kk1MijUXnxt9YDrNTWe2QLF8rsidvNsr7Nkba8Qb4ik` (single-signer; **T-114 Squads multisig rotation is now urgent** — previous authority was lost with Prithwish's laptop, which is exactly the failure mode T-114 was filed to prevent)
+- **Deployer**: `3kk1MijUXnxt9YDrNTWe2QLF8rsidvNsr7Nkba8Qb4ik` (same as authority for this fresh deploy)
+- **Slot**: 461518660
+- **Data length**: 296 064 bytes (no `solana program extend` needed since this is a fresh deploy, not an upgrade)
+- **Build commit**: `b4aa1bb` (`T-252: transfer_usdc migrates to SPL TransferChecked`) — TS PROGRAM_ID + Anchor.toml + `declare_id!` swap to the new id lands in a follow-up commit on the same branch
+- **All 8 instructions** carried over: `init_vault`, `set_max_deployed_fraction`, `add_session`, `update_session_allowlist`, `revoke_session`, `transfer_usdc` (now SPL `TransferChecked`), `kamino_deposit`, `kamino_withdraw`, `owner_transfer_usdc` (still plain `Transfer` — escape hatch is not verifier-bound; separate follow-up)
+- **Cluster**: `https://api.devnet.solana.com`
+- **Cost**: ≈ 2.06 SOL of rent on the new ProgramData account + ~0.01 SOL in deploy fees; new authority balance 2.94 SOL after the deploy. Devnet airdrop covered the upfront funding.
+- **IDL upload**: failed at deploy time with `[Error] No random values implementation could be found.` — Anchor 1.0's IDL uploader uses `@solana/kit` v6 which requires Node ≥ 20.18 and this box has Node 18.19. The program itself is fully live; klink reads accounts via raw discriminators in `apps/api/src/program/agent-wallet.ts`, not via IDL fetch, so this is non-blocking. If anyone needs on-chain IDL later: bump local Node to ≥ 20, then `anchor idl init -f target/idl/agent_wallet.json DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L --provider.cluster devnet`.
+
+**Why a new program id (the part you actually need to know)**: the upgrade authority for the original program `5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv` was a single keypair held by @Prithwish (per `HANDOVER.md:25` until this PR). Prithwish's laptop is gone with the keypair on it. No backup. The Solana BPF upgrade loader requires the authority signature for every upgrade — there is no recovery path, and `solana program set-upgrade-authority --new-upgrade-authority none` cannot be invoked without that same signature. The ~1.93 SOL of rent locked on the old ProgramData account is unrecoverable. Every existing devnet vault/session/Kamino position derived from the old program id is reachable only through the old program (which is frozen at the pre-TransferChecked build); functionally those are abandoned too. For devnet this is acceptable — no mainnet traffic yet (gated on T-114). For mainnet this would have been catastrophic, which is exactly why T-114 (Squads 2-of-N rotation) is now blocker-level urgent rather than backlog. **Do not promote to mainnet** until T-114 lands.
 
 ### 2026-05-02-2 — `owner_transfer_usdc` upgrade (T-116)
 

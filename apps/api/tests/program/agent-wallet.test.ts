@@ -393,6 +393,7 @@ describe("buildTransferUsdcIx", () => {
       sessionSigner: sessionKp.publicKey,
       sessionPubkey: sessionKp.publicKey,
       vault,
+      mint: Keypair.generate().publicKey, // simulating the USDC mint pubkey
       vaultUsdcAta: Keypair.generate().publicKey, // simulating an ATA pubkey
       recipient,
       recipientUsdcAta: Keypair.generate().publicKey,
@@ -407,10 +408,10 @@ describe("buildTransferUsdcIx", () => {
     expect(ix.data.subarray(0, 8).toString("hex")).toBe("a49e78b74062f40b");
   });
 
-  it("emits 6 keys in the order matching TransferUsdc<'info>", () => {
+  it("emits 7 keys in the order matching TransferUsdc<'info> (T-252 TransferChecked)", () => {
     const a = args();
     const ix = buildTransferUsdcIx(a);
-    expect(ix.keys.length).toBe(6);
+    expect(ix.keys.length).toBe(7);
 
     expect(ix.keys[0]?.pubkey.equals(a.sessionSigner)).toBe(true);
     expect(ix.keys[0]?.isSigner).toBe(true);
@@ -423,14 +424,18 @@ describe("buildTransferUsdcIx", () => {
     expect(ix.keys[2]?.pubkey.equals(a.vault)).toBe(true);
     expect(ix.keys[2]?.isWritable).toBe(false);
 
-    expect(ix.keys[3]?.pubkey.equals(a.vaultUsdcAta)).toBe(true);
-    expect(ix.keys[3]?.isWritable).toBe(true);
+    expect(ix.keys[3]?.pubkey.equals(a.mint)).toBe(true);
+    expect(ix.keys[3]?.isSigner).toBe(false);
+    expect(ix.keys[3]?.isWritable).toBe(false);
 
-    expect(ix.keys[4]?.pubkey.equals(a.recipientUsdcAta)).toBe(true);
+    expect(ix.keys[4]?.pubkey.equals(a.vaultUsdcAta)).toBe(true);
     expect(ix.keys[4]?.isWritable).toBe(true);
 
-    expect(ix.keys[5]?.pubkey.equals(TOKEN_PROGRAM_FAKE)).toBe(true);
-    expect(ix.keys[5]?.isWritable).toBe(false);
+    expect(ix.keys[5]?.pubkey.equals(a.recipientUsdcAta)).toBe(true);
+    expect(ix.keys[5]?.isWritable).toBe(true);
+
+    expect(ix.keys[6]?.pubkey.equals(TOKEN_PROGRAM_FAKE)).toBe(true);
+    expect(ix.keys[6]?.isWritable).toBe(false);
   });
 
   it("data length is discriminator + 8-byte amount + 32-byte recipient = 48 bytes", () => {

@@ -8,7 +8,7 @@ export const SOLANA_RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 export const KLINK_PROGRAM_ID = new PublicKey(
   process.env.NEXT_PUBLIC_KLINK_PROGRAM_ID ??
-    "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv",
+    "DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L",
 );
 export const USDC_MINT = new PublicKey(
   process.env.NEXT_PUBLIC_USDC_MINT ?? "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",

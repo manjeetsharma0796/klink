@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
 use crate::errors::AgentWalletError;
 use crate::state::{Session, Vault, SECONDS_PER_DAY, TRANSFER_USDC_BIT};
@@ -17,10 +17,15 @@ use crate::state::{Session, Vault, SECONDS_PER_DAY, TRANSFER_USDC_BIT};
 ///    window first; then `daily_spent + amount ≤ daily_cap`.
 /// 5. `session.expiry == 0 || now < session.expiry`.
 ///
-/// CPI to SPL Token Program with the vault PDA as transfer authority
-/// (signed via `["vault", owner]` seeds). Memo / payment-id is added
-/// off-chain via a separate SPL Memo instruction in the same tx —
-/// keeping this handler focused on the on-chain policy floor.
+/// CPI to SPL Token Program via `TransferChecked` (opcode 12) with the
+/// vault PDA as transfer authority (signed via `["vault", owner]` seeds).
+/// The mint + decimals travel on-wire so off-chain receipt verifiers
+/// (MPP, x402, Solana Pay) can validate without racy ATA lookups, and
+/// the SPL Token program reverts if `mint.decimals` mismatches the
+/// supplied mint — defense in depth against lookalike-token swaps.
+/// Memo / payment-id is added off-chain via a separate SPL Memo
+/// instruction in the same tx, keeping this handler focused on the
+/// on-chain policy floor.
 pub fn transfer_usdc(
     ctx: Context<TransferUsdc>,
     amount: u64,
@@ -84,13 +89,14 @@ pub fn transfer_usdc(
     let vault_seeds: &[&[u8]] = &[b"vault", owner_key.as_ref(), &[bump]];
     let signer_seeds: &[&[&[u8]]] = &[vault_seeds];
 
-    let cpi_accounts = Transfer {
+    let cpi_accounts = TransferChecked {
         from: ctx.accounts.vault_usdc_ata.to_account_info(),
+        mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.recipient_usdc_ata.to_account_info(),
         authority: ctx.accounts.vault.to_account_info(),
     };
     // Anchor 1.0 took `CpiContext::new_with_signer`'s first arg from
-    // `AccountInfo` to `Pubkey` (program id). `anchor_spl::token::transfer`
+    // `AccountInfo` to `Pubkey` (program id). `anchor_spl::token::transfer_checked`
     // ignores the program id internally — it hardcodes `spl_token::ID` —
     // but we pass the bound program key for correctness/IDL consistency.
     let cpi_ctx = CpiContext::new_with_signer(
@@ -98,7 +104,7 @@ pub fn transfer_usdc(
         cpi_accounts,
         signer_seeds,
     );
-    token::transfer(cpi_ctx, amount)?;
+    token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
 
     // State update — only after the CPI succeeds. `daily_spent` is the
     // source-of-truth tally; off-chain pre-flight reads this.
@@ -135,6 +141,15 @@ pub struct TransferUsdc<'info> {
         bump = vault.bump,
     )]
     pub vault: Account<'info, Vault>,
+
+    /// USDC mint. Validated to match `vault_usdc_ata.mint` so the supplied
+    /// mint cannot be a substitute. `decimals` is read from this account
+    /// and passed to the SPL `TransferChecked` CPI so the SPL Token
+    /// program itself reverts on any decimals mismatch.
+    #[account(
+        constraint = mint.key() == vault_usdc_ata.mint @ AgentWalletError::WrongMint,
+    )]
+    pub mint: Account<'info, Mint>,
 
     /// Vault's USDC ATA. Owned by the vault PDA; CPI authority.
     #[account(

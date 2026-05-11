@@ -14,7 +14,7 @@ import {
   makePostWalletHandler,
 } from "../../src/routes/wallet";
 
-const PROGRAM_ID = new PublicKey("5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv");
+const PROGRAM_ID = new PublicKey("DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L");
 // Devnet USDC mint commonly used by Circle / Kamino devnet integrations.
 const USDC_MINT = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
 const FAKE_BLOCKHASH = "11111111111111111111111111111111";
