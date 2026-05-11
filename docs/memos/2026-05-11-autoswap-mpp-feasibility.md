@@ -70,7 +70,7 @@ The acceptance asked for runnable probes. Several of these I could not run from 
 
 ### Jupiter Quote API on devnet
 
-Hosted Jupiter Swap API base URL is `https://api.jup.ag/swap/v1/quote` (free tier on `https://lite-api.jup.ag`). Documentation does **not** advertise a devnet endpoint ([dev.jup.ag swap quote](https://dev.jup.ag/docs/swap/get-quote), [Jupiter Ultra Swap docs](https://dev.jup.ag/docs/ultra)). Jupiter Ultra is documented as mainnet-only.
+Hosted Jupiter Swap API base URL is `https://api.jup.ag/swap/v1/quote` (free tier on `https://lite-api.jup.ag`). Per Jupiter's docs ([dev.jup.ag swap quote](https://dev.jup.ag/docs/swap/get-quote)), `lite-api.jup.ag` is the no-sign-up free tier intended for prototyping (no analytics, no usage tracking); `api.jup.ag` is the production tier requiring an `x-api-key` from `developers.jup.ag/portal` for higher rate limits. Same endpoints, same routes; only the base URL and rate-limit posture differ. Documentation does **not** advertise a devnet endpoint on either host ([Jupiter Ultra Swap docs](https://dev.jup.ag/docs/ultra)). Jupiter Ultra is documented as mainnet-only.
 
 A `https://devnet.jup.ag/` UI exists ([devnet.jup.ag](https://devnet.jup.ag/)) but I could not confirm whether the underlying REST API serves devnet quotes. The API reference pages I fetched (`developers.jup.ag/docs/swap/get-quote`, `developers.jup.ag/docs/swap-api/get-quote`) document only mainnet URLs. **Untested:**
 
@@ -82,13 +82,13 @@ curl -s 'https://devnet.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111
 curl -s 'https://lite-api.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=1000000&slippageBps=50'
 ```
 
-The mints used: SOL `So11111111111111111111111111111111111111112` (wrapped SOL, same on every cluster), mainnet USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`, devnet USDC most commonly `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (Circle-issued; widely cited but **I have not independently verified ownership**; an alternative `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr` is a Credix SPL-token-faucet token, not Circle USDC).
+The mints used: SOL `So11111111111111111111111111111111111111112` (wrapped SOL, same on every cluster), mainnet USDC `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`, devnet USDC most commonly `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` (Circle-issued; widely cited but **I have not independently verified ownership** against Circle's current docs).
 
 The self-hosted Jupiter binary (`jup-ag/jupiter-swap-api`) accepts a network flag and can in principle run against devnet, but its **market cache is built from mainnet snapshots** ([self-hosted docs](https://station.jup.ag/docs/apis/self-hosted)). To use it on devnet you have to deploy the pools on devnet first and feed them via `--enable-add-market`. Not viable for klink without owning the pool population problem too.
 
 ### Raydium / Orca pool presence on devnet
 
-Both protocols document devnet availability for SDK testing ([Raydium SDK v2 demo, devnet](https://github.com/raydium-io/raydium-sdk-V2-demo/issues/140); note an open issue about devnet pool-creation cost ~1 SOL). Orca's main API endpoints I checked (`api-v3.raydium.io`) return mainnet `chainId 101` only.
+Both protocols document devnet availability for SDK testing ([Raydium SDK v2 demo, devnet](https://github.com/raydium-io/raydium-sdk-V2-demo/issues/140); note an open issue about devnet pool-creation cost ~1 SOL). Orca's hosted API (`https://api.orca.so/v1/whirlpool/list`, probed 2026-05-11, HTTP 200) returns whirlpools whose `tokenB.mint` for SOL-USDC is `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`, i.e. mainnet USDC; no devnet variant on the same host (`api.devnet.orca.so` returned 403 in this session).
 
 There **are** community-deployed USDC-SOL devnet pools on both Raydium and Orca, but the addresses I found in older SDK examples are stale and not reliable to cite from training data. Users who actually need to swap USDC↔SOL on devnet typically:
 
@@ -99,7 +99,7 @@ Bottom line: devnet pool **infrastructure exists** but discoverability is poor. 
 
 ### Octane / Kora devnet endpoint
 
-- **Octane:** archived 2026-04-20 ([repo](https://github.com/solana-labs/octane)). No public hosted endpoint; was always self-hosted. Skip.
+- **Octane:** archived 2026-04-20 ([repo](https://github.com/anza-xyz/octane)). No public hosted endpoint; was always self-hosted. Skip.
 - **Kora:** no public hosted endpoint either; Kora is software the operator runs ([Solana Foundation repo](https://github.com/solana-foundation/kora), MIT license). Devnet is the **default development target** in the docs and the x402 integration guide is written against devnet ([Kora x402 guide](https://launch.solana.com/docs/kora/guides/x402)). Operationally: Kora is one process you run on a server, you fund its signer with devnet SOL via `solana airdrop`, you configure an allowlist of programs/tokens/spend caps, and clients reach it over JSON-RPC at `:8080`.
 
 The Kora x402 flow ends up looking suspiciously similar to klink's existing flow except with Kora-as-fee-payer instead of treasury-as-fee-payer. The **architectural difference is who you trust to validate the spend**. Klink trusts its own policy engine + on-chain caps. Kora trusts an operator-defined allowlist enforced inside the relayer process. For klink's threat model the on-chain caps are stronger because they survive even if the relayer is compromised.
@@ -131,7 +131,7 @@ A full probe run is ~10 LOC of script + ~30 LOC of audit/ledger plumbing. The ri
 | Option | LOC | Dep additions | Mainnet-only test surface | Ongoing ops burden | Verdict |
 |---|---|---|---|---|---|
 | (a) Defer; treasury fee-paying covers it | 0 | none | none | already-known treasury SOL monitoring (separate concern) | **Recommended.** |
-| (b) Integrate Kora as fee-payer alongside treasury | ~250 LOC api wiring + Kora node deploy + allowlist config | `@solana-foundation/kora-sdk` (estimated; not verified) + ops runbook for the Kora process | Yes (Jupiter routing only matters if Kora's own swap path needs it; Kora itself works on devnet but production Kora is mainnet) | New process to babysit, signer key to rotate, allowlist drift versus on-chain caps | Not worth it for current spend flows. Reconsider if klink ever needs to settle in non-USDC. |
+| (b) Integrate Kora as fee-payer alongside treasury | ~250 LOC api wiring + Kora node deploy + allowlist config | `@solana/kora` v0.2.1 ([npm](https://www.npmjs.com/package/@solana/kora), verified 2026-05-11) + ops runbook for the Kora process | Yes (Jupiter routing only matters if Kora's own swap path needs it; Kora itself works on devnet but production Kora is mainnet) | New process to babysit, signer key to rotate, allowlist drift versus on-chain caps | Not worth it for current spend flows. Reconsider if klink ever needs to settle in non-USDC. |
 | (c) Native USDC-pull-from-vault → swap-via-Jupiter inside spend handler | ~400 LOC handler + Jupiter SDK plumbing + slippage / route-staleness logic + `program/swap_via_jupiter` Anchor instruction (or pre-build tx server-side) + new audit fields (`swap_in`, `swap_out`, `slippage_realised`) | `@jup-ag/api` + new on-chain logic if CPI'd | Yes (Jupiter hosted is mainnet-only; devnet test path is build-your-own-pool) | Slippage misses become support tickets; Jupiter route changes are silent failures; new revert paths in the program | **Reject.** Massive blast radius for a feature no current user has asked for. Also requires a program upgrade, which now means a multisig (T-114 not yet shipped), multiplying cost again. |
 
 ### What changes the answer
