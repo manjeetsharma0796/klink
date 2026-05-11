@@ -21,7 +21,7 @@ export function CreateWalletCta() {
       </CardHeader>
       <CardContent className="flex items-center justify-between gap-6">
         <p className="text-sm text-muted-foreground">
-          One-time setup. Phantom signs the <code className="font-mono">init_vault</code> tx; the
+          One-time setup. Your wallet signs the <code className="font-mono">init_vault</code> tx; the
           backend never sees your key.
         </p>
         <Button
@@ -37,7 +37,7 @@ export function CreateWalletCta() {
                 toast({
                   title: "Wallet linked",
                   description:
-                    "An on-chain vault already existed for this Phantom — linked it to your account.",
+                    "An on-chain vault already existed for this wallet — linked it to your account.",
                 });
               } else {
                 // Build-tx branch only returns the unsigned tx; it does NOT

@@ -169,7 +169,7 @@ export default function FundPage() {
     <div className="space-y-8">
       <PageHeader
         title="Fund"
-        subtitle="Move USDC into the vault from your connected Phantom, by direct deposit, or with a card."
+        subtitle="Move USDC into the vault from your connected wallet, by direct deposit, or with a card."
       />
       <div className="klink-stagger grid gap-6 lg:grid-cols-3">
         {/* T-249: connected-wallet path. Most-natural option for a user
@@ -177,7 +177,7 @@ export default function FundPage() {
             default path the eye lands on. */}
         <Card>
           <CardHeader>
-            <span className="klink-eyebrow">Phantom</span>
+            <span className="klink-eyebrow">Wallet</span>
             <CardTitle>From connected wallet</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -211,7 +211,7 @@ export default function FundPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Sends USDC from your Phantom directly to the vault. Free, no card fee. Phantom prompts you to sign.
+                  Sends USDC from your connected wallet directly to the vault. Free, no card fee. Your wallet prompts you to sign.
                 </p>
               </>
             )}

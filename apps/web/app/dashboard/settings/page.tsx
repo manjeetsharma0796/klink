@@ -119,7 +119,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Send USDC from the vault to any wallet you pick. There&apos;s no allowlist on this path, no per-tx cap, and no daily cap. Your Phantom signs the transaction. The backend never holds your key. Use this to recover funds if klink ever stops responding.
+            Send USDC from the vault to any wallet you pick. There&apos;s no allowlist on this path, no per-tx cap, and no daily cap. Your wallet signs the transaction. The backend never holds your key. Use this to recover funds if klink ever stops responding.
           </p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -185,7 +185,7 @@ export default function SettingsPage() {
               const baseUnits = Math.round(usdc * 1_000_000);
               const ok = await confirm({
                 title: `Send ${usdc} USDC to ${drainAddress.trim().slice(0, 8)}…${drainAddress.trim().slice(-4)}?`,
-                description: "This bypasses every session policy and cannot be undone. Your Phantom signs the transaction; klink builds it but never holds your key.",
+                description: "This bypasses every session policy and cannot be undone. Your wallet signs the transaction; klink builds it but never holds your key.",
                 confirmText: "Withdraw",
                 destructive: true,
               });

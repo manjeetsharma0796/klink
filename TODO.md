@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-05-11
+last_updated: 2026-05-12
 ---
 
 # TODO
@@ -218,6 +218,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-314 — "Add to session" deep-link button on `/services` page
+- Status: done @Jishnu 2026-05-12
+- Depends-on: T-259, T-304, T-305, T-223
+- OS: any
+- Scope: web
+- Acceptance: each row of the curated MPP services table at `apps/web/app/services/page.tsx` (rendered from `gitbook/services/mpp.md` per T-259) gains an "Add to session" button. Clicking it deep-links into the dashboard's sessions list at `/dashboard/sessions` with a query-param contract `?add_url=<urlPattern>&add_recipient=<base58>&suggest_max_per_call=<baseUnits>`. The sessions list renders a "Pending whitelist" callout when params are present, listing each active session with an "Add to <label>" button that forwards the params to that session's allowlist editor at `/dashboard/sessions/[id]`. The session detail page reads the params and passes them as `pendingAdd` props to `UrlAllowlist` (off-chain) and `RecipientList` (on-chain). Each editor appends the queued value to its existing draft on mount (no replace), shows a yellow callout explaining the pending state, and the user reviews + saves explicitly. Recipient editor auto-switches Action to `Add` so a stray sign doesn't replace the whole list. Zero-session case: `NewSessionModal` accepts a `prefill` prop, auto-opens when arriving with prefill, pre-fills `recipients` field + scales `maxPerTx`/`dailyCap` to the suggested cap, surfaces the URL in an in-modal callout, and on successful create redirects to the new session's detail page with `add_url` carried through so the URL allowlist editor pre-fills there. New shared lib `apps/web/lib/add-to-session-params.ts` exports `parseAddToSessionParams`, `buildAddToSessionQuery`, `hasAnyAddToSessionParam`, `suggestMaxPerCallFromPrice`. 12 new unit tests at `apps/web/tests/unit/add-to-session-params.test.ts` pin the round-trip + price-to-cap heuristic. **Implemented:** new client component `apps/web/app/services/add-to-session-button.tsx` rendered as the 8th column of the services table; sessions list + detail + new-session modal + url-allowlist + recipient-list all wired through the shared lib. 59/59 web tests pass (was 47, +12 new); web typecheck clean; 235/235 api tests still pass; TODO.md lint OK (110 tasks).
+- Notes: triggered 2026-05-12 by Jishnu. Lowers the "demo-ready agent" friction bar from ~5 manual dashboard steps to ~2 (pick session, sign on-chain recipient tx). The off-chain URL whitelist add stays separate from the on-chain recipient add so a user can opt into just URL whitelist (single `PATCH /v1/wallet/off-chain-policy`, no signature) without the on-chain tx. No new server endpoints; reuses T-223 + existing session/allowlist endpoints.
 
 ### T-504 — Pick 3 reference integrations for demo
 - Status: done @Jishnu 2026-05-11

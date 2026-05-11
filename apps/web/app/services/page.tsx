@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/app/_components/ui/table";
+import { AddToSessionButton } from "./add-to-session-button";
 
 export const metadata: Metadata = {
   title: "Services · klink",
@@ -84,7 +85,8 @@ export default function ServicesPage() {
                 <TableHead>Price</TableHead>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="pr-6">Last verified</TableHead>
+                <TableHead>Last verified</TableHead>
+                <TableHead className="pr-6 text-right">Whitelist</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -117,8 +119,15 @@ export default function ServicesPage() {
                       {s.status}
                     </span>
                   </TableCell>
-                  <TableCell className="pr-6 text-sm text-olive-deep/70">
+                  <TableCell className="text-sm text-olive-deep/70">
                     {s.lastVerified}
+                  </TableCell>
+                  <TableCell className="pr-6 text-right">
+                    <AddToSessionButton
+                      url={s.url}
+                      recipient={s.recipient}
+                      price={s.price}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -176,7 +185,7 @@ export default function ServicesPage() {
               </a>
               . Full walkthrough in the{" "}
               <a
-                href="https://klinkdotfun.vercel.app/services/mpp.md"
+                href="https://app.klinkdotfun.live/services/mpp.md"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="klink-underline text-olive-deep"

@@ -24,7 +24,7 @@ External consumers can vendor the three source files (`src/client.ts`, `src/type
 import { KlinkClient } from "@klink/sdk";
 
 const klink = new KlinkClient({
-  baseUrl: "https://klink-api.onrender.com",   // or http://localhost:3000 in dev
+  baseUrl: "https://api.klinkdotfun.live",   // or http://localhost:3000 in dev
   apiKey: process.env.KLINK_API_KEY!,           // generate one in the dashboard
 });
 

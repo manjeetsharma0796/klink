@@ -1,10 +1,11 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import { useSession } from "@/_hooks/use-session";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { parseAddToSessionParams } from "@/lib/add-to-session-params";
 import { RecipientList } from "./recipient-list";
 import { InstructionBitmap } from "./instruction-bitmap";
 import { UrlAllowlist } from "./url-allowlist";
@@ -13,6 +14,10 @@ import { TimeWindow } from "./time-window";
 export default function SessionAllowlistPage() {
   const params = useParams<{ id: string }>();
   const { session, error, isLoading, mutate } = useSession(params.id);
+  const searchParams = useSearchParams();
+  const pending = parseAddToSessionParams(
+    new URLSearchParams(searchParams?.toString() ?? ""),
+  );
 
   if (error) {
     return (
@@ -61,6 +66,7 @@ export default function SessionAllowlistPage() {
             <RecipientList
               sessionId={session.id}
               current={onChain.allowedRecipients.slice(0, onChain.allowedRecipientsCount)}
+              pendingAdd={pending.addRecipient}
               onSaved={() => mutate()}
             />
             <InstructionBitmap
@@ -73,6 +79,14 @@ export default function SessionAllowlistPage() {
         <UrlAllowlist
           walletId={session.walletId}
           current={session.offChainPolicy?.allowedUrls ?? null}
+          pendingAdd={
+            pending.addUrl
+              ? {
+                  pattern: pending.addUrl,
+                  maxPerCall: pending.suggestMaxPerCall ?? 0,
+                }
+              : null
+          }
           onSaved={() => mutate()}
         />
         <TimeWindow
