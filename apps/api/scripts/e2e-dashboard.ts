@@ -513,9 +513,7 @@ if (sessionResult) {
         throw new Error(`expiry mismatch: ${body.expiry} (expected 0)`);
       }
       if (body.allowed_instructions !== 0b001) {
-        throw new Error(
-          `allowed_instructions mismatch: ${body.allowed_instructions} (expected 1)`,
-        );
+        throw new Error(`allowed_instructions mismatch: ${body.allowed_instructions} (expected 1)`);
       }
       // After §10 the PATCH allowlist + spend ran, so the PDA reflects 1
       // recipient + ~500_000 base units of daily_spent. Don't pin exact
