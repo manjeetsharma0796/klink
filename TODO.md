@@ -170,12 +170,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: api
 - Acceptance: `apps/api/src/app.ts` mounts a static handler at `GET /skill.md` (and likely `GET /.well-known/skill.md` for forward compat) returning the canonical agent skill with `Content-Type: text/markdown; charset=utf-8`. Mirrors the pay-with-locus pattern: an agent given **only** the api URL + a bearer token can fetch the skill from the same origin without out-of-band coordination. Today the only place skill.md is served is `apps/web/public/skill.md` on the dashboard origin (`:3030` dev, eventually `klink.dev`). The 2026-05-02 cold-start UX test confirmed an agent given only the api URL has zero discovery path: `GET /skill.md`, `GET /.well-known/agent.json`, and `klink-docs.gitbook.io/skill.md` all 404. Source: read the file via `readFileSync` from disk at module-load (the `gitbook/skill.md` and `apps/web/public/skill.md` copies are kept byte-equal by `apps/web/tests/unit/skill-sync.test.ts`; reuse one of those paths or copy a third time and extend the sync test). Add a `cache-control: public, max-age=300, s-maxage=300` header. Add `Access-Control-Allow-Origin: *` so cross-origin agent fetchers don't get blocked.
 
-### T-239 — Agent-readable session metadata endpoint (`GET /v1/session/me`)
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-204, T-206
-- OS: any
-- Scope: api
-- Acceptance: new `GET /v1/session/me` returning the calling api-key's session config — `max_per_tx`, `daily_cap`, `daily_spent`, `daily_window_start`, `expiry`, `allowed_recipients`, `allowed_instructions` (decoded from the on-chain Session PDA via existing `decodeSessionAccount`). Mirrors what the dashboard sees at `GET /v1/sessions/:id` but scoped to the caller's own session via `req.session.id` from the api-key middleware. Today an agent hit `403`/on-chain-revert errors with no way to introspect its own bounds; T-237 validation flagged this as a real friction point ("agent can only react to failures, can't plan"). Update skill.md to document. Test against the live endpoint via `apps/api/scripts/e2e-dashboard.ts` extension.
 ### T-246 — Auto-run Drizzle migrations on API startup
 - Status: in-progress @Manjeet 2026-05-05
 - Depends-on: T-245
@@ -275,6 +269,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## Done
 
 _(newest first)_
+
+### T-239 — Agent-readable session metadata endpoint (`GET /v1/session/me`)
+- Status: done @Jishnu 2026-05-11
+- Depends-on: T-204, T-206
+- OS: any
+- Scope: api
+- Acceptance: new `GET /v1/session/me` returns the caller's session config decoded from the on-chain Session PDA — all 7 spec fields: `max_per_tx`, `daily_cap`, `daily_spent` (decimal strings of USDC base units to survive u64 > 2^53), `daily_window_start`, `expiry` (Unix seconds as numbers), `allowed_recipients` (base58), `allowed_instructions` (u32 bitmap). Auth via the existing `requireApiKey` middleware (same surface as `/v1/spend/*` and `/v1/yield/*`); session is implicit in the bearer via `req.session.id` so there's no path param and no other caller's session is reachable. Errors mapped to the existing taxonomy: `401` (middleware), `404 "session pda not yet on chain"` (DB row exists but owner hasn't submitted `add_session` tx yet), `503 "rpc unavailable"`. Mounted in `apps/api/src/app.ts`. New unit test `apps/api/tests/routes/session-me.test.ts` covers happy path with a fixture-built Session account, snake_case + decimal-string serialization at u64 max, 401 missing-bearer guard, 503 rpc-throw, 404 PDA-missing, 500 decode-failure (6 tests, all pass). E2E harness `apps/api/scripts/e2e-dashboard.ts` extended with §11 that hits `/v1/session/me` after session create + spend and asserts returned bounds match what was set in §6. Both `apps/web/public/skill.md` and `gitbook/skill.md` updated byte-equally with a new Capabilities block (curl + JSON example + per-field meaning + failure rows) and the "no agent-readable session introspection yet" Beta caveat rewritten to point at the new endpoint; sync test `apps/web/tests/unit/skill-sync.test.ts` green. 211/211 api tests pass; 47/47 web tests pass; tsc --noEmit clean.
+- Notes: triggered by T-237 validation friction ("agent can only react to failures, can't plan") — agents previously discovered bounds by attempting an action and parsing on-chain reverts. Cold-starting on `/v1/session/me` lets them plan a spend before the program rejects.
 
 ### T-256 — Spend handlers auto-create recipient USDC ATA (`createAssociatedTokenAccountIdempotent`)
 - Status: done @Jishnu 2026-05-11

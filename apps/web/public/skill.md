@@ -144,6 +144,44 @@ Cold wallet (vault PDA exists but unfunded; the same shape covers "ATA exists bu
 
 Use this on every cold start to plan a spend amount.
 
+### `GET /v1/session/me`
+
+Read your own session bounds (T-239). Free, zero side effects. Use this on cold start (alongside `/v1/yield/position`) to plan a spend before you hit a 402, or to answer a human asking "what's my budget?" without making them open the dashboard.
+
+```bash
+curl -s -H "Authorization: Bearer $KLINK_API_KEY" \
+  https://klink-api.onrender.com/v1/session/me
+```
+
+Healthy session:
+
+```json
+{
+  "max_per_tx": "1000000",
+  "daily_cap": "5000000",
+  "daily_spent": "250000",
+  "daily_window_start": 1700000000,
+  "expiry": 0,
+  "allowed_recipients": ["3xJ8...", "9aK2..."],
+  "allowed_instructions": 1
+}
+```
+
+- `max_per_tx`: largest single transfer the on-chain program will accept, **decimal string** of USDC base units (1 USDC = 1_000_000).
+- `daily_cap`: rolling-24h spend cap, same units. The window restarts at `daily_window_start + 86400`.
+- `daily_spent`: how much of `daily_cap` has been used in the current window. `daily_cap - daily_spent` = budget remaining right now.
+- `daily_window_start`: Unix seconds when the current 24h window opened.
+- `expiry`: Unix seconds after which the session stops accepting txs. `0` = never expires.
+- `allowed_recipients`: base58 pubkeys you may transfer USDC to. Anything not in this list reverts on chain with `RecipientNotAllowed`.
+- `allowed_instructions`: u32 bitmap. Bit 0 = `transfer_usdc`, bit 1 = `kamino_deposit`, bit 2 = `kamino_withdraw`. e.g. `1` = transfer only; `7` = transfer + both yield ops.
+
+Possible failures:
+
+| You got | Means | What to do |
+|---|---|---|
+| `404 {"error":"session pda not yet on chain"}` | Session row exists but the human hasn't submitted the `add_session` tx via Phantom yet | Tell the human to finish session creation in the dashboard. Don't retry. |
+| `503 {"error":"rpc unavailable"}` | Solana RPC is having a moment | Backoff + retry. |
+
 ### `POST /v1/spend/transfer`: direct USDC transfer
 
 Use when you have a known recipient and just need to move USDC. Recipient must already be in the session's on-chain `allowed_recipients`; otherwise the on-chain program rejects.
@@ -316,7 +354,7 @@ If you're hitting `INSUFFICIENT_LIQUID` repeatedly, that's a signal to the human
 
 - Klink is currently devnet only; mainnet support arrives after the program audit completes.
 - Yield is config-gated and disabled on this environment, `/v1/yield/deposit` and `/v1/yield/withdraw` return `503 {"error":"YIELD_DISABLED", ...}` until the 5 Kamino reserve env vars are populated. Kamino's `Klend` program IS deployed on devnet (same program ID as mainnet, per their program-addresses doc), but their docs and public API only publish canonical mainnet markets, integrators pick a reserve themselves. We haven't yet, so devnet yield is feature-flagged off; mainnet cutover (T-114) lights everything up. Treat as feature-flagged off; surface to the human, don't retry. Position reads (`/v1/yield/position`) still work, they return `deployed: "0"`.
-- No agent-readable session introspection yet, there's no endpoint that returns your own `daily_cap`, `max_per_tx`, `allowed_recipients`, or `allowed_instructions`. Until that lands, you discover bounds by attempting an action and parsing the on-chain revert (`AmountExceedsMaxPerTx`, `RecipientNotAllowed`, `InstructionNotAllowed`, `DailyCapExceeded`, `SessionExpired`, see "On-chain 402 substrings"). If the human asks "what's my budget?" or "do I have the kamino_deposit bit?", surface the question, the answer isn't reachable from the agent surface today.
+- Session introspection is now available via `GET /v1/session/me` (T-239), see Capabilities. Cold-start there to learn your `max_per_tx`, `daily_cap`, `daily_spent`, `expiry`, `allowed_recipients`, and `allowed_instructions` bitmap before you act, instead of failing-and-parsing on-chain reverts (`AmountExceedsMaxPerTx`, `RecipientNotAllowed`, `InstructionNotAllowed`, `DailyCapExceeded`, `SessionExpired`).
 - Accrued yield (`/v1/yield/position` `accrued` field) is `null` until the exchange-rate decode lands.
 - Curated service catalog (`/v1/spend/service`) may have 0 enabled rows on a fresh deploy, every slug returns `404 "service '<slug>' not in catalog or disabled"`. Until that's seeded, fall back to `/v1/spend/sign-payment` for x402 services in the off-chain URL allowlist.
 

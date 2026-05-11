@@ -12,6 +12,7 @@ import { getFundDepositAddressHandler } from "./routes/fund";
 import {
   deleteSessionHandler,
   getSessionHandler,
+  getSessionMeHandler,
   getSessionsHandler,
   patchSessionAllowlistHandler,
   postRotateSessionKeyHandler,
@@ -119,6 +120,11 @@ export function createApp(): Express {
   // Session reads (T-218 list + T-219 single+on-chain).
   app.get("/v1/sessions", requireDashboardJwt, getSessionsHandler);
   app.get("/v1/sessions/:id", requireDashboardJwt, getSessionHandler);
+  // T-239: agent-readable session introspection. Mirrors `/v1/sessions/:id`
+  // but scoped to the caller's own session via `req.session.id` from the
+  // api-key middleware — so no path param needed and no other caller's
+  // session is reachable.
+  app.get("/v1/session/me", requireApiKey, getSessionMeHandler);
 
   // Spend (T-210/T-211/T-212): API-key-authenticated. Backend signs with the
   // session keypair (decrypted from DB) and submits.
