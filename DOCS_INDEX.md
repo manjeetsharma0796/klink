@@ -16,7 +16,7 @@ Group entries by section. Keep alphabetical within sections.
 
 ## Operations
 
-- [Team task board](TODO.md) — async, file-based task board for the 4-person team; claim/lock/dependency rules and seed task list [updated 2026-05-10]
+- [Team task board](TODO.md) — async, file-based task board for the 4-person team; claim/lock/dependency rules and seed task list [updated 2026-05-11]
 
 ## Architecture & Design
 
@@ -30,6 +30,7 @@ Group entries by section. Keep alphabetical within sections.
 
 - [Dev environment](docs/runbooks/dev-environment.md) — pinned versions + per-OS install commands + setup attestation table [updated 2026-04-28]
 - [Secrets management](docs/runbooks/secrets.md) — five MVP secrets, generation, rotation, leak response; KMS is v2 [updated 2026-04-28]
+- [Service catalog deployment](docs/runbooks/service-catalog-deployment.md) — seed, per-row update via admin script, smoke test for the curated `/v1/spend/service` proxy [updated 2026-05-11]
 - [Team collaboration](docs/runbooks/team-collaboration.md) — async claim protocol, per-OS notes, and rules for Claude agents working on the board [updated 2026-04-28]
 - [Telegram notifications](docs/runbooks/telegram-notifications.md) — one-time bot setup + secrets + smoke test for the GitHub-Actions PR/push notifier [updated 2026-04-28]
 
