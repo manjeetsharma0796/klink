@@ -6,6 +6,8 @@ description: MPP-protocol services your klink agent can pay, plus how to build y
 
 # MPP services on Solana
 
+> **Human-readable view:** [app.klinkdotfun.live/services](https://app.klinkdotfun.live/services) renders this same table with the klink brand chrome. Both surfaces read this file as their single source of truth, so they never drift.
+
 [MPP (Machine Payments Protocol)](https://paymentauth.org/draft-httpauth-payment-00.html) is the Payment auth scheme that lets HTTP services charge per call. klink's `POST /v1/spend/mpp` handles the full round trip: probe -> parse 402 challenge -> sign + submit a `TransferChecked` on Solana -> retry the URL with the right `Authorization: Payment` header -> forward the upstream response. One HTTP call from your agent's perspective, one on-chain payment, one receipt.
 
 This page lists MPP services on Solana that klink agents are verified to pay end to end, and how to spin up your own.
