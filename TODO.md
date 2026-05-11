@@ -218,18 +218,19 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: docs
 - Acceptance: 3-min devnet happy-path script: create wallet → fund → manual deposit → agent spend → audit review. Runnable end-to-end.
 
-### T-504 — Pick 3 reference integrations for demo
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-309
-- OS: any
-- Scope: design
-- Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
-
 ---
 
 ## Done
 
 _(newest first)_
+
+### T-504 — Pick 3 reference integrations for demo
+- Status: done @Jishnu 2026-05-11
+- Depends-on: T-309
+- OS: any
+- Scope: design
+- Acceptance: memo `docs/memos/2026-05-11-reference-integrations.md`. Three picks: (A) self-hosted MPP echo loop against `service01-kep9.onrender.com/echo` via `/v1/spend/mpp` (zero-new-infra, end-to-end real on devnet today, exercises `RecipientNotAllowed` revert as the cap-tripping demo moment); (B) pre-allowlisted treasury-funded "subscription bot" using `/v1/spend/transfer` with single-recipient allowlist + `daily_cap` matching the bill/30 (works on devnet but the strongest version is mainnet, T-114-gated); (C) multi-recipient fan-out paymaster, one orchestrator session with three pre-allowlisted sub-agent recipient pubkeys routed via `/v1/spend/transfer` (exercises ATA auto-create T-256 and the on-chain allowlist visibly). Each pick covers all 5 dimensions (pattern, why klink, what's shippable, what's missing, hard tradeoff). Rejected-and-why section covers MPP-on-Tempo (Anthropic/OpenAI settle on Tempo not Solana), Cloudflare x402 (no first-party paid endpoint listed today), QuickNode RPC (mainnet-only + older X-PAYMENT dialect untested against `/v1/spend/sign-payment`), Kamino yield agent (`YIELD_DISABLED` + T-114), and ChainAnalyzer/Stakevia mainnet x402 services (klink is devnet-only until T-114). Order to ship: A → C → B; the recommended 3-min demo is A→C narrated as "agent paid for the work it wanted, then paid the sub-agents who helped." Memo is honest about what couldn't be verified (QuickNode's exact header set vs `/v1/spend/sign-payment`, ChainAnalyzer's Solana payload format, whether `mpp.tempo.xyz` LLMs have a Solana-routed equivalent, Stakevia's on-chain receipt format). Em-dash count = 0 (verified). DOCS_INDEX.md updated.
+- Notes: triggered 2026-05-11. The fundamental constraint shaping every pick: only end-to-end-verified MPP-on-Solana upstream today is `service01-kep9.onrender.com/echo` (T-253), MPP-on-Tempo services don't settle on Solana, and x402-on-Solana mainnet services exist (QuickNode, ChainAnalyzer per Coinbase CDP facilitator, Stakevia per [x402.org/ecosystem](https://www.x402.org/ecosystem)) but are unreachable from a devnet-only klink wallet. Memo refuses to pretend otherwise. Out of scope: actual demo scripts (T-503 already covers a runnable replay against pick A), mainnet rehearsals (post-T-114), and any "demo agent" code (the picks describe shapes, not implementations).
 
 ### T-259 — Public `/services` page on dashboard, rendering gitbook MPP services table
 - Status: done @Jishnu 2026-05-11
