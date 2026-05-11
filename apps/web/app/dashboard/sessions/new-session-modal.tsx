@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/app/_components/ui/dialog";
 import { Button } from "@/app/_components/ui/button";
@@ -12,6 +13,7 @@ import { useBuildAndSignTx } from "@/_hooks/use-build-and-sign-tx";
 import { useWalletData } from "@/_hooks/use-wallet";
 import { postSessionResponseSchema } from "@/lib/schemas";
 import { INSTRUCTION_BITS, MAX_RECIPIENTS } from "@/lib/constants";
+import { buildAddToSessionQuery } from "@/lib/add-to-session-params";
 import { useToast } from "@/app/_components/ui/use-toast";
 import { ApiKeyRevealModal } from "./api-key-reveal-modal";
 
@@ -30,23 +32,47 @@ const formSchema = z.object({
 });
 type FormValues = z.infer<typeof formSchema>;
 
-interface Props { onCreated: () => void; }
+/** T-314 deep-link payload from /services. All fields nullable. */
+export interface NewSessionPrefill {
+  url: string | null;
+  recipient: string | null;
+  suggestedMaxPerCall: number | null;
+}
 
-export function NewSessionModal({ onCreated }: Props) {
+interface Props {
+  onCreated: () => void;
+  prefill?: NewSessionPrefill | null;
+}
+
+export function NewSessionModal({ onCreated, prefill }: Props) {
   const [open, setOpen] = useState(false);
   const [revealKey, setRevealKey] = useState<string | null>(null);
   const { run, phase } = useBuildAndSignTx();
   const { wallet } = useWalletData();
   const { toast } = useToast();
+  const router = useRouter();
 
+  const initialMaxPerTx =
+    prefill?.suggestedMaxPerCall && prefill.suggestedMaxPerCall > 0
+      ? prefill.suggestedMaxPerCall
+      : 100_000;
+  const initialDailyCap = Math.max(initialMaxPerTx * 10, 1_000_000);
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      label: "", maxPerTx: 100_000, dailyCap: 1_000_000, expiry: 0,
-      recipients: "",
+      label: "", maxPerTx: initialMaxPerTx, dailyCap: initialDailyCap, expiry: 0,
+      recipients: prefill?.recipient ?? "",
       allowTransfer: true, allowKaminoDeposit: false, allowKaminoWithdraw: false,
     },
   });
+
+  // Auto-open the modal when arriving with prefill (T-314 deep-link from
+  // /services). Triggers exactly once per page-load with prefill present.
+  useEffect(() => {
+    if (prefill && (prefill.url || prefill.recipient)) {
+      setOpen(true);
+    }
+  }, [prefill]);
 
   async function onSubmit(values: FormValues) {
     if (!wallet) {
@@ -80,6 +106,17 @@ export function NewSessionModal({ onCreated }: Props) {
       setOpen(false);
       reset();
       onCreated();
+      // T-314: if the user came from a /services deep-link, hand the URL +
+      // suggested cap to the new session's allowlist editor. The recipient
+      // already went on-chain via this create, so it doesn't need to forward.
+      if (prefill?.url) {
+        const q = buildAddToSessionQuery({
+          addUrl: prefill.url,
+          addRecipient: null,
+          suggestMaxPerCall: prefill.suggestedMaxPerCall,
+        });
+        router.push(`/dashboard/sessions/${parsed.sessionId}${q}`);
+      }
     } catch (e) {
       toast({ title: "Failed to create session", description: String(e), variant: "destructive" });
     }
@@ -93,6 +130,19 @@ export function NewSessionModal({ onCreated }: Props) {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader><DialogTitle>New session</DialogTitle></DialogHeader>
+          {prefill?.url && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">Pending whitelist from /services</p>
+              <p className="mt-1 break-all font-mono">URL: {prefill.url}</p>
+              {prefill.recipient && (
+                <p className="mt-0.5 break-all font-mono">Recipient: {prefill.recipient}</p>
+              )}
+              <p className="mt-1">
+                Caps below are pre-filled. After you sign the create tx, the URL is queued for the
+                allowlist editor on the next screen.
+              </p>
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <Label htmlFor="label">Label</Label>
