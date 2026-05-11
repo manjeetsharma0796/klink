@@ -851,3 +851,110 @@ export async function postRotateSessionKeyHandler(
 
   res.json({ apiKey, keyPrefix });
 }
+
+// ---------------------------------------------------------------------------
+// T-239 — GET /v1/session/me
+//
+// Agent-readable session-introspection endpoint. The dashboard reads
+// `GET /v1/sessions/:id` (dashboard-JWT, T-219); agents previously had no
+// way to learn their own bounds and could only react to on-chain reverts
+// after a failed spend ("AmountExceedsMaxPerTx" / "RecipientNotAllowed" /
+// etc — see skill.md "On-chain 402 substrings"). T-237 validation flagged
+// this as a real friction point: agents can react but can't plan.
+//
+// Auth: api-key bearer middleware (the same `requireApiKey` middleware that
+// fronts every /v1/spend/* and /v1/yield/* route). The session is implicit
+// in the bearer — `req.session` + `req.wallet` are populated by the
+// middleware. There is no `:id` param: agents can only read THEIR OWN
+// session, never another caller's.
+//
+// Response shape mirrors the on-chain Session PDA (decoded by the existing
+// `decodeSessionAccount` helper) and follows the agent-surface conventions
+// from `/v1/yield/position`: snake_case JSON keys, USDC fields as decimal
+// strings of base units (1 USDC = 1_000_000), recipient pubkeys as base58.
+// `daily_window_start` and `expiry` are Unix seconds (numbers — fit in
+// 2^53; the underlying i64 is in seconds, not microseconds, so no precision
+// loss).
+//
+// Error taxonomy:
+//   401 — handled by middleware (missing/invalid/revoked bearer)
+//   404 — session PDA not yet on chain (POST /v1/session was made but the
+//         owner hasn't submitted the add_session tx via Phantom yet)
+//   503 — RPC unavailable (matches the rest of the api's error taxonomy)
+// ---------------------------------------------------------------------------
+
+export interface MakeGetSessionMeDeps {
+  connection?: ConnectionFactory;
+}
+
+export function makeGetSessionMeHandler(deps: MakeGetSessionMeDeps = {}) {
+  const newConn =
+    deps.connection ?? (() => new Connection(envOrThrow("SOLANA_RPC_URL"), "confirmed"));
+
+  return async function getSessionMe(req: Request, res: Response): Promise<void> {
+    const session = req.session;
+    const wallet = req.wallet;
+    if (!session || !wallet) {
+      // Defensive — `requireApiKey` middleware should have already returned
+      // 401 before we get here. Mirrors the guard in /v1/yield/position.
+      res.status(401).json({ error: "api key required" });
+      return;
+    }
+
+    let vault: PublicKey;
+    let sessionPubkey: PublicKey;
+    try {
+      vault = new PublicKey(wallet.vaultPda);
+      sessionPubkey = new PublicKey(session.sessionPubkey);
+    } catch {
+      // Both come from the DB row the middleware loaded — if they're not
+      // valid base58 the row is corrupt, which is a server bug, not a
+      // caller bug.
+      res.status(500).json({ error: "session pubkey malformed in DB" });
+      return;
+    }
+    const [sessionPda] = deriveSessionPda(vault, sessionPubkey);
+
+    const conn = newConn();
+    let info: Awaited<ReturnType<Connection["getAccountInfo"]>>;
+    try {
+      info = await conn.getAccountInfo(sessionPda, "confirmed");
+    } catch (err) {
+      console.error("[GET /v1/session/me] on-chain read failed:", err);
+      res.status(503).json({ error: "rpc unavailable" });
+      return;
+    }
+    if (!info) {
+      // Session row exists in DB (otherwise the api-key middleware wouldn't
+      // have validated the bearer), but the on-chain PDA hasn't been
+      // initialized — owner hasn't submitted the add_session tx via Phantom
+      // yet. Agent should surface to the human and stop retrying.
+      res.status(404).json({ error: "session pda not yet on chain" });
+      return;
+    }
+
+    let decoded: ReturnType<typeof decodeSessionAccount>;
+    try {
+      decoded = decodeSessionAccount(Buffer.from(info.data));
+    } catch (err) {
+      console.error("[GET /v1/session/me] session decode failed:", err);
+      res.status(500).json({ error: "session decode failed" });
+      return;
+    }
+
+    res.json({
+      // u64 fields — JSON can't safely represent past 2^53 so serialize as
+      // decimal strings, matching `/v1/yield/position`.
+      max_per_tx: decoded.maxPerTx.toString(),
+      daily_cap: decoded.dailyCap.toString(),
+      daily_spent: decoded.dailySpent.toString(),
+      // i64 unix seconds; safe in number range for any realistic timestamp.
+      daily_window_start: Number(decoded.dailyWindowStart),
+      expiry: Number(decoded.expiry),
+      allowed_recipients: decoded.allowedRecipients.map((p) => p.toBase58()),
+      allowed_instructions: decoded.allowedInstructions,
+    });
+  };
+}
+
+export const getSessionMeHandler = makeGetSessionMeHandler();

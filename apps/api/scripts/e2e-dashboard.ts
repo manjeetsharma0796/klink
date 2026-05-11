@@ -17,6 +17,8 @@
  *   8. GET /v1/sessions/:id (single + on-chain projection)
  *   9. GET /v1/audit (camelCase fix verification)
  *  10. POST /v1/spend/transfer with the API key (small USDC amount → throwaway recipient)
+ *  11. GET /v1/session/me with the API key (T-239 — agent-readable session
+ *      introspection; assert returned bounds match what was set in step 6)
  *
  * Reports each step's status + first-line response. On failure prints body.
  *
@@ -478,6 +480,56 @@ if (sessionResult) {
     },
     (e) =>
       `latest action=${(e as { action: string }).action} decision=${(e as { decision: string }).decision}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 11. GET /v1/session/me — T-239 agent-readable session introspection
+// ---------------------------------------------------------------------------
+if (sessionResult) {
+  console.log("\n§11 Session introspection (api-key authenticated, T-239)");
+  await step(
+    "GET /v1/session/me",
+    async () => {
+      const r = await http("GET", "/v1/session/me", { apiKey: sessionResult.apiKey });
+      if (r.status !== 200) throw new Error(`status ${r.status}: ${JSON.stringify(r.json)}`);
+      const body = r.json as {
+        max_per_tx: string;
+        daily_cap: string;
+        daily_spent: string;
+        daily_window_start: number;
+        expiry: number;
+        allowed_recipients: string[];
+        allowed_instructions: number;
+      };
+      // Assert returned bounds match what we set in §6 (POST /v1/session).
+      if (body.max_per_tx !== "1000000") {
+        throw new Error(`max_per_tx mismatch: ${body.max_per_tx} (expected "1000000")`);
+      }
+      if (body.daily_cap !== "5000000") {
+        throw new Error(`daily_cap mismatch: ${body.daily_cap} (expected "5000000")`);
+      }
+      if (body.expiry !== 0) {
+        throw new Error(`expiry mismatch: ${body.expiry} (expected 0)`);
+      }
+      if (body.allowed_instructions !== 0b001) {
+        throw new Error(`allowed_instructions mismatch: ${body.allowed_instructions} (expected 1)`);
+      }
+      // After §10 the PATCH allowlist + spend ran, so the PDA reflects 1
+      // recipient + ~500_000 base units of daily_spent. Don't pin exact
+      // values here (depends on whether earlier runs left state) — just
+      // assert types + non-negative for `daily_spent`.
+      if (typeof body.daily_spent !== "string" || /[^0-9]/.test(body.daily_spent)) {
+        throw new Error(`daily_spent not a decimal string: ${body.daily_spent}`);
+      }
+      if (!Array.isArray(body.allowed_recipients)) {
+        throw new Error(`allowed_recipients not an array: ${typeof body.allowed_recipients}`);
+      }
+      return body;
+    },
+    (b) =>
+      `max_per_tx=${b.max_per_tx} daily_cap=${b.daily_cap} daily_spent=${b.daily_spent}` +
+      ` recipients=${b.allowed_recipients.length} insn_bitmap=0b${b.allowed_instructions.toString(2)}`,
   );
 }
 
