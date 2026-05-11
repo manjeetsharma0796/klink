@@ -13,14 +13,12 @@ interface Props {
 
 export function PageHeader({ eyebrow, title, subtitle, action }: Props) {
   return (
-    <header className="klink-reveal flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-6">
+    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
       <div>
         {eyebrow && <span className="klink-eyebrow">{eyebrow}</span>}
-        <h1 className="mt-1 text-[34px] font-bold leading-[1.05] tracking-[-0.025em] text-olive-deep md:text-[44px]">
-          <span className="klink-lens">{title}</span>
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle && (
-          <p className="mt-3 max-w-[60ch] text-[14px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-[60ch] text-[13px] text-muted-foreground">
             {subtitle}
           </p>
         )}

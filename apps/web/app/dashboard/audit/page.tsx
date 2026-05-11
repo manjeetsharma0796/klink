@@ -38,7 +38,7 @@ export default function AuditPage() {
         title="Audit log"
         subtitle="Every allow / deny decision the agent triggered, with the on-chain tx signature when one was submitted."
       />
-      <div className="klink-stagger">
+      <div className="klink-stagger space-y-6">
         <div
           role="tablist"
           aria-label="Audit filter"
