@@ -7,7 +7,7 @@ pub mod state;
 
 use crate::instructions::*;
 
-declare_id!("5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv");
+declare_id!("DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L");
 
 #[program]
 pub mod agent_wallet {

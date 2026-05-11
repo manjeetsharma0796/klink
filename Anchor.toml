@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-agent_wallet = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv"
+agent_wallet = "DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L"
 
 [programs.localnet]
-agent_wallet = "5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv"
+agent_wallet = "DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L"
 
 [provider]
 cluster = "devnet"

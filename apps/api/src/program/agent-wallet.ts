@@ -21,7 +21,7 @@ import {
  * update in lockstep.
  */
 
-export const PROGRAM_ID = new PublicKey("5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv");
+export const PROGRAM_ID = new PublicKey("DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L");
 
 export const VAULT_SEED = Buffer.from("vault");
 export const SESSION_SEED = Buffer.from("session");

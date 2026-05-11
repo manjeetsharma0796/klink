@@ -14,7 +14,7 @@ import {
  * Source of truth on chain: `programs/agent_wallet/src/instructions/owner_transfer_usdc.rs`.
  */
 
-const PROGRAM_ID = new PublicKey("5qCJCEhfLusk59YFqaEG9Yg3Wp64ZaYwvXteFmCmedqv");
+const PROGRAM_ID = new PublicKey("DPPE8TAuw5qyWbw5MqcXcAtH2d5RYF5XBXTiN2pKzM3L");
 
 function fixtures() {
   const owner = Keypair.generate().publicKey;
