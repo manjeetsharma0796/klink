@@ -75,6 +75,10 @@
   .klink-glow-bg {
     position: relative;
     isolation: isolate;
+    /* Clip the off-canvas portion of the decorative blobs so they don't
+       trigger a horizontal scrollbar. The visible blur inside the bounds
+       is what we want. */
+    overflow: hidden;
   }
   .klink-glow-bg::before,
   .klink-glow-bg::after {
