@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 ---
 
 # TODO
