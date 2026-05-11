@@ -70,15 +70,38 @@ export type ParseResult =
 export function parseArgs(argv: readonly string[]): ParseResult {
   const out: Partial<CatalogUpdateArgs> = { apply: false };
 
+  // Pull the value at argv[i+1] for a value-taking flag, asserting it exists
+  // and isn't itself a flag. Without this guard, `--slug --enable` would set
+  // slug to the literal string "--enable" and silently misbehave.
+  // Returns either { ok: true, value } or { ok: false, error } so the caller
+  // can early-return the same shape parseArgs uses.
+  function takeValue(flag: string, i: number):
+    | { ok: true; value: string }
+    | { ok: false; error: string } {
+    const v = argv[i];
+    if (v === undefined || v.startsWith("--")) {
+      return { ok: false, error: `${flag} requires a value` };
+    }
+    return { ok: true, value: v };
+  }
+
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     switch (a) {
-      case "--slug":
-        out.slug = argv[++i];
+      case "--slug": {
+        const v = takeValue("--slug", i + 1);
+        if (!v.ok) return v;
+        out.slug = v.value;
+        i++;
         break;
-      case "--recipient":
-        out.recipient = argv[++i];
+      }
+      case "--recipient": {
+        const v = takeValue("--recipient", i + 1);
+        if (!v.ok) return v;
+        out.recipient = v.value;
+        i++;
         break;
+      }
       case "--enable":
         out.enable = true;
         break;
@@ -86,12 +109,15 @@ export function parseArgs(argv: readonly string[]): ParseResult {
         out.disable = true;
         break;
       case "--max-per-call": {
-        const raw = argv[++i];
+        const v = takeValue("--max-per-call", i + 1);
+        if (!v.ok) return v;
+        const raw = v.value;
         const n = Number(raw);
         if (!Number.isInteger(n) || n < 0) {
           return { ok: false, error: `--max-per-call must be a non-negative integer, got ${raw}` };
         }
         out.maxPerCall = n;
+        i++;
         break;
       }
       case "--apply":

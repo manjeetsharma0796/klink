@@ -100,6 +100,33 @@ describe("parseArgs", () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.args.maxPerCall).toBe(0);
   });
+
+  // Regression: previously `argv[++i]` would happily consume the next flag as
+  // the value, so `--slug --enable` set slug to the literal "--enable" and
+  // then a misleading no-op / invalid-pubkey error fired.
+  it("rejects --slug with no following value (end of argv)", () => {
+    const r = parseArgs(["--slug"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("--slug requires a value");
+  });
+
+  it("rejects --slug when the next token is itself a flag", () => {
+    const r = parseArgs(["--slug", "--enable"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("--slug requires a value");
+  });
+
+  it("rejects --recipient when the next token is itself a flag", () => {
+    const r = parseArgs(["--slug", "x", "--recipient", "--enable"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("--recipient requires a value");
+  });
+
+  it("rejects --max-per-call when the next token is itself a flag", () => {
+    const r = parseArgs(["--slug", "x", "--max-per-call", "--apply"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("--max-per-call requires a value");
+  });
 });
 
 describe("buildUpdatePatch", () => {

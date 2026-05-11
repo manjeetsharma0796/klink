@@ -102,7 +102,7 @@ Exit codes: `0` success, `1` arg error, `2` slug not found, `3` DB / runtime err
 bun --filter @klink/api run catalog:update -- --slug openai-chatgpt --enable --apply
 ```
 
-(The bare-`bun apps/api/scripts/catalog-update.ts` form is shorter and skips the workspace boilerplate.)
+(The bare-`bun apps/api/scripts/catalog-update.ts` form is shorter — it skips the `--filter @klink/api run catalog:update --` workspace boilerplate.)
 
 ## 4. Smoke test (end-to-end)
 
@@ -178,7 +178,7 @@ If the four seeded `*.mpp.paywithlocus.com` upstreams turn out to speak MPP rath
 
 ## 7. Related
 
-- Handler: [`apps/api/src/routes/spend.ts`](../../apps/api/src/routes/spend.ts) — `postSpendServiceHandler` ≈ line 593
+- Handler: [`apps/api/src/routes/spend.ts`](../../apps/api/src/routes/spend.ts) — `postSpendServiceHandler` at `spend.ts:860` (factory `makePostSpendServiceHandler` at `spend.ts:584`)
 - Schema: [`apps/api/src/db/schema.ts`](../../apps/api/src/db/schema.ts) — `serviceCatalog`
 - Seed: [`apps/api/src/db/seed.ts`](../../apps/api/src/db/seed.ts)
 - Admin script: [`apps/api/scripts/catalog-update.ts`](../../apps/api/scripts/catalog-update.ts)
