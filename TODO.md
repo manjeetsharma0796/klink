@@ -190,7 +190,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Acceptance: `packages/sdk/README.md` — install (workspace-internal + vendor option), 5-line quickstart against the live Render endpoint, per-method usage block for all 6 endpoints (`spendTransfer`, `spendSignPayment`, `spendService`, `yieldDeposit`, `yieldWithdraw`, `yieldPosition`) with realistic args + sample responses, error-handling section keyed off `KlinkApiError.status` + `KlinkDenyReason`, testing section showing the injectable `FetchLike` pattern (no global fetch mocking needed), and references back to the design spec, api-surface doc, `gitbook/skill.md`, and `HANDOVER.md`. Type shapes in examples cross-checked against `packages/sdk/src/types.ts`. T-234 caveat about empty `service_catalog` called out inline so agents reading the doc don't hit a silent 404.
 
 ### T-314 — "Add to session" deep-link button on `/services` page
-- Status: pending
+- Status: in-progress @Jishnu 2026-05-12
 - Depends-on: T-259, T-304, T-305, T-223
 - OS: any
 - Scope: web
