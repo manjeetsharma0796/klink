@@ -25,9 +25,9 @@ To integrate Klink, you'll need three things on your machine and one thing on So
 
 ## You do NOT need
 
-- **A custodial provider account.** Klink is non-custodial: there's no Klink account to register for.
-- **A backend service.** Point your code at the hosted Klink API (`https://klink-api.onrender.com` during beta), or run your own.
-- **A mainnet wallet.** Mainnet support arrives after the program audit completes: see [Roadmap](../resources/roadmap.md).
+- **A klink account.** Klink is non-custodial; sign-in is Sign-In-With-Solana, your wallet IS your identity.
+- **A backend to run.** Point at the hosted klink API (`https://klink-api.onrender.com`) and the live dashboard at `https://klinkdotfun.vercel.app`. Self-hosting is optional, not required.
+- **A mainnet wallet.** Mainnet ships after the program audit. See [Roadmap](../resources/roadmap.md).
 
 ## Read next
 

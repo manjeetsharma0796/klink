@@ -1,179 +1,151 @@
 ---
 icon: rocket
 title: Quickstart
-description: Stand up a Klink wallet for an AI agent in about ten minutes, sign in, create a vault, mint an agent key, watch a spend land
+description: Give your AI agent a Solana wallet under policy you control, in about five minutes of dashboard clicks.
 ---
 
-# Quickstart
+# Quickstart: Give your agent a wallet
 
-Goal: in one sitting, take a fresh Phantom wallet from zero to "an agent is spending USDC under policy I configured, and every action is auditable."
+In about **five minutes** you'll go from a fresh Phantom wallet to **"my agent just paid for an HTTP service under a policy I configured."** No backend to run, no curl, no custodial signup. Just the dashboard at [`klinkdotfun.vercel.app`](https://klinkdotfun.vercel.app) and one final copy-paste so your agent can spend.
+
+> **What your agent will be doing in one line, once you're set up:**
+> ```bash
+> curl -H "Authorization: Bearer $AGENT_API_KEY" \
+>   https://klink-api.onrender.com/v1/yield/position
+> # → {"liquid":"19790000","deployed":"0","accrued":null,"total_balance":"19790000"}
+> ```
+> That's 19.79 USDC under policy, ready for your agent to spend. Let's get you there.
+
+> **Beta.** Klink is on Solana **devnet** today. Mainnet ships after the program audit; see [Roadmap](../resources/roadmap.md).
 
 ## What you'll need
 
-1. **[Phantom](https://phantom.app/)** browser extension
-2. **~0.05 devnet SOL** on the address Phantom shows you (any [Solana faucet](https://faucet.solana.com/) works)
-3. **A few cents of devnet USDC** at the same address (faucets exist; or paste any devnet SPL-token mint)
-4. A terminal with `curl` and `node` ≥ 20 (or `bun`)
+Three things, all free, ~3 minutes to gather:
 
-> **Beta note.** Klink is currently devnet-only. The HTTP API is live at `https://klink-api.onrender.com` and is the endpoint every example below uses.
+1. **[Phantom](https://phantom.app/)** browser extension, switched to **Testnet Mode** (Phantom calls Solana devnet "testnet"). Your owner key never leaves the extension.
+2. **A little devnet SOL** for transaction fees (~0.05 SOL is plenty). Grab some from any [Solana faucet](https://faucet.solana.com/).
+3. **A little devnet USDC** in the same wallet. The dashboard's Fund page can help if you don't already have some.
 
-## Step 1: Sign in (Sign-In With Solana)
+You do **not** need a klink account, an API key from us, or to run any code locally.
 
-The dashboard handles this two-step flow for you behind a single "Connect Phantom" button. The same flow works directly against the API for tooling:
+## Step 1: Open the dashboard and sign in
+
+Visit [**klinkdotfun.vercel.app**](https://klinkdotfun.vercel.app). A sign-in gate appears over the dashboard:
+
+> *"Connect your Solana wallet and approve the sign-in message to access your agent vault."*
+
+Click **Select Wallet** → pick Phantom → approve the connection. Phantom then pops a sign-in message; sign it. This is **Sign-In With Solana**, no email, no password, no account to create. The signature proves you control the wallet; the dashboard binds that proof to a session cookie. The owner key itself never leaves Phantom.
+
+> If sign-in stalls: check Phantom is on **Testnet** (top-right network selector). Klink's beta is devnet-only; signing on mainnet won't reach the right backend.
+
+## Step 2: Create your klink wallet
+
+Land on the Overview page. If you don't already have a vault, you'll see a **Create wallet** button.
+
+Click it. The dashboard asks Phantom to sign one transaction (`init_vault`). The owner stays your Phantom; the backend never sees the owner key. Within a few seconds the Overview page shows three things to remember:
+
+| | What it is |
+|---|---|
+| **Vault PDA** | The on-chain account that holds your USDC. Program-derived, only movable by klink's program under policy. |
+| **USDC address** | Your vault's USDC token account. Send devnet USDC here to fund the vault. |
+| **Max Deployed** | Default 80%. Caps how much of your vault can be deployed to yield protocols at once. Configurable from this card. |
+
+The wallet card now exists, on-chain, owned by you alone. The backend cannot move funds without your or your agent's signature.
+
+## Step 3: Fund the wallet
+
+Click **Fund** in the left sidebar. Three ways to fund, pick whichever is easiest:
+
+1. **From your connected wallet**: type a USDC amount, sign in Phantom. USDC moves directly from your Phantom's USDC balance into the vault. Free apart from gas.
+2. **Direct deposit (QR code)**: copy the vault's USDC address or scan the QR with another wallet. Useful if your USDC is on a different wallet than the one you signed in with.
+3. **Pay with card (Dodo)**: fiat → USDC, settled into your vault. Useful if you don't have devnet USDC handy. (Test cards only on devnet.)
+
+Whichever path you pick, the **liquid** balance on Overview updates within ~10s of the on-chain confirmation.
+
+> **How much to fund?** For a first run, 1–2 USDC is enough. The agent paying our test service costs $0.01 per call.
+
+## Step 4: Create a session and copy the agent's API key
+
+Click **Sessions** in the sidebar → click **New session** in the top-right.
+
+A modal asks for the session's policy. These are the rails your agent runs on; the on-chain program enforces them on every spend.
+
+| Field | What it means | Sane default for first run |
+|---|---|---|
+| **Label** | Just a name for you | `dev-agent` |
+| **Max per tx** | Hard ceiling per single spend, in USDC base units (6 decimals) | `1000000` = 1 USDC |
+| **Daily cap** | Rolling 24h cumulative ceiling | `10000000` = 10 USDC |
+| **Expiry** | Unix timestamp; `0` = never expires | `0` |
+| **Allowed recipients** | Space-separated base58 pubkeys the agent may pay | Include your own pubkey + the test recipient `81eM3oPR1fUJSsFhNm6G51W4jwE2HondS2kjBmcxFcJ2` (the demo service in Step 5) |
+| **Allowed instructions** | Tick `transfer_usdc` for the demo; `kamino_deposit` / `kamino_withdraw` for yield | `transfer_usdc` only |
+
+Click **Create**. Phantom signs one transaction (`add_session`) that registers the policy on-chain.
+
+When the tx confirms, the dashboard shows the **API key once**:
+
+```
+klink_dev_AbCd1234XyZ_...
+```
+
+**Copy it now.** It's hashed at rest; you'll never see it again. (If you lose it, just create a new session, old one stays revocable.)
+
+Save it where your agent can read it:
 
 ```bash
-# Get a one-time nonce
-curl -s -X POST -H "content-type: application/json" \
-  -d '{}' \
-  https://klink-api.onrender.com/v1/auth/siws/nonce
+export AGENT_API_KEY="klink_dev_AbCd1234XyZ_..."
 ```
 
-Response:
-```json
-{ "nonce": "593d04e5aefe01ed…" }
-```
+## Step 5: Let your agent pay something
 
-You sign a message containing the nonce with Phantom (Phantom prompts the human; the SDK and dashboard handle the message construction), then exchange the signature for a session JWT:
+Time to spend. We'll point your agent at a real **MPP-protocol** echo service (`service01-kep9.onrender.com/echo`) that charges 0.01 USDC per call. The agent only needs the API key from Step 4, klink handles signing, blockhash binding, payment-proof header construction, retry, and the audit log.
 
 ```bash
-curl -s -X POST -H "content-type: application/json" \
-  -d '{
-    "pubkey": "<your-phantom-base58-pubkey>",
-    "signature": "<base64-signature>",
-    "nonce": "593d04e5aefe01ed…"
-  }' \
-  https://klink-api.onrender.com/v1/auth/siws \
-  -c klink-cookies.txt
-```
-
-Success returns a `Set-Cookie: klink_session=…` cookie scoped to subsequent dashboard calls.
-
-> **Tip.** For a guided flow with a UI button instead of constructing the signature yourself, use the dashboard. **A public dashboard URL is launching soon**, until then, run the dashboard locally (`bun run dev` in `apps/web`) and visit `http://localhost:3030`.
-
-## Step 2: Create the vault
-
-The dashboard's "Create Wallet" button calls `POST /v1/wallet` and walks Phantom through signing the returned transaction. Manual equivalent:
-
-```bash
-curl -s -X POST -H "content-type: application/json" \
-  -b klink-cookies.txt \
-  -d '{ "max_deployed_fraction_bp": 8000 }' \
-  https://klink-api.onrender.com/v1/wallet
-```
-
-Response:
-```json
-{
-  "txBase64": "AQAA…<unsigned-transaction>…",
-  "vaultPda": "<base58>",
-  "vaultUsdcAta": "<base58>"
-}
-```
-
-The transaction is unsigned. Phantom signs it client-side, the backend never sees the owner key. After Phantom submits, you have:
-
-- A **vault PDA** that the program owns
-- A **USDC ATA** at that PDA, fund this address to put USDC under policy
-
-Send some USDC to `vaultUsdcAta` to fund the vault.
-
-## Step 3: Create an agent session
-
-The session is the on-chain delegation: it sets caps, recipient allowlist, expiry, and a bitmap of which spending instructions the agent may invoke.
-
-```bash
-curl -s -X POST -H "content-type: application/json" \
-  -b klink-cookies.txt \
-  -d '{
-    "wallet_id": "<vault-id-from-step-2>",
-    "max_per_tx": 1000000,
-    "daily_cap": 50000000,
-    "expiry": 1735689600,
-    "allowed_recipients": ["<base58-recipient>"],
-    "allowed_instructions": 1
-  }' \
-  https://klink-api.onrender.com/v1/session
-```
-
-The dashboard returns this same payload via a form. The response includes the **plaintext API key, shown once**:
-
-```json
-{
-  "session_id": "<uuid>",
-  "session_pda": "<base58>",
-  "api_key": "klink_dev_xxxxxxxx…",
-  "txBase64": "<sign-and-submit-via-Phantom>"
-}
-```
-
-Save the `api_key` somewhere your agent can read it (env var). **You will never see it again, it's hashed at rest.** You can rotate it later via the dashboard.
-
-After Phantom signs and submits the returned transaction, the session is live on-chain and the API key works.
-
-## Step 4: Have your agent spend
-
-This is the part your agent code does at runtime. Direct USDC transfer to a pre-approved recipient:
-
-```bash
-export AGENT_API_KEY="klink_dev_xxxxxxxx…"
-
-curl -s -X POST -H "Authorization: Bearer $AGENT_API_KEY" \
+curl -X POST -H "Authorization: Bearer $AGENT_API_KEY" \
   -H "content-type: application/json" \
   -d '{
-    "recipient": "<base58-recipient>",
-    "amount": 500000
+    "url": "https://service01-kep9.onrender.com/echo",
+    "max_amount": 100000,
+    "method": "GET"
   }' \
-  https://klink-api.onrender.com/v1/spend/transfer
+  https://klink-api.onrender.com/v1/spend/mpp
 ```
 
-Response:
+`max_amount: 100000` is **0.10 USDC**, your agent refuses to pay more than this even if the merchant quotes higher. The actual price (0.01 USDC) is well under, so the call goes through. Expected response:
+
 ```json
 {
-  "tx_signature": "5K3…",
-  "status": "confirmed"
+  "message": "Paid! 🎉",
+  "timestamp": 1778474176960,
+  "requestId": "67c5d65e-03c8-4a68-ac28-ae2ee0393748",
+  "info": { "thisIs": "a research mock service", "purpose": "..." }
 }
 ```
 
-`amount` is in USDC base units (6 decimals, `1_000_000` = 1 USDC). The backend co-signs with the session keypair and submits; the on-chain program reverts if you exceed `max_per_tx`, the daily cap, the recipient allowlist, or the time-of-day window.
+Response headers carry the on-chain proof:
+- `x-tx-signature: XDPFH7Z3uZ5djZBoidUr2kaGCnqzucojRyxwAAL…`: the Solana tx your agent's session keypair just signed
+- `payment-receipt: eyJtZXRob2Q…`: base64 receipt issued by the merchant after they verified the on-chain payment
 
-For paid HTTP services that speak the 402-Payment-Required pattern, use `POST /v1/spend/sign-payment` (sign-only) or `POST /v1/spend/service` (full proxy). See the [Agent Skill](../skill.md) page for ready-to-paste examples.
+That's the whole loop: agent calls klink, klink probes the service, sees the 402 challenge, signs and submits a TransferChecked tx using the merchant's required blockhash, retries the service with the proof, forwards the merchant's response back to your agent. One HTTP call from your agent's perspective. Subject to **every** policy you set in Step 4.
 
-## Step 5: Audit
+> **What if the recipient's wallet has never received USDC before?** klink auto-creates the recipient's USDC ATA on the fly; the treasury covers the ~0.002 SOL rent. Fresh wallets just work.
 
-Every allow and deny is recorded with the on-chain transaction signature for cross-reference:
+> **Want to pay an arbitrary recipient directly (no service)?** Use `POST /v1/spend/transfer` instead with `{ "recipient": "<base58>", "amount": <base-units> }`. See [Agent Skill](../skill.md) for the full reference.
 
-```bash
-curl -s -b klink-cookies.txt \
-  https://klink-api.onrender.com/v1/audit
-```
+## What just happened (audit)
 
-Response:
-```json
-{
-  "items": [
-    {
-      "id": "<uuid>",
-      "wallet_id": "<uuid>",
-      "session_id": "<uuid>",
-      "decision": "allow",
-      "amount": "500000",
-      "recipient": "<base58>",
-      "tx_signature": "5K3…",
-      "created_at": "2026-05-03T14:30:12Z"
-    }
-  ],
-  "next_cursor": null
-}
-```
+Click **Audit log** in the sidebar. Every allow + deny is there with:
 
-The same view is available in the dashboard with the on-chain signatures linked to a Solana explorer.
+- Timestamp + decision (`allow` / `deny`)
+- Amount + recipient
+- The on-chain transaction signature, linked to a Solana explorer so you can verify byte-for-byte what hit the chain
+- For denies: the policy reason (`RECIPIENT_NOT_ALLOWED`, `QUOTED_OVER_MAX`, `INSUFFICIENT_LIQUID`, etc.)
+
+This is the second half of klink's promise: not just policy enforcement, but a clean ledger of every decision the backend made on your agent's behalf. If anything ever looks wrong, the row points at the exact on-chain tx.
 
 ## Next steps
 
-- **[Concepts → Overview](../concepts/overview.md)**: the mental model in 5 minutes
-- **[Sessions](../concepts/sessions.md)**: how to design caps, allowlists, and the instruction bitmap
-- **[Agent Skill](../skill.md)**: the canonical reference for what an agent can and cannot do, plus the full HTTP error taxonomy
+- **[Agent Skill](../skill.md)**: the canonical reference for what an agent can do, all spend endpoints, the full HTTP error taxonomy. Hand this to any AI agent and it can integrate without further docs.
+- **[Sessions](../concepts/sessions.md)**: how to design caps, allowlists, expiries, and the instruction bitmap for production-grade policy.
+- **[Audit trail](../concepts/audit-trail.md)**: what's recorded, why both allow + deny rows matter, exporting for compliance.
 
-<!--
-The TypeScript SDK and CLI are coming soon. When they ship this Quickstart will gain a 5-line install + equivalent path. Until then, the curl examples above are the canonical integration surface.
--->
+You're done. Your agent now has a Solana wallet it can spend from, bounded by rails you set and visible in real time.
