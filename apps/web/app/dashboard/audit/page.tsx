@@ -54,12 +54,11 @@ export default function AuditPage() {
                 aria-selected={active}
                 onClick={() => setFilter(f.v)}
                 className={cn(
-                  "klink-tab rounded-pill px-4 py-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)]",
+                  "rounded-pill px-4 py-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)]",
                   active
                     ? "bg-primary/20 text-olive-deep"
                     : "text-muted-foreground hover:bg-secondary/40 hover:text-olive-deep",
                 )}
-                data-active={active}
               >
                 {f.label}
               </button>
