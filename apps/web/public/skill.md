@@ -101,6 +101,16 @@ The on-chain Anchor program enforces every limit. The HTTP layer fast-fails some
 
 > **Audit log access:** `/v1/audit` is dashboard-JWT-only. The human reviews your spend history through the dashboard UI, not you. Every `allow` and `deny` you trigger lands there for review. Don't try to call it from your bearer token; you'll get `{"error":"invalid jwt"}` (by design, not a missing endpoint).
 
+## Service discovery
+
+Looking for HTTP services your klink wallet can actually pay? Fetch the curated list:
+
+```bash
+curl -s https://klinkdotfun.vercel.app/services/mpp.md
+```
+
+The page lists MPP-protocol services on Solana that klink agents are verified to pay end to end, including the canonical test merchant `https://service01-kep9.onrender.com/echo` (0.01 USDC per call) you can use to smoke your integration. The same page documents how to add new services (PR to the markdown file) and how to spin up your own MPP-on-Solana merchant in five steps.
+
 ## Capabilities
 
 Base URL: `https://klink-api.onrender.com` (or `http://localhost:3000` in dev, see URLs section above; **not** the dashboard origin).

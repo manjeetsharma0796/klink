@@ -139,6 +139,14 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 (All OS-agnostic. Anyone can pick.)
 
+### T-258 — MPP-on-Solana services directory + "build your own" guide on klink docs
+- Status: in-progress @Jishnu 2026-05-11
+- Depends-on: T-253
+- OS: any
+- Scope: docs
+- Acceptance: new gitbook page at `gitbook/services/mpp.md` answering two questions in one place: (1) which MPP-on-Solana services klink agents can pay (table with name, URL, network, price, recipient, status, last-verified date; seeded with `service01-kep9.onrender.com/echo` as the only verified entry today, with a clear "open a PR to add yours" mechanic), and (2) how to build your own MPP merchant on Solana (5-step setup pointing at `manjeetsharma0796/service01` as the canonical reference, the inner-instruction-walk caveat for smart-contract wallets, and the devnet vs mainnet USDC mint reference). External-links section at the bottom: paymentauth.org spec, `@solana/mpp` + `mppx` npm packages, `mpp.dev/services`, `mppscan.com`, the service01 repo. New section landing page `gitbook/services/README.md` routes between protocols. `gitbook/SUMMARY.md` gets a new "Services" group with both pages. `gitbook/skill.md` + `apps/web/public/skill.md` (byte-equal sync) gain a "Service discovery" callout pointing agents at `https://klinkdotfun.vercel.app/services/mpp.md` so a paste-this-skill-to-your-agent flow can fetch the list. `gitbook/getting-started/quickstart.md` Step 5 cross-links forward to the new page. Plan + traceability at `docs/superpowers/plans/2026-05-11-mpp-services-directory.md`. Em-dashes scrubbed; web tests (skill.md byte-equal sync) green; TODO.md lint green.
+- Notes: triggered 2026-05-11 by user request after T-253 landed the first end-to-end MPP-on-Solana payment (tx `XDPFH7Z3uZ5djZBoidUr2kaGCnqzucojRyxwAALfb2DhUhdx8CNk4a1VuakEpm6GZfWsqEznYaZg7XFbRan11xc`). Locus solves the same discovery problem with `paywithlocus.com/mpp/index.md`; this is klink's equivalent. Initial list is intentionally minimal, honest beats padded. Out of scope: JSON registry served at `/v1/services/mpp` (revisit if the list grows past ~10 entries), self-serve listing endpoint, cross-chain services, automated health checks.
+
 ### T-257 — Dodo disbursement handler self-heals on missing ATAs + handles missing-wallet-row gracefully
 - Status: in-progress @Jishnu 2026-05-11
 - Depends-on: T-215, T-245, T-256
