@@ -1,7 +1,7 @@
 ---
 title: Team task board
 purpose: Shared async task tracker for the 4-person team across Windows/macOS/Linux — humans and their Claude agents
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 ---
 
 # TODO
@@ -262,19 +262,19 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Scope: design
 - Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
 
-### T-251 — Autoswap (USDC↔SOL) feasibility study for mpp.dev integration — devnet vs mainnet test path
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-211, T-226, T-234
-- OS: any
-- Scope: design + research
-- Acceptance: memo `docs/memos/2026-XX-XX-autoswap-mpp-feasibility.md` answering five questions. (1) **Structural map of "autoswap" on Solana today** — for each mechanism, document who pays gas, who holds funds mid-flow, atomicity guarantees, and failure modes: Jupiter Swap API (Quote + Swap REST), program-level CPI swaps inside a single tx via Raydium/Orca/Jupiter, Octane / fee-relayer services that accept SPL-token tips for SOL fees, wallet-level autoswap (Phantom / Backpack — cite what they actually do, not hand-waved guesses), and the sponsor-PDA pattern observed on 2026-05-10 in a user wallet (`87oKKnY1X3VYPkLzxvtXPRCtmSTwf7wBRJcjVMBFs19N` is a PDA controlled by program `DeJBGdMFa1uynnnKiwrVioatTuHmNLpyFKnmB5kaFdzQ`, topped up by sponsor `G5GFpTfMFPU31nmXzu5C7198RqXiVC49ToUA1h5pGyph` — that pattern is one design point worth comparing against). (2) **mpp.dev integration angle** — `/v1/spend/service` (T-211) currently has the treasury keypair fee-paying (T-226); does an autoswap layer add value above that, or is treasury fee-paying the right primitive? Concrete scenarios: (a) end-user-wallet path with USDC-only — would autoswap remove the "user must hold SOL" UX wart? (b) agent-key path — agents already don't pay gas (treasury covers); is the win marginal? (c) ATA-creation cost (~0.00204 SOL rent) for first-time recipients on a curated proxy call — does autoswap solve this differently than treasury? (3) **Devnet feasibility** — concrete probe with curl/SDK snippets that show what works and what doesn't out of the box: Jupiter Quote API on devnet (does it return routes for USDC↔SOL?), Raydium/Orca pool presence on devnet (cite actual pool addresses if any), Octane devnet endpoint (if any). (4) **Mainnet trial protocol if devnet is too thin** — minimum-blast-radius mainnet test plan: separate test keypair (not treasury), $1–$5 caps, quote-then-tiny-swap pattern, slippage cap, observe-only audit log entry, abort if quoted price drifts > X%. Include kill switch (revoke test wallet's session, withdraw remaining USDC). (5) **Recommendation** — pick one: (a) defer (treasury fee-paying covers the use case, autoswap not worth integration cost), (b) integrate via specific provider X with precautions Y, or (c) build native USDC-pull-from-vault → swap-via-Jupiter inside the spend handler. Cost each option: LOC, dep additions, mainnet-only test surface, ongoing ops burden.
-- Notes: triggered 2026-05-10 by Jishnu after observing a SOL balance appearing in an audit-pasted wallet (`75Uy4iq2M97LJFYCnFhwJ9Ym7M2JQ4KjB31WEhHScqku`) where only USDC was expected. On-chain investigation traced it to a program-controlled PDA sponsor pattern (above), NOT autoswap, but the question of "could klink ship a real autoswap layer for mpp.dev so end-users / agents only need USDC" is open and worth a written answer before T-234 catalog deployment locks the spend-flow assumptions. Out of scope here: actually wiring Jupiter / Octane / a swap CPI — that's a follow-up T-2xx if the memo recommends it.
-
 ---
 
 ## Done
 
 _(newest first)_
+
+### T-251 — Autoswap (USDC↔SOL) feasibility study for mpp.dev integration — devnet vs mainnet test path
+- Status: done @Jishnu 2026-05-11
+- Depends-on: T-211, T-226, T-234
+- OS: any
+- Scope: design + research
+- Acceptance: memo shipped at `docs/memos/2026-05-11-autoswap-mpp-feasibility.md` answering all five spec questions. **Recommendation: defer (option a)** — treasury fee-paying (T-226) already covers every klink spend path; autoswap as a layer above the spend handler adds zero value on agent-key + ATA-rent scenarios and trace value on the sub-$15 first-time-deposit edge (where Phantom's own gasless feature is closer to a complete answer). Key external findings worth pulling forward: (1) **Octane is archived** (2026-04-20, repo `anza-xyz/octane`); successor is **Kora** (Solana Foundation, MIT, devnet-supported, has a documented x402 integration at `launch.solana.com/docs/kora/guides/x402`). If we ever flip to "integrate" the answer is Kora, not Octane and not Jupiter-CPI. (2) **Jupiter hosted Swap API is mainnet-only**; Jupiter Ultra is mainnet-only; self-hosted binary needs custom market cache to work on devnet — not viable without owning the pool population problem too. (3) **Phantom gasless swaps** (extension v26.9.0+) require swap ≥ $15, from-token verified + market cap ≥ $50K, slippage Auto/≥0.5%, total fee ≤ 10% of trade. Sub-$15 deposits still need SOL. (4) **Backpack does NOT have gasless** — explicitly states "you always need SOL to pay fees." (5) The on-chain sponsor-PDA pattern observed 2026-05-10 (PDA `87oKKnY1X3VYPkLzxvtXPRCtmSTwf7wBRJcjVMBFs19N`, program `DeJBGdMFa1uynnnKiwrVioatTuHmNLpyFKnmB5kaFdzQ`, sponsor `G5GFpTfMFPU31nmXzu5C7198RqXiVC49ToUA1h5pGyph`) is **architecturally identical to klink's existing vault-PDA + treasury pair** — confirmation the pattern is in production use elsewhere, not a signal to refactor. Memo includes a minimum-blast-radius mainnet probe protocol (separate test keypair, $1–$5 caps, slippage cap 50bps, kill switch) for if-and-when option (b) is reconsidered. `DOCS_INDEX.md` updated. Memo flags genuinely unverified items: live Jupiter devnet API behavior (UI exists at `devnet.jup.ag`, REST endpoint undocumented), canonical Circle devnet USDC mint, live state of the on-chain sponsor pattern (Solscan/explorer fetches returned 403 in the research session — addresses copied verbatim from this T-251 spec).
+- Notes: triggered 2026-05-10 by Jishnu after observing a SOL balance appearing in an audit-pasted wallet (`75Uy4iq2M97LJFYCnFhwJ9Ym7M2JQ4KjB31WEhHScqku`) where only USDC was expected. Recommendation flips to (b) Kora if either (i) klink ever needs to settle in non-USDC tokens, or (ii) treasury SOL cost becomes a real expense (>$50/mo). Recommendation never flips to (c) custom Jupiter-CPI inside our own program — adds a swap-failure-while-payment-already-moved class of bug. Implicit follow-up: add treasury SOL-balance alert to ops runbook (not blocking T-234 catalog deployment).
 
 ### T-256 — Spend handlers auto-create recipient USDC ATA (`createAssociatedTokenAccountIdempotent`)
 - Status: done @Jishnu 2026-05-11
