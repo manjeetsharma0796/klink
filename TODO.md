@@ -211,19 +211,6 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 
 ## 5 — Docs + design
 
-### T-503 — Demo replay script
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-309
-- OS: any
-- Scope: docs
-- Acceptance: 3-min devnet happy-path script: create wallet → fund → manual deposit → agent spend → audit review. Runnable end-to-end.
-### T-504 — Pick 3 reference integrations for demo
-- Status: in-progress @Jishnu 2026-05-11
-- Depends-on: T-309
-- OS: any
-- Scope: design
-- Acceptance: memo `docs/memos/2026-XX-XX-reference-integrations.md`; 3 picks justified.
-
 ---
 
 ## Done
