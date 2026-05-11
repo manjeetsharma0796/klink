@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "drizzle-kit migrate",
     "db:generate": "drizzle-kit generate",
-    "db:seed": "bun src/db/seed.ts"
+    "db:seed": "bun src/db/seed.ts",
+    "catalog:update": "bun scripts/catalog-update.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.14",
