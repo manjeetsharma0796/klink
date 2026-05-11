@@ -83,7 +83,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - `done @handle YYYY-MM-DD` — completed; move block to Done
 
 ### T-101 — Install Solana CLI + Anchor on every dev machine
-- Status: pending
+- Status: done @Jishnu 2026-05-11
 - Depends-on: —
 - OS: per-dev (each person does their own; this task is N parallel claims)
 - Scope: setup
@@ -91,7 +91,8 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: pin Solana `3.1.x` and Anchor `1.0.x` (revised by T-102 — see `docs/runbooks/dev-environment.md` §1 + §5). Per-OS commands in the runbook. All four devs can claim this concurrently — each commits a row to `dev-environment.md` confirming their setup.
 
 ### T-110 — TDD revert suite (spec §6.1.1)
-- Status: in-progress @Manish 2026-04-29
+- Status: in-progress @Jishnu 2026-05-11
+- Reverted: 2026-05-11 by @Jishnu — Manish's claim 12 days stale; zero test files written (only a planning doc `programs/agent_wallet/tests/T-116-cases.md`); taking over per the override mechanic in `docs/runbooks/team-collaboration.md §2.2`. Picked up because T-111 + T-112 are blocked on T-110 and the project needs the Anchor program tests landed before mainnet.
 - Depends-on: T-105, T-106, T-107
 - OS: any
 - Scope: tests
@@ -148,7 +149,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 - Notes: split out of T-234 on 2026-05-11. The in-repo portion of T-234 (admin script `apps/api/scripts/catalog-update.ts`, dry-run-by-default with `--apply`, plus runbook + tests) shipped under T-234 itself. This follow-up is the steps that need prod creds (`DATABASE_URL` for prod Neon) and external coordination (the mpp.dev / pay-with-locus team for real recipient pubkeys). Step (1) is a 5-second op once you have the URL; step (2) is the external blocker; step (3) is one curl per slug.
 
 ### T-246 — Auto-run Drizzle migrations on API startup
-- Status: in-progress @Manjeet 2026-05-05
+- Status: done @Manjeet 2026-05-05
 - Depends-on: T-245
 - OS: any
 - Scope: api
@@ -192,7 +193,7 @@ To see who's working on what right now: `grep "Status: in-progress" TODO.md`. Cl
 ## 4 — Infrastructure / DevOps
 
 ### T-412 — Wire `klinkdotfun.live` domain to dashboard + api
-- Status: pending
+- Status: done @Jishnu 2026-05-11
 - Depends-on: T-301, T-403
 - OS: any
 - Scope: infra
