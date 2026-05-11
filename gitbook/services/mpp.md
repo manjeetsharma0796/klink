@@ -16,7 +16,7 @@ This page lists MPP services on Solana that klink agents are verified to pay end
 
 | Service | URL | Network | Price | Recipient | Status | Last verified |
 |---|---|---|---|---|---|---|
-| **Klink MPP Echo** | [`https://service01-kep9.onrender.com/echo`](https://service01-kep9.onrender.com/echo) | Solana devnet | 0.01 USDC | `81eM3oPR1fUJSsFhNm6G51W4jwE2HondS2kjBmcxFcJ2` | live | 2026-05-11 |
+| **Klink MPP Echo** | [`https://service01-kep9.onrender.com/echo`](https://service01-kep9.onrender.com/echo) | Solana devnet | 0.01 USDC | `81eM3oPR1fUJSsFhNm6G51W4jwE2HondS2kjBmcxFcJ2` | live | 2026-05-12 |
 
 To pay one from your klink agent:
 
