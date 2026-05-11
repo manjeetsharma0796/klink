@@ -1,3 +1,1 @@
-// T-110 will populate this crate with the spec §6.1.1 revert suite. Until
-// then, the workspace member exists only so cargo recognises `tests/` as a
-// valid Rust target — there are no tests to run.
+// T-110 — workspace placeholder; fixtures live in tests/tests/common/mod.rs (so they can use dev-dependencies).

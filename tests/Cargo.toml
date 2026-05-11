@@ -1,11 +1,30 @@
 [package]
 name = "tests"
 version = "0.1.0"
-description = "Created with Anchor"
+description = "T-110 revert suite + future fuzz/integration tests for agent_wallet"
 edition = "2021"
 
 [dependencies]
-agent_wallet = { version = "0.1.0", path = "../programs/agent_wallet" }
-# anchor-client will return when T-110 introduces validator-dependent tests.
-# Removed for now — kept the unused dep was costing ~30s of CI compile per run
-# and 1.0.0 no longer re-exports solana_sdk anyway.
+agent_wallet = { version = "0.1.0", path = "../programs/agent_wallet", features = ["no-entrypoint"] }
+
+[dev-dependencies]
+# In-process Anchor-program test runtime. ~10ms per test vs seconds for
+# solana-program-test; no validator boot in CI.
+litesvm = "0.11"
+
+# We use the umbrella solana-sdk 3.x — same era the program's solana-program
+# 3.0 dep targets. The agent_wallet program runs as BPF bytecode inside
+# litesvm; only wire-format Instructions + AccountMeta cross the boundary,
+# so a small version-skew between the litesvm-internal types (some pulled
+# in at 2.4) and the SDK we use here is fine.
+solana-sdk = "3"
+
+anchor-lang = "1.0.0"
+
+# Anchor 1.0 args after the discriminator are little-endian borsh.
+# borsh 1.5+ replaces .try_to_vec() with `borsh::to_vec(&args)`.
+borsh = "1.5"
+sha2 = "0.10"
+# Note: SPL Token + ATA program ids are referenced by string literal in
+# lib.rs to avoid pulling spl-* into the dep graph (their transitive
+# curve25519-dalek pin conflicts with solana-zk-sdk's zeroize requirement).
