@@ -38,9 +38,10 @@ export function ActivityRail() {
           )}
           <Link
             href="/dashboard/sessions"
-            className="rounded-pill px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
+            className="klink-arrow-link rounded-pill px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
           >
-            Manage
+            <span>Manage</span>
+            <span className="klink-arrow-icon" aria-hidden="true">→</span>
           </Link>
         </CardContent>
       </Card>

@@ -51,7 +51,7 @@ export default function DashboardPage() {
         title="Overview"
         subtitle="A live snapshot of your klink agent wallet — balance, sessions, and recent activity."
       />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="klink-stagger grid gap-6 lg:grid-cols-3">
         <StatCard
           eyebrow="Wallet"
           title="Wallet settings"

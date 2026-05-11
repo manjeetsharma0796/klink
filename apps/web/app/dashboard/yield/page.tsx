@@ -56,14 +56,17 @@ export default function YieldPage() {
         subtitle="Idle USDC earns yield through Kamino. The on-chain max-deployed cap stays enforced by the program."
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="klink-stagger grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <span className="klink-eyebrow">Available</span>
             <CardTitle>Liquid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+            <div
+              key={formatUsdc(liquid)}
+              className="klink-num klink-reveal-soft text-[40px] font-bold leading-none tracking-tight text-olive-deep"
+            >
               {formatUsdc(liquid)}
             </div>
             <p className="mt-3 text-[13px] text-muted-foreground">Available for spend.</p>
@@ -75,7 +78,10 @@ export default function YieldPage() {
             <CardTitle>Deployed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+            <div
+              key={formatUsdc(deployed)}
+              className="klink-num klink-reveal-soft text-[40px] font-bold leading-none tracking-tight text-olive-deep"
+            >
               {formatUsdc(deployed)}
             </div>
             <p className="mt-3 text-[13px] text-muted-foreground">
@@ -87,7 +93,7 @@ export default function YieldPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="klink-stagger grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <span className="klink-eyebrow">Deploy</span>

@@ -47,11 +47,11 @@ export function Sidebar() {
           width={32}
           height={32}
           className={cn(
-            "h-8 w-8 object-contain group-hover:scale-105",
+            "h-8 w-8 object-contain group-hover:scale-110 group-hover:rotate-[-6deg]",
             NAV_EASE,
           )}
         />
-        <span className="text-[22px] font-bold tracking-tight text-olive-deep">
+        <span className="klink-lens text-[22px] font-bold tracking-tight text-olive-deep">
           klink
         </span>
       </Link>
@@ -73,15 +73,26 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "relative flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-[13px]",
+                        "group relative flex items-center gap-3 rounded-pill px-3.5 py-2.5 text-[13px]",
                         NAV_EASE,
                         active
                           ? "bg-primary/20 font-semibold text-olive-deep shadow-[inset_0_0_0_1px_rgba(61,79,42,0.06)]"
                           : "text-muted-foreground hover:bg-primary/10 hover:text-olive-deep",
                       )}
                     >
-                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-olive-deep" : "text-muted-foreground")} />
+                      <Icon
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-transform duration-[var(--dur-base)] ease-[var(--ease-klink)] group-hover:scale-110",
+                          active ? "text-olive-deep" : "text-muted-foreground",
+                        )}
+                      />
                       <span>{item.label}</span>
+                      {active && (
+                        <span
+                          aria-hidden="true"
+                          className="ml-auto h-1.5 w-1.5 rounded-full bg-sap-green klink-pulse"
+                        />
+                      )}
                     </Link>
                   </li>
                 );
@@ -93,9 +104,9 @@ export function Sidebar() {
 
       {/* Soft footer pill, devnet status indicator */}
       <div className="px-4 pb-6">
-        <div className="flex items-center gap-2 rounded-pill bg-primary/10 px-3.5 py-2 text-xs shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]">
+        <div className="flex items-center gap-2 rounded-pill bg-primary/10 px-3.5 py-2 text-xs shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06] transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)] hover:bg-primary/15">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inset-0 animate-ping rounded-full bg-sap-green opacity-60" />
+            <span className="absolute inset-0 rounded-full bg-sap-green opacity-60 klink-pulse" />
             <span className="relative inline-block h-2 w-2 rounded-full bg-sap-green" />
           </span>
           <span className="font-medium text-olive-deep">Devnet</span>

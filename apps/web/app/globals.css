@@ -35,6 +35,13 @@
     --shadow-card: 0 1px 2px rgba(61, 79, 42, 0.04), 0 4px 12px rgba(61, 79, 42, 0.04);
     --shadow-card-hover: 0 2px 4px rgba(61, 79, 42, 0.05), 0 12px 32px rgba(61, 79, 42, 0.08);
     --shadow-pill: 0 1px 2px rgba(61, 79, 42, 0.04), 0 2px 8px rgba(61, 79, 42, 0.04);
+
+    /* Motion tokens — single source of truth for easing and durations. The
+       cubic-bezier mirrors the landing site's signature curve (ease-out-quart). */
+    --ease-klink: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-fast: 180ms;
+    --dur-base: 280ms;
+    --dur-slow: 520ms;
   }
 
   * { @apply border-border; }
@@ -102,5 +109,221 @@
     width: 360px;
     height: 360px;
     background: rgba(182, 212, 151, 0.22); /* sap-green-soft @ 22% */
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     Motion utilities (T-255 polish pass)
+     Calm, deliberate motion — one orchestrated entrance per page, not
+     scattered jitter. All keyed off --ease-klink and the duration tokens.
+     A prefers-reduced-motion block at the bottom disables every animation.
+     ───────────────────────────────────────────────────────────────────── */
+
+  @keyframes klink-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes klink-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes klink-shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes klink-pulse-soft {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50%      { opacity: 0.95; transform: scale(1.06); }
+  }
+  @keyframes klink-spin-slow {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes klink-blob-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(20px, -10px) scale(1.06); }
+  }
+
+  /* Page-entry reveal — single element. */
+  .klink-reveal {
+    animation: klink-fade-up var(--dur-slow) var(--ease-klink) both;
+  }
+  .klink-reveal-soft {
+    animation: klink-fade-in var(--dur-base) var(--ease-klink) both;
+  }
+
+  /* Auto-stagger direct children. Up to 12 children get distinct delays;
+     deeper children share the tail delay (a calm cap, not a runaway). */
+  .klink-stagger > * {
+    animation: klink-fade-up var(--dur-slow) var(--ease-klink) both;
+  }
+  .klink-stagger > *:nth-child(1)  { animation-delay:  40ms; }
+  .klink-stagger > *:nth-child(2)  { animation-delay: 100ms; }
+  .klink-stagger > *:nth-child(3)  { animation-delay: 160ms; }
+  .klink-stagger > *:nth-child(4)  { animation-delay: 220ms; }
+  .klink-stagger > *:nth-child(5)  { animation-delay: 280ms; }
+  .klink-stagger > *:nth-child(6)  { animation-delay: 340ms; }
+  .klink-stagger > *:nth-child(7)  { animation-delay: 400ms; }
+  .klink-stagger > *:nth-child(8)  { animation-delay: 460ms; }
+  .klink-stagger > *:nth-child(9)  { animation-delay: 520ms; }
+  .klink-stagger > *:nth-child(10) { animation-delay: 580ms; }
+  .klink-stagger > *:nth-child(11) { animation-delay: 640ms; }
+  .klink-stagger > *:nth-child(n+12) { animation-delay: 700ms; }
+
+  /* Shimmer skeleton — overlays a translucent sweep on the muted base.
+     Apply alongside any skeleton shape; the parent should be relatively
+     positioned with overflow:hidden (the .klink-skeleton-root utility
+     below handles that automatically). */
+  .klink-skeleton-root {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+  .klink-skeleton-root::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 253, 248, 0.55) 50%,
+      transparent 100%
+    );
+    animation: klink-shimmer 1.6s var(--ease-klink) infinite;
+  }
+
+  /* Arrow links — pair with an inline svg/span class="klink-arrow-icon".
+     The icon nudges 2px right on hover. */
+  .klink-arrow-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .klink-arrow-link .klink-arrow-icon {
+    transition: transform var(--dur-base) var(--ease-klink);
+  }
+  .klink-arrow-link:hover .klink-arrow-icon,
+  .klink-arrow-link:focus-visible .klink-arrow-icon {
+    transform: translateX(3px);
+  }
+
+  /* Pulse dots — used on the connected/devnet indicators. */
+  .klink-pulse {
+    animation: klink-pulse-soft 2.4s var(--ease-klink) infinite;
+  }
+
+  /* Drift the decorative glow blobs slowly so the page feels alive. */
+  .klink-glow-bg::before {
+    animation: klink-blob-drift 14s ease-in-out infinite;
+  }
+  .klink-glow-bg::after {
+    animation: klink-blob-drift 18s ease-in-out infinite reverse;
+  }
+
+  /* Lens-text — a soft radial highlight that sweeps across a heading on
+     hover. Mirrors the landing's .lens-text motif at lower intensity.
+     Wrap text in a span.klink-lens. */
+  .klink-lens {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary-foreground)) 0%,
+      hsl(var(--primary-foreground)) 40%,
+      hsl(var(--primary)) 50%,
+      hsl(var(--primary-foreground)) 60%,
+      hsl(var(--primary-foreground)) 100%
+    );
+    background-size: 200% 100%;
+    background-position: 0% 0%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    transition: background-position var(--dur-slow) var(--ease-klink);
+  }
+  .klink-lens:hover,
+  .klink-lens-active,
+  .group:hover .klink-lens {
+    background-position: -100% 0%;
+  }
+
+  /* Underline-grow for inline text links. */
+  .klink-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size var(--dur-base) var(--ease-klink);
+  }
+  .klink-underline:hover,
+  .klink-underline:focus-visible {
+    background-size: 100% 1px;
+  }
+
+  /* Spinner — used on busy states. */
+  .klink-spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 1.5px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: klink-spin-slow 720ms linear infinite;
+  }
+
+  /* Tab/segmented control — animated underline indicator. */
+  .klink-tab {
+    position: relative;
+    transition: color var(--dur-base) var(--ease-klink);
+  }
+  .klink-tab::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -2px;
+    width: 0%;
+    height: 2px;
+    background: hsl(var(--primary));
+    border-radius: 2px;
+    transform: translateX(-50%);
+    transition: width var(--dur-base) var(--ease-klink);
+  }
+  .klink-tab[data-active="true"]::after {
+    width: 70%;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Reduced-motion fallback — kills every klink animation. Respect users
+   who set prefers-reduced-motion: reduce in their OS. We still keep
+   color transitions because those don't trigger vestibular issues.
+   ───────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .klink-reveal,
+  .klink-reveal-soft,
+  .klink-stagger > *,
+  .klink-pulse,
+  .klink-glow-bg::before,
+  .klink-glow-bg::after,
+  .klink-skeleton-root::after,
+  .klink-spinner {
+    animation: none !important;
+  }
+  .klink-reveal,
+  .klink-reveal-soft,
+  .klink-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .klink-lens {
+    transition: none;
+  }
+  .klink-arrow-link .klink-arrow-icon,
+  .klink-underline,
+  .klink-tab,
+  .klink-tab::after {
+    transition: none;
   }
 }

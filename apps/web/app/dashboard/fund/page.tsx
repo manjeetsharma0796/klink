@@ -172,7 +172,7 @@ export default function FundPage() {
         title="Fund"
         subtitle="Move USDC into the vault — from your connected Phantom, by direct deposit, or with a card."
       />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="klink-stagger grid gap-6 lg:grid-cols-3">
         {/* T-249: connected-wallet path. Most-natural option for a user
             who is already signed in via Phantom; sits first so it's the
             default path the eye lands on. */}

@@ -75,7 +75,7 @@ export function StatCard({ title, eyebrow, rows, loading }: Props) {
                   <button
                     type="button"
                     aria-label={`Copy ${row.label}`}
-                    className="rounded-pill px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
+                    className="rounded-pill px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)] hover:bg-secondary/60 active:scale-[0.96]"
                     onClick={async () => {
                       const v = row.value as string;
                       await navigator.clipboard.writeText(v);
@@ -87,15 +87,21 @@ export function StatCard({ title, eyebrow, rows, loading }: Props) {
                       );
                     }}
                   >
-                    {copiedLabel === row.label ? "Copied" : "Copy"}
+                    <span
+                      key={copiedLabel === row.label ? "copied" : "copy"}
+                      className="klink-reveal-soft inline-block"
+                    >
+                      {copiedLabel === row.label ? "Copied ✓" : "Copy"}
+                    </span>
                   </button>
                 )}
                 {row.href && (
                   <Link
                     href={row.href}
-                    className="rounded-pill px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
+                    className="klink-arrow-link rounded-pill px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-olive-deep transition-colors hover:bg-secondary/60"
                   >
-                    {row.cta ?? "Configure"}
+                    <span>{row.cta ?? "Configure"}</span>
+                    <span className="klink-arrow-icon" aria-hidden="true">→</span>
                   </Link>
                 )}
               </div>

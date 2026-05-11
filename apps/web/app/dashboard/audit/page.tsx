@@ -38,28 +38,53 @@ export default function AuditPage() {
         title="Audit log"
         subtitle="Every allow / deny decision the agent triggered, with the on-chain tx signature when one was submitted."
       />
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <Button
-            key={f.v}
-            variant={filter === f.v ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter(f.v)}
-          >
-            {f.label}
-          </Button>
-        ))}
-      </div>
-      <Card>
-        <CardHeader>
-          <span className="klink-eyebrow">Entries</span>
-          <CardTitle className="klink-num">{entries.length} {entries.length === 1 ? "entry" : "entries"}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="klink-stagger">
+        <div
+          role="tablist"
+          aria-label="Audit filter"
+          className="inline-flex items-center gap-1 rounded-pill bg-card p-1 shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]"
+        >
+          {FILTERS.map((f) => {
+            const active = filter === f.v;
+            return (
+              <button
+                key={f.v}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(f.v)}
+                className={cn(
+                  "klink-tab rounded-pill px-4 py-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] transition-all duration-[var(--dur-base)] ease-[var(--ease-klink)]",
+                  active
+                    ? "bg-primary/20 text-olive-deep"
+                    : "text-muted-foreground hover:bg-secondary/40 hover:text-olive-deep",
+                )}
+                data-active={active}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <span className="klink-eyebrow">Entries</span>
+            <CardTitle className="klink-num">
+              <span key={entries.length} className="klink-reveal-soft inline-block">
+                {entries.length} {entries.length === 1 ? "entry" : "entries"}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           {isLoading && entries.length === 0 ? (
-            <Skeleton className="h-40 w-full" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
           ) : entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No audit entries.</p>
+            <p className="py-2 text-sm text-muted-foreground">No audit entries.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -101,7 +126,7 @@ export default function AuditPage() {
                       <div className="flex flex-col gap-1">
                         {e.txSignature ? (
                           <a
-                            className="text-olive-deep font-medium hover:underline"
+                            className="klink-underline text-olive-deep font-medium"
                             target="_blank"
                             href={`https://solscan.io/tx/${e.txSignature}?cluster=devnet`}
                             rel="noreferrer"
@@ -112,7 +137,7 @@ export default function AuditPage() {
                         {/* T-245 — invoice download for fund_dodo rows. Falls through silently when invoice_url isn't populated yet (e.g. webhook hasn't fired). */}
                         {e.dodoInvoiceUrl ? (
                           <a
-                            className="text-olive-deep hover:underline"
+                            className="klink-underline text-olive-deep"
                             target="_blank"
                             href={e.dodoInvoiceUrl}
                             rel="noreferrer"
@@ -137,6 +162,7 @@ export default function AuditPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

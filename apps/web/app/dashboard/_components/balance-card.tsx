@@ -14,6 +14,7 @@ interface Props {
 
 export function BalanceCard({ liquid, deployed, vaultPda, qrDataUrl, loading }: Props) {
   const total = (liquid ?? BigInt(0)) + (deployed ?? BigInt(0));
+  const totalStr = formatUsdc(total);
   return (
     <Card className="overflow-hidden">
       <CardContent className="flex flex-col items-center gap-5 p-7">
@@ -23,8 +24,11 @@ export function BalanceCard({ liquid, deployed, vaultPda, qrDataUrl, loading }: 
           {loading ? (
             <Skeleton className="h-9 w-32" />
           ) : (
-            <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
-              {formatUsdc(total)}
+            <div
+              key={totalStr}
+              className="klink-num klink-reveal-soft text-[40px] font-bold leading-none tracking-tight text-olive-deep"
+            >
+              {totalStr}
             </div>
           )}
           <div className="text-[12px] text-muted-foreground">
@@ -37,7 +41,7 @@ export function BalanceCard({ liquid, deployed, vaultPda, qrDataUrl, loading }: 
         {loading ? (
           <Skeleton className="h-36 w-36 rounded-2xl" />
         ) : qrDataUrl ? (
-          <div className="rounded-2xl bg-cream p-2 shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06]">
+          <div className="klink-reveal-soft rounded-2xl bg-cream p-2 shadow-[var(--shadow-pill)] ring-1 ring-olive-deep/[0.06] transition-transform duration-[var(--dur-base)] ease-[var(--ease-klink)] hover:scale-[1.02]">
             <img
               src={qrDataUrl}
               alt="Vault USDC ATA QR"

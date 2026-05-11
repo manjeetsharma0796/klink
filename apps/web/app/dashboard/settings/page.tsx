@@ -54,6 +54,7 @@ export default function SettingsPage() {
         subtitle="Tune the on-chain policy, inspect your vault metadata, and use the emergency drain if you ever need to take custody back."
       />
 
+      <div className="klink-stagger space-y-6">
       <Card>
         <CardHeader>
           <span className="klink-eyebrow">Policy</span>
@@ -63,7 +64,10 @@ export default function SettingsPage() {
           <p className="text-[13px] text-muted-foreground">
             Maximum percentage of total balance that can be deployed to yield. Enforced on-chain.
           </p>
-          <div className="klink-num text-[40px] font-bold leading-none tracking-tight text-olive-deep">
+          <div
+            key={value}
+            className="klink-num klink-reveal-soft text-[40px] font-bold leading-none tracking-tight text-olive-deep"
+          >
             {value / 100}%
           </div>
           <Slider min={0} max={MAX_BP} step={100} value={[value]} onValueChange={(v) => setBp(v[0])} />
@@ -209,6 +213,7 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

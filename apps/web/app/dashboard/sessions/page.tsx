@@ -31,14 +31,18 @@ export default function SessionsPage() {
       )}
 
       {!error && (
-        <Card>
+        <Card className="klink-reveal">
           <CardHeader>
             <span className="klink-eyebrow">All sessions</span>
             <CardTitle>Active and historical sessions</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-32 w-full" />
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
             ) : !sessions || sessions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No sessions yet. Create one to issue an API key.</p>
             ) : (
@@ -66,8 +70,12 @@ export default function SessionsPage() {
                         </TableCell>
                         <TableCell className="text-xs">{formatTimestamp(Date.parse(s.createdAt) / 1000)}</TableCell>
                         <TableCell className="space-x-2 text-right">
-                          <Link href={`/dashboard/sessions/${s.id}`} className="text-xs font-medium text-olive-deep hover:underline">
-                            Allowlist
+                          <Link
+                            href={`/dashboard/sessions/${s.id}`}
+                            className="klink-arrow-link text-xs font-medium text-olive-deep"
+                          >
+                            <span className="klink-underline">Allowlist</span>
+                            <span className="klink-arrow-icon" aria-hidden="true">→</span>
                           </Link>
                           {status === "active" && (
                             <>
