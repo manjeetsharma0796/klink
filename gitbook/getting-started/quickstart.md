@@ -6,11 +6,11 @@ description: Give your AI agent a Solana wallet under policy you control, in abo
 
 # Quickstart: Give your agent a wallet
 
-In about **five minutes** you'll go from a fresh Phantom wallet to **"my agent just paid for an HTTP service under a policy I configured."** No backend to run, no custodial signup. Just five clicks on the dashboard at [`klinkdotfun.vercel.app`](https://klinkdotfun.vercel.app), then one line you paste to your agent.
+In about **five minutes** you'll go from a fresh Phantom wallet to **"my agent just paid for an HTTP service under a policy I configured."** No backend to run, no custodial signup. Just five clicks on the dashboard at [`app.klinkdotfun.live`](https://app.klinkdotfun.live), then one line you paste to your agent.
 
 > **The whole on-ramp in one paste, once you have an API key:**
 > ```
-> Read https://klinkdotfun.vercel.app/skill.md and follow the instructions
+> Read https://app.klinkdotfun.live/skill.md and follow the instructions
 > to set up the Klink agent wallet. I'll give you the API key when you ask.
 > ```
 > Paste that to your agent (Claude / Cursor / your own LLM script). It reads the skill, asks for your key, saves it, runs a sanity-check curl, and from there it knows how to spend USDC, pay 402/MPP services, and stay inside the policy you set. Steps 1-4 below get you the key.
@@ -29,7 +29,7 @@ You do **not** need a klink account, an API key from us, or to run any code loca
 
 ## Step 1: Open the dashboard and sign in
 
-Visit [**klinkdotfun.vercel.app**](https://klinkdotfun.vercel.app). A sign-in gate appears over the dashboard:
+Visit [**app.klinkdotfun.live**](https://app.klinkdotfun.live). A sign-in gate appears over the dashboard:
 
 > *"Connect your Solana wallet and approve the sign-in message to access your agent vault."*
 
@@ -101,7 +101,7 @@ You now have everything your agent needs: an API key bounded by the policy you s
 **Paste this to your agent** (Claude, Cursor, ChatGPT with tool use, your own LLM script, anything that can fetch a URL and run shell):
 
 ```
-Read https://klinkdotfun.vercel.app/skill.md and follow the instructions
+Read https://app.klinkdotfun.live/skill.md and follow the instructions
 to set up the Klink agent wallet. I'll give you the API key when you ask.
 ```
 
@@ -121,7 +121,7 @@ curl -X POST -H "Authorization: Bearer $AGENT_API_KEY" \
     "max_amount": 100000,
     "method": "GET"
   }' \
-  https://klink-api.onrender.com/v1/spend/mpp
+  https://api.klinkdotfun.live/v1/spend/mpp
 ```
 
 `max_amount: 100000` is **0.10 USDC**, your agent refuses to pay more than this even if the merchant quotes higher. The actual price (0.01 USDC) is well under, so the call goes through. Expected response:

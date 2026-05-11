@@ -28,7 +28,7 @@ curl -X POST -H "Authorization: Bearer $KLINK_API_KEY" \
     "max_amount": 100000,
     "method": "GET"
   }' \
-  https://klink-api.onrender.com/v1/spend/mpp
+  https://api.klinkdotfun.live/v1/spend/mpp
 ```
 
 `max_amount: 100000` is **0.10 USDC** in base units (6 decimals), the cap above which klink refuses to pay even if the merchant quotes higher. The response is the merchant's upstream payload; the response headers include `x-tx-signature` (Solana tx) and `payment-receipt` (merchant-issued receipt). See the [Agent Skill](../skill.md) for the full request and error shape.
